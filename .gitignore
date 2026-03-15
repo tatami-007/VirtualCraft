@@ -1,0 +1,13 @@
+.gradle/
+build/
+run/
+.idea/
+.eclipse/
+.mcreator/
+
+*.iml
+*.log
+*.tmp
+
+Thumbs.db
+Desktop.ini

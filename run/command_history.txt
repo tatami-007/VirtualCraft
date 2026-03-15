@@ -1,4 +1,0 @@
-/give Dev virtual_world:deepslate_electric_ore
-/give Dev virtual_world:electric_absorber
-/time set day
-/tp ~ 100 ~
