@@ -1,4 +1,4 @@
-package dev.tatami.virtual_world.procedures;
+package dev.tatami.virtualworld.logic;
 
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.entity.player.Player;

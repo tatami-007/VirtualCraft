@@ -1,4 +1,4 @@
-package dev.tatami.virtual_world.block;
+package dev.tatami.virtualworld.block;
 
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.block.state.BlockState;
@@ -9,7 +9,7 @@ import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.core.BlockPos;
 
-import dev.tatami.virtual_world.procedures.ElectricOreBrokenByPlayerProcedure;
+import dev.tatami.virtualworld.logic.ElectricOreBrokenByPlayerProcedure;
 
 public class ElectricOreBlock extends Block {
 	public ElectricOreBlock() {

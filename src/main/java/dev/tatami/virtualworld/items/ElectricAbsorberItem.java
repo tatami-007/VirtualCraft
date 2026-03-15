@@ -1,4 +1,4 @@
-package dev.tatami.virtual_world.item;
+package dev.tatami.virtualworld.items;
 
 import net.minecraft.world.level.Level;
 import net.minecraft.world.item.UseAnim;
@@ -9,7 +9,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.InteractionHand;
 
-import dev.tatami.virtual_world.procedures.ElectricAbsorberReleaseProcedure;
+import dev.tatami.virtualworld.logic.ElectricAbsorberReleaseProcedure;
 
 public class ElectricAbsorberItem extends Item {
 	public ElectricAbsorberItem() {

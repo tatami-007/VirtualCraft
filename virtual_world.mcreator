@@ -15,7 +15,7 @@
           "src/main/resources/data/virtual_world/worldgen/configured_feature/electric_ore.json",
           "src/main/resources/assets/virtual_world/models/item/electric_ore.json",
           "src/main/resources/assets/virtual_world/models/block/electric_ore.json",
-          "src/main/java/dev/tatami/virtual_world/block/ElectricOreBlock.java"
+          "src/main/java/dev/tatami/virtualworld/block/ElectricOreBlock.java"
         ]
       }
     },
@@ -33,7 +33,7 @@
           "src/main/resources/assets/virtual_world/blockstates/deepslate_electric_ore.json",
           "src/main/resources/data/virtual_world/worldgen/placed_feature/deepslate_electric_ore.json",
           "src/main/resources/data/virtual_world/worldgen/configured_feature/deepslate_electric_ore.json",
-          "src/main/java/dev/tatami/virtual_world/block/DeepslateElectricOreBlock.java",
+          "src/main/java/dev/tatami/virtualworld/block/DeepslateElectricOreBlock.java",
           "src/main/resources/data/virtual_world/loot_table/blocks/deepslate_electric_ore.json"
         ]
       }
@@ -57,7 +57,7 @@
       "metadata": {
         "files": [
           "src/main/resources/assets/virtual_world/models/item/electric_ball.json",
-          "src/main/java/dev/tatami/virtual_world/item/ElectricBallItem.java"
+          "src/main/java/dev/tatami/virtualworld/items/ElectricBallItem.java"
         ]
       }
     },
@@ -80,7 +80,7 @@
         ],
         "return_type": "number",
         "files": [
-          "src/main/java/dev/tatami/virtual_world/procedures/ElectricAbsorberUseTimeProcedure.java"
+          "src/main/java/dev/tatami/virtualworld/logic/ElectricAbsorberUseTimeProcedure.java"
         ]
       }
     },
@@ -118,7 +118,7 @@
           }
         ],
         "files": [
-          "src/main/java/dev/tatami/virtual_world/procedures/ElectricAbsorberReleaseProcedure.java"
+          "src/main/java/dev/tatami/virtualworld/logic/ElectricAbsorberReleaseProcedure.java"
         ]
       }
     },
@@ -132,7 +132,7 @@
         "files": [
           "src/main/resources/assets/virtual_world/models/item/electric_absorber_0.json",
           "src/main/resources/assets/virtual_world/models/item/electric_absorber.json",
-          "src/main/java/dev/tatami/virtual_world/item/ElectricAbsorberItem.java"
+          "src/main/java/dev/tatami/virtualworld/items/ElectricAbsorberItem.java"
         ]
       }
     },
@@ -154,7 +154,7 @@
           }
         ],
         "files": [
-          "src/main/java/dev/tatami/virtual_world/procedures/ElectricOreBrokenByPlayerProcedure.java"
+          "src/main/java/dev/tatami/virtualworld/logic/ElectricOreBrokenByPlayerProcedure.java"
         ]
       }
     }
@@ -188,11 +188,11 @@
   "metadata": {
     "files": [
       "src/main/resources/META-INF/neoforge.mods.toml",
-      "src/main/java/dev/tatami/virtual_world/init/VirtualWorldModTabs.java",
+      "src/main/java/dev/tatami/virtualworld/core/VWTabs.java",
       "src/main/resources/pack.mcmeta",
-      "src/main/java/dev/tatami/virtual_world/VirtualWorldMod.java",
-      "src/main/java/dev/tatami/virtual_world/init/VirtualWorldModBlocks.java",
-      "src/main/java/dev/tatami/virtual_world/init/VirtualWorldModItems.java"
+      "src/main/java/dev/tatami/virtualworld/VirtualWorld.java",
+      "src/main/java/dev/tatami/virtualworld/core/definitions/VWBlocks.java",
+      "src/main/java/dev/tatami/virtualworld/core/definitions/VWItems.java"
     ]
   },
   "foldersRoot": {
@@ -214,7 +214,7 @@
     "mcreatorDependencies": [],
     "currentGenerator": "neoforge-1.21.1",
     "credits": "Tatami",
-    "modElementsPackage": "dev.tatami.virtual_world"
+    "modElementsPackage": "dev.tatami.virtualworld"
   },
   "mcreatorVersion": 202500227613
 }

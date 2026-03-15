@@ -1,7 +1,7 @@
 /*
  *    MCreator note: This file will be REGENERATED on each build.
  */
-package dev.tatami.virtual_world.init;
+package dev.tatami.virtualworld.core.definitions;
 
 import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.neoforge.registries.DeferredItem;
@@ -18,15 +18,18 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.client.renderer.item.ItemProperties;
 
-import dev.tatami.virtual_world.procedures.ElectricAbsorberUseTimeProcedure;
-import dev.tatami.virtual_world.item.ElectricBallItem;
-import dev.tatami.virtual_world.item.ElectricAbsorberItem;
-import dev.tatami.virtual_world.VirtualWorldMod;
+import dev.tatami.virtualworld.VirtualWorld;
+import dev.tatami.virtualworld.items.ElectricAbsorberItem;
+import dev.tatami.virtualworld.items.ElectricBallItem;
+import dev.tatami.virtualworld.logic.ElectricAbsorberUseTimeProcedure;
 
-public class VirtualWorldModItems {
-	public static final DeferredRegister.Items REGISTRY = DeferredRegister.createItems(VirtualWorldMod.MODID);
-	public static final DeferredItem<Item> ELECTRIC_ORE = block(VirtualWorldModBlocks.ELECTRIC_ORE);
-	public static final DeferredItem<Item> DEEPSLATE_ELECTRIC_ORE = block(VirtualWorldModBlocks.DEEPSLATE_ELECTRIC_ORE);
+public final class VWItems {
+	private VWItems() {
+	}
+
+	public static final DeferredRegister.Items REGISTRY = DeferredRegister.createItems(VirtualWorld.MODID);
+	public static final DeferredItem<Item> ELECTRIC_ORE = block(VWBlocks.ELECTRIC_ORE);
+	public static final DeferredItem<Item> DEEPSLATE_ELECTRIC_ORE = block(VWBlocks.DEEPSLATE_ELECTRIC_ORE);
 	public static final DeferredItem<Item> ELECTRIC_BALL = REGISTRY.register("electric_ball", ElectricBallItem::new);
 	public static final DeferredItem<Item> ELECTRIC_ABSORBER = REGISTRY.register("electric_absorber", ElectricAbsorberItem::new);
 

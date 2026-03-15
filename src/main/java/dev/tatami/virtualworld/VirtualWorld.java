@@ -1,4 +1,4 @@
-package dev.tatami.virtual_world;
+package dev.tatami.virtualworld;
 
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
@@ -25,26 +25,26 @@ import java.util.HashMap;
 import java.util.Collection;
 import java.util.ArrayList;
 
-import dev.tatami.virtual_world.init.VirtualWorldModTabs;
-import dev.tatami.virtual_world.init.VirtualWorldModItems;
-import dev.tatami.virtual_world.init.VirtualWorldModBlocks;
+import dev.tatami.virtualworld.core.VWTabs;
+import dev.tatami.virtualworld.core.definitions.VWBlocks;
+import dev.tatami.virtualworld.core.definitions.VWItems;
 
 @Mod("virtual_world")
-public class VirtualWorldMod {
-	public static final Logger LOGGER = LogManager.getLogger(VirtualWorldMod.class);
+public class VirtualWorld {
+	public static final Logger LOGGER = LogManager.getLogger(VirtualWorld.class);
 	public static final String MODID = "virtual_world";
 
-	public VirtualWorldMod(IEventBus modEventBus) {
+	public VirtualWorld(IEventBus modEventBus) {
 		// Start of user code block mod constructor
 		// End of user code block mod constructor
 		NeoForge.EVENT_BUS.register(this);
 		modEventBus.addListener(this::registerNetworking);
 
-		VirtualWorldModBlocks.REGISTRY.register(modEventBus);
+		VWBlocks.REGISTRY.register(modEventBus);
 
-		VirtualWorldModItems.REGISTRY.register(modEventBus);
+		VWItems.REGISTRY.register(modEventBus);
 
-		VirtualWorldModTabs.REGISTRY.register(modEventBus);
+		VWTabs.REGISTRY.register(modEventBus);
 
 		// Start of user code block mod init
 		// End of user code block mod init

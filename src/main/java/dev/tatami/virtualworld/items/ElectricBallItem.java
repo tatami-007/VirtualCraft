@@ -1,4 +1,4 @@
-package dev.tatami.virtual_world.item;
+package dev.tatami.virtualworld.items;
 
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.api.distmarker.Dist;

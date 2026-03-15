@@ -1,4 +1,4 @@
-package dev.tatami.virtual_world.procedures;
+package dev.tatami.virtualworld.logic;
 
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.AABB;
@@ -21,8 +21,8 @@ import net.minecraft.core.BlockPos;
 
 import java.util.Comparator;
 
-import dev.tatami.virtual_world.init.VirtualWorldModItems;
-import dev.tatami.virtual_world.init.VirtualWorldModBlocks;
+import dev.tatami.virtualworld.core.definitions.VWBlocks;
+import dev.tatami.virtualworld.core.definitions.VWItems;
 
 public class ElectricAbsorberReleaseProcedure {
 	public static void execute(LevelAccessor world, double x, double y, double z, Entity entity, ItemStack itemstack) {
@@ -39,7 +39,7 @@ public class ElectricAbsorberReleaseProcedure {
 				final boolean _tagValue = false;
 				CustomData.update(DataComponents.CUSTOM_DATA, itemstack, tag -> tag.putBoolean(_tagName, _tagValue));
 			}
-				if ((entity instanceof LivingEntity _livEnt ? _livEnt.getOffhandItem() : ItemStack.EMPTY).getItem() == VirtualWorldModItems.ELECTRIC_BALL.get()) {
+				if ((entity instanceof LivingEntity _livEnt ? _livEnt.getOffhandItem() : ItemStack.EMPTY).getItem() == VWItems.ELECTRIC_BALL.get()) {
 					{
 						final Vec3 _center = new Vec3(x, y, z);
 						for (Entity nearbyEntity : world.getEntitiesOfClass(Entity.class, new AABB(_center, _center).inflate(20 / 2d), e -> true).stream().sorted(Comparator.comparingDouble(_entcnd -> _entcnd.distanceToSqr(_center))).toList()) {
@@ -64,15 +64,15 @@ public class ElectricAbsorberReleaseProcedure {
 			targetX = entity.level().clip(new ClipContext(entity.getEyePosition(1f), entity.getEyePosition(1f).add(entity.getViewVector(1f).scale(5)), ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, entity)).getBlockPos().getX();
 			targetY = entity.level().clip(new ClipContext(entity.getEyePosition(1f), entity.getEyePosition(1f).add(entity.getViewVector(1f).scale(5)), ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, entity)).getBlockPos().getY();
 			targetZ = entity.level().clip(new ClipContext(entity.getEyePosition(1f), entity.getEyePosition(1f).add(entity.getViewVector(1f).scale(5)), ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, entity)).getBlockPos().getZ();
-			if ((world.getBlockState(BlockPos.containing(targetX, targetY, targetZ))).getBlock() == VirtualWorldModBlocks.ELECTRIC_ORE.get()
-					|| (world.getBlockState(BlockPos.containing(targetX, targetY, targetZ))).getBlock() == VirtualWorldModBlocks.DEEPSLATE_ELECTRIC_ORE.get()) {
+			if ((world.getBlockState(BlockPos.containing(targetX, targetY, targetZ))).getBlock() == VWBlocks.ELECTRIC_ORE.get()
+					|| (world.getBlockState(BlockPos.containing(targetX, targetY, targetZ))).getBlock() == VWBlocks.DEEPSLATE_ELECTRIC_ORE.get()) {
 				world.destroyBlock(BlockPos.containing(targetX, targetY, targetZ), false);
 				if (world instanceof ServerLevel _level) {
 					itemstack.hurtAndBreak(1, _level, null, _stkprov -> {
 					});
 				}
 				if (world instanceof ServerLevel _level) {
-					ItemEntity entityToSpawn = new ItemEntity(_level, targetX, targetY, targetZ, new ItemStack(VirtualWorldModItems.ELECTRIC_BALL.get()));
+					ItemEntity entityToSpawn = new ItemEntity(_level, targetX, targetY, targetZ, new ItemStack(VWItems.ELECTRIC_BALL.get()));
 					entityToSpawn.setPickUpDelay(10);
 					_level.addFreshEntity(entityToSpawn);
 				}
