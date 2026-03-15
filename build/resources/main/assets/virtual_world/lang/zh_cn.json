@@ -1,0 +1,8 @@
+{
+  "block.virtual_world.electric_ore": "\u7535\u77ff\u77f3",
+  "block.virtual_world.deepslate_electric_ore": "\u6df1\u5c42\u7535\u77ff\u77f3",
+  "item_group.virtual_world.virtual_world_mod_tab": "\u865a\u62df\u4e16\u754c",
+  "item.virtual_world.electric_ball": "\u7535\u7403",
+  "item.virtual_world.electric_absorber": "\u7535\u80fd\u5438\u6536\u5668",
+  "info.virtual_world.electrocution": "\u4f60\u88ab\u7535\u9ebb\u4e86\uff01"
+}

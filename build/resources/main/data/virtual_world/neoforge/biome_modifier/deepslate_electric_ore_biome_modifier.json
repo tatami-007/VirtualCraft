@@ -1,0 +1,8 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": {
+    "type": "neoforge:any"
+  },
+  "features": "virtual_world:deepslate_electric_ore",
+  "step": "underground_ores"
+}

@@ -1,0 +1,14 @@
+{
+  "parent": "item/generated",
+  "textures": {
+    "layer0": "virtual_world:item/electric_absorber"
+  },
+  "overrides": [
+    {
+      "predicate": {
+        "virtual_world:electric_absorber_time": 20
+      },
+      "model": "virtual_world:item/electric_absorber_0"
+    }
+  ]
+}
