@@ -8,12 +8,39 @@ base.archivesName = "modid"
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
+def devModVersions = [
+    jei      : '19.27.0.340',
+    jade     : '15.10.5+neoforge',
+    appleskin: '3.0.8+mc1.21'
+]
+
+repositories {
+    maven {
+        name = 'Modrinth'
+        url = 'https://api.modrinth.com/maven'
+        content {
+            includeGroup 'maven.modrinth'
+        }
+    }
+}
+
+configurations {
+    clientDevMods
+}
+
+dependencies {
+    clientDevMods "maven.modrinth:jei:${devModVersions.jei}"
+    clientDevMods "maven.modrinth:jade:${devModVersions.jade}"
+    clientDevMods "maven.modrinth:appleskin:${devModVersions.appleskin}"
+}
+
 neoForge {
     version = "21.1.176"
 
     runs {
         client {
             client()
+            additionalRuntimeClasspathConfiguration.extendsFrom(configurations.clientDevMods)
 
             def mcreatorJvmOptions = System.getenv('MCREATOR_JVM_OPTIONS')
             if (mcreatorJvmOptions) {
