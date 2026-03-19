@@ -37,7 +37,6 @@ public class ElectricCondenserScreen extends AbstractContainerScreen<ElectricCon
 		int left = leftPos;
 		int top = topPos;
 		guiGraphics.blit(TEXTURE, left, top, 0, 0, imageWidth, imageHeight, 256, 256);
-		guiGraphics.fill(left + 52, top + 57, left + 71, top + 76, 0xFFCBCDD4);
 
 		int progress = menu.getScaledProgress();
 		if (progress > 0) {

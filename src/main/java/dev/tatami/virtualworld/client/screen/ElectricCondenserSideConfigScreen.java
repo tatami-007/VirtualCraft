@@ -72,7 +72,7 @@ public class ElectricCondenserSideConfigScreen extends AbstractContainerScreen<E
 				() -> normalBackgroundFor(id),
 				() -> hoverBackgroundFor(id),
 				() -> null,
-				() -> Component.literal(menu.getModeLabel(id)));
+				Component::empty);
 	}
 
 	private AECSpriteButton createAutoButton(int id, int x, int y, boolean isImport) {
