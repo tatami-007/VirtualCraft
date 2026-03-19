@@ -1,0 +1,34 @@
+{
+  "variants": {
+    "active=false,facing=north": {
+      "model": "virtual_world:block/electric_condenser/off"
+    },
+    "active=false,facing=east": {
+      "model": "virtual_world:block/electric_condenser/off",
+      "y": 90
+    },
+    "active=false,facing=south": {
+      "model": "virtual_world:block/electric_condenser/off",
+      "y": 180
+    },
+    "active=false,facing=west": {
+      "model": "virtual_world:block/electric_condenser/off",
+      "y": 270
+    },
+    "active=true,facing=north": {
+      "model": "virtual_world:block/electric_condenser/on"
+    },
+    "active=true,facing=east": {
+      "model": "virtual_world:block/electric_condenser/on",
+      "y": 90
+    },
+    "active=true,facing=south": {
+      "model": "virtual_world:block/electric_condenser/on",
+      "y": 180
+    },
+    "active=true,facing=west": {
+      "model": "virtual_world:block/electric_condenser/on",
+      "y": 270
+    }
+  }
+}

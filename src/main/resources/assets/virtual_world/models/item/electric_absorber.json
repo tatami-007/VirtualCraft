@@ -6,7 +6,7 @@
   "overrides": [
     {
       "predicate": {
-        "virtual_world:electric_absorber_time": 20
+        "virtual_world:electric_absorber_time": 1
       },
       "model": "virtual_world:item/electric_absorber_0"
     }

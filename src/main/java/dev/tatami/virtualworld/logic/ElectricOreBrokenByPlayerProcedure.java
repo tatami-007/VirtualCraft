@@ -1,6 +1,7 @@
 package dev.tatami.virtualworld.logic;
 
 import net.minecraft.world.level.LevelAccessor;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.damagesource.DamageTypes;
@@ -9,10 +10,10 @@ import net.minecraft.network.chat.Component;
 
 public class ElectricOreBrokenByPlayerProcedure {
 	public static void execute(LevelAccessor world, Entity entity) {
-		if (entity == null)
+		if (!(world instanceof ServerLevel serverLevel) || entity == null)
 			return;
-		entity.hurt(new DamageSource(world.holderOrThrow(DamageTypes.LIGHTNING_BOLT)), 100);
-		if (entity instanceof Player _player && !_player.level().isClientSide())
-			_player.displayClientMessage(Component.literal((Component.translatable("info.virtual_world.electrocution").getString())), true);
+		entity.hurt(new DamageSource(serverLevel.holderOrThrow(DamageTypes.LIGHTNING_BOLT)), 100);
+		if (entity instanceof Player player)
+			player.displayClientMessage(Component.translatable("info.virtual_world.electrocution"), true);
 	}
 }

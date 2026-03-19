@@ -23,7 +23,7 @@ public class ElectricAbsorberItem extends Item {
 
 	@Override
 	public int getUseDuration(ItemStack itemstack, LivingEntity livingEntity) {
-		return 200;
+		return 72000;
 	}
 
 	@Override

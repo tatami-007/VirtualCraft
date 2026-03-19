@@ -10,6 +10,7 @@ import net.minecraft.world.level.block.Block;
 
 import dev.tatami.virtualworld.VirtualWorld;
 import dev.tatami.virtualworld.block.DeepslateElectricOreBlock;
+import dev.tatami.virtualworld.block.ElectricCondenserBlock;
 import dev.tatami.virtualworld.block.ElectricOreBlock;
 
 public final class VWBlocks {
@@ -19,6 +20,7 @@ public final class VWBlocks {
 	public static final DeferredRegister.Blocks REGISTRY = DeferredRegister.createBlocks(VirtualWorld.MODID);
 	public static final DeferredBlock<Block> ELECTRIC_ORE = REGISTRY.register("electric_ore", ElectricOreBlock::new);
 	public static final DeferredBlock<Block> DEEPSLATE_ELECTRIC_ORE = REGISTRY.register("deepslate_electric_ore", DeepslateElectricOreBlock::new);
+	public static final DeferredBlock<Block> ELECTRIC_CONDENSER = REGISTRY.register("electric_condenser", ElectricCondenserBlock::new);
 	// Start of user code block custom blocks
 	// End of user code block custom blocks
 }

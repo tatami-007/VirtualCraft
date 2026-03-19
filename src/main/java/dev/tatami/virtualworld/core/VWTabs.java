@@ -24,7 +24,9 @@ public final class VWTabs {
 			() -> CreativeModeTab.builder().title(Component.translatable("item_group.virtual_world.virtual_world_mod_tab")).icon(() -> new ItemStack(VWItems.ELECTRIC_BALL.get())).displayItems((parameters, tabData) -> {
 				tabData.accept(VWBlocks.ELECTRIC_ORE.get().asItem());
 				tabData.accept(VWBlocks.DEEPSLATE_ELECTRIC_ORE.get().asItem());
+				tabData.accept(VWBlocks.ELECTRIC_CONDENSER.get().asItem());
 				tabData.accept(VWItems.ELECTRIC_BALL.get());
+				tabData.accept(VWItems.ELECTRIC_INGOT.get());
 				tabData.accept(VWItems.ELECTRIC_ABSORBER.get());
 			}).build());
 }

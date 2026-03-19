@@ -7,7 +7,9 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 import net.neoforged.neoforge.network.handling.IPayloadHandler;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.fml.util.thread.SidedThreadGroups;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -25,9 +27,14 @@ import java.util.HashMap;
 import java.util.Collection;
 import java.util.ArrayList;
 
+import dev.tatami.virtualworld.client.ElectricAbsorberHighlighter;
+import dev.tatami.virtualworld.client.VWClient;
 import dev.tatami.virtualworld.core.VWTabs;
+import dev.tatami.virtualworld.core.definitions.VWBlockEntities;
 import dev.tatami.virtualworld.core.definitions.VWBlocks;
+import dev.tatami.virtualworld.core.definitions.VWCapabilities;
 import dev.tatami.virtualworld.core.definitions.VWItems;
+import dev.tatami.virtualworld.core.definitions.VWMenuTypes;
 
 @Mod("virtual_world")
 public class VirtualWorld {
@@ -39,10 +46,22 @@ public class VirtualWorld {
 		// End of user code block mod constructor
 		NeoForge.EVENT_BUS.register(this);
 		modEventBus.addListener(this::registerNetworking);
+		modEventBus.addListener(VWCapabilities::register);
+		if (FMLEnvironment.dist.isClient()) {
+			ElectricAbsorberHighlighter highlighter = new ElectricAbsorberHighlighter();
+			NeoForge.EVENT_BUS.addListener((RenderLevelStageEvent event) -> {
+				if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
+					highlighter.renderInGame(event.getPoseStack());
+				}
+			});
+			modEventBus.addListener(VWClient::registerScreens);
+		}
 
 		VWBlocks.REGISTRY.register(modEventBus);
+		VWBlockEntities.REGISTRY.register(modEventBus);
 
 		VWItems.REGISTRY.register(modEventBus);
+		VWMenuTypes.REGISTRY.register(modEventBus);
 
 		VWTabs.REGISTRY.register(modEventBus);
 

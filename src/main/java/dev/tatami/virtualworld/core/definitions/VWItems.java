@@ -30,7 +30,9 @@ public final class VWItems {
 	public static final DeferredRegister.Items REGISTRY = DeferredRegister.createItems(VirtualWorld.MODID);
 	public static final DeferredItem<Item> ELECTRIC_ORE = block(VWBlocks.ELECTRIC_ORE);
 	public static final DeferredItem<Item> DEEPSLATE_ELECTRIC_ORE = block(VWBlocks.DEEPSLATE_ELECTRIC_ORE);
+	public static final DeferredItem<Item> ELECTRIC_CONDENSER = block(VWBlocks.ELECTRIC_CONDENSER);
 	public static final DeferredItem<Item> ELECTRIC_BALL = REGISTRY.register("electric_ball", ElectricBallItem::new);
+	public static final DeferredItem<Item> ELECTRIC_INGOT = REGISTRY.register("electric_ingot", () -> new Item(new Item.Properties()));
 	public static final DeferredItem<Item> ELECTRIC_ABSORBER = REGISTRY.register("electric_absorber", ElectricAbsorberItem::new);
 
 	// Start of user code block custom items
