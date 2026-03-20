@@ -30,3 +30,4 @@ public final class VWTabs {
 				tabData.accept(VWItems.ELECTRIC_ABSORBER.get());
 			}).build());
 }
+

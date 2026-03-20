@@ -21,3 +21,4 @@ public final class VWMenuTypes {
 	public static final DeferredHolder<MenuType<?>, MenuType<ElectricCondenserSideConfigMenu>> ELECTRIC_CONDENSER_SIDE_CONFIG = REGISTRY.register("electric_condenser_side_config",
 			() -> IMenuTypeExtension.create(ElectricCondenserSideConfigMenu::new));
 }
+

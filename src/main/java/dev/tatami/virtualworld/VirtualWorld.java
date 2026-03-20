@@ -27,7 +27,7 @@ import java.util.HashMap;
 import java.util.Collection;
 import java.util.ArrayList;
 
-import dev.tatami.virtualworld.client.ElectricAbsorberHighlighter;
+import dev.tatami.virtualworld.client.AbsorberOreHighlighter;
 import dev.tatami.virtualworld.client.VWClient;
 import dev.tatami.virtualworld.core.VWTabs;
 import dev.tatami.virtualworld.core.definitions.VWBlockEntities;
@@ -35,6 +35,7 @@ import dev.tatami.virtualworld.core.definitions.VWBlocks;
 import dev.tatami.virtualworld.core.definitions.VWCapabilities;
 import dev.tatami.virtualworld.core.definitions.VWItems;
 import dev.tatami.virtualworld.core.definitions.VWMenuTypes;
+import dev.tatami.virtualworld.network.TriggerShockOverlayPayload;
 
 @Mod("virtual_world")
 public class VirtualWorld {
@@ -48,14 +49,18 @@ public class VirtualWorld {
 		modEventBus.addListener(this::registerNetworking);
 		modEventBus.addListener(VWCapabilities::register);
 		if (FMLEnvironment.dist.isClient()) {
-			ElectricAbsorberHighlighter highlighter = new ElectricAbsorberHighlighter();
+			AbsorberOreHighlighter highlighter = new AbsorberOreHighlighter();
 			NeoForge.EVENT_BUS.addListener((RenderLevelStageEvent event) -> {
 				if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
 					highlighter.renderInGame(event.getPoseStack());
 				}
 			});
 			modEventBus.addListener(VWClient::registerScreens);
+			modEventBus.addListener(VWClient::registerShaders);
+			NeoForge.EVENT_BUS.addListener(VWClient::renderShockOverlay);
 		}
+
+		addNetworkMessage(TriggerShockOverlayPayload.TYPE, TriggerShockOverlayPayload.STREAM_CODEC, TriggerShockOverlayPayload::handle);
 
 		VWBlocks.REGISTRY.register(modEventBus);
 		VWBlockEntities.REGISTRY.register(modEventBus);
@@ -109,3 +114,4 @@ public class VirtualWorld {
 		workQueue.removeAll(actions);
 	}
 }
+

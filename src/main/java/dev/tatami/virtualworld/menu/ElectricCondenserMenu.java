@@ -134,7 +134,7 @@ public class ElectricCondenserMenu extends AbstractContainerMenu {
 		if (blockEntity instanceof ElectricCondenserBlockEntity condenser) {
 			return condenser;
 		}
-		throw new IllegalStateException("Expected electric condenser block entity at " + blockPos);
+		throw new IllegalStateException("Expected voltaic forge block entity at " + blockPos);
 	}
 
 	private void addPlayerInventory(Inventory playerInventory) {
@@ -151,3 +151,4 @@ public class ElectricCondenserMenu extends AbstractContainerMenu {
 		}
 	}
 }
+

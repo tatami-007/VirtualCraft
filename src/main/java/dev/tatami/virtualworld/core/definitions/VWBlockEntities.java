@@ -17,3 +17,4 @@ public final class VWBlockEntities {
 	public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<ElectricCondenserBlockEntity>> ELECTRIC_CONDENSER = REGISTRY.register("electric_condenser",
 			() -> BlockEntityType.Builder.of(ElectricCondenserBlockEntity::new, VWBlocks.ELECTRIC_CONDENSER.get()).build(null));
 }
+

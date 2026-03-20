@@ -22,11 +22,11 @@ import java.util.HashSet;
 import java.util.List;
 
 import dev.tatami.virtualworld.core.definitions.VWItems;
-import dev.tatami.virtualworld.logic.ElectricAbsorberReleaseProcedure;
-import dev.tatami.virtualworld.util.ElectricOreClusters;
+import dev.tatami.virtualworld.logic.AbsorberReleaseProcedure;
+import dev.tatami.virtualworld.util.OreClusterFinder;
 import dev.tatami.virtualworld.util.ShapeMerger;
 
-public final class ElectricAbsorberHighlighter {
+public final class AbsorberOreHighlighter {
 	private static final int MAX_RENDERED_ORES = 128;
 
 	private long cachedGameTime = Long.MIN_VALUE;
@@ -43,7 +43,7 @@ public final class ElectricAbsorberHighlighter {
 			return;
 		}
 
-		BlockPos targetPos = ElectricOreClusters.findTargetedOre(level, player, ElectricAbsorberReleaseProcedure.getOreScanRange());
+		BlockPos targetPos = OreClusterFinder.findTargetedOre(level, player, AbsorberReleaseProcedure.getOreScanRange());
 		if (targetPos == null) {
 			clearCache();
 			return;
@@ -53,7 +53,7 @@ public final class ElectricAbsorberHighlighter {
 		if (gameTime != cachedGameTime || !targetPos.equals(cachedOrigin)) {
 			cachedGameTime = gameTime;
 			cachedOrigin = targetPos.immutable();
-			cachedCluster = ElectricOreClusters.collectConnectedOres(level, cachedOrigin, MAX_RENDERED_ORES);
+			cachedCluster = OreClusterFinder.collectConnectedOres(level, cachedOrigin, MAX_RENDERED_ORES);
 			cachedEdges = buildEdges(cachedCluster, cachedOrigin);
 		}
 
@@ -61,7 +61,7 @@ public final class ElectricAbsorberHighlighter {
 			return;
 		}
 
-		int absorptionCapacity = ElectricAbsorberReleaseProcedure.getAbsorptionCapacity(player.getTicksUsingItem());
+		int absorptionCapacity = AbsorberReleaseProcedure.getAbsorptionCapacity(player.getTicksUsingItem());
 		float red = absorptionCapacity >= cachedCluster.size() ? 0.25f : 0.95f;
 		float green = absorptionCapacity >= cachedCluster.size() ? 0.95f : 0.75f;
 		float blue = 1.0f;
@@ -108,3 +108,4 @@ public final class ElectricAbsorberHighlighter {
 		cachedEdges = List.of();
 	}
 }
+

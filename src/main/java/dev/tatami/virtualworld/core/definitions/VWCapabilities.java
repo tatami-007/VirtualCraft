@@ -15,3 +15,4 @@ public final class VWCapabilities {
 				(ElectricCondenserBlockEntity blockEntity, net.minecraft.core.Direction side) -> blockEntity.getItemHandler(side));
 	}
 }
+

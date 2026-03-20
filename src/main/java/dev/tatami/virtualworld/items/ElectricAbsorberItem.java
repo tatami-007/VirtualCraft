@@ -9,7 +9,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.InteractionHand;
 
-import dev.tatami.virtualworld.logic.ElectricAbsorberReleaseProcedure;
+import dev.tatami.virtualworld.logic.AbsorberReleaseProcedure;
 
 public class ElectricAbsorberItem extends Item {
 	public ElectricAbsorberItem() {
@@ -35,6 +35,7 @@ public class ElectricAbsorberItem extends Item {
 
 	@Override
 	public void releaseUsing(ItemStack itemstack, Level world, LivingEntity entity, int time) {
-		ElectricAbsorberReleaseProcedure.execute(world, entity.getX(), entity.getY(), entity.getZ(), entity, itemstack);
+		AbsorberReleaseProcedure.execute(world, entity.getX(), entity.getY(), entity.getZ(), entity, itemstack);
 	}
 }
+

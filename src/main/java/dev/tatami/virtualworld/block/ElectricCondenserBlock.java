@@ -120,3 +120,4 @@ public class ElectricCondenserBlock extends BaseEntityBlock {
 				net.minecraft.network.chat.Component.translatable("screen.virtual_world.electric_condenser_side_config"));
 	}
 }
+

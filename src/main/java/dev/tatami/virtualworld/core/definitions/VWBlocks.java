@@ -24,3 +24,4 @@ public final class VWBlocks {
 	// Start of user code block custom blocks
 	// End of user code block custom blocks
 }
+

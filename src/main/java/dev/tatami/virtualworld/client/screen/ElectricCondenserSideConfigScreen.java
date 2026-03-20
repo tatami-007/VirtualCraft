@@ -111,3 +111,4 @@ public class ElectricCondenserSideConfigScreen extends AbstractContainerScreen<E
 		}
 	}
 }
+

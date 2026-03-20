@@ -1,4 +1,4 @@
-{
+﻿{
   "block.virtual_world.electric_ore": "Electric Ore",
   "block.virtual_world.deepslate_electric_ore": "Deepslate Electric Ore",
   "block.virtual_world.electric_condenser": "Electric Condenser",
@@ -6,6 +6,6 @@
   "item.virtual_world.electric_ball": "Electric Ball",
   "item.virtual_world.electric_ingot": "Electric Ingot",
   "item.virtual_world.electric_absorber": "Electric Absorber",
-  "info.virtual_world.electrocution": "You\u0027re electrocuted!",
+  "info.virtual_world.electrocution": "You were struck by an arc!",
   "screen.virtual_world.electric_condenser_side_config": "Side Config"
 }

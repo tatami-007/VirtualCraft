@@ -1,4 +1,4 @@
-﻿{
+{
   "mod_elements": [
     {
       "name": "ElectricOre",
@@ -62,7 +62,7 @@
       }
     },
     {
-      "name": "ElectricAbsorberUseTime",
+      "name": "AbsorberCharge",
       "type": "procedure",
       "compiles": true,
       "locked_code": false,
@@ -80,12 +80,12 @@
         ],
         "return_type": "number",
         "files": [
-          "src/main/java/dev/tatami/virtualworld/logic/ElectricAbsorberUseTimeProcedure.java"
+          "src/main/java/dev/tatami/virtualworld/logic/AbsorberChargeProcedure.java"
         ]
       }
     },
     {
-      "name": "ElectricAbsorberRelease",
+      "name": "AbsorberRelease",
       "type": "procedure",
       "compiles": true,
       "locked_code": false,
@@ -118,7 +118,7 @@
           }
         ],
         "files": [
-          "src/main/java/dev/tatami/virtualworld/logic/ElectricAbsorberReleaseProcedure.java"
+          "src/main/java/dev/tatami/virtualworld/logic/AbsorberReleaseProcedure.java"
         ]
       }
     },
@@ -137,7 +137,7 @@
       }
     },
     {
-      "name": "ElectricOreBrokenByPlayer",
+      "name": "OreShock",
       "type": "procedure",
       "compiles": true,
       "locked_code": false,
@@ -154,7 +154,7 @@
           }
         ],
         "files": [
-          "src/main/java/dev/tatami/virtualworld/logic/ElectricOreBrokenByPlayerProcedure.java"
+          "src/main/java/dev/tatami/virtualworld/logic/OreShockProcedure.java"
         ]
       }
     }
@@ -177,12 +177,12 @@
       "info.virtual_world.electrocution": "You\u0027re electrocuted!"
     },
     "zh_cn": {
-      "block.virtual_world.electric_ore": "电矿石",
-      "block.virtual_world.deepslate_electric_ore": "深层电矿石",
-      "item_group.virtual_world.virtual_world_mod_tab": "虚拟世界",
-      "item.virtual_world.electric_ball": "电球",
-      "item.virtual_world.electric_absorber": "电能吸收器",
-      "info.virtual_world.electrocution": "你被电麻了！"
+      "block.virtual_world.electric_ore": "鐢电熆鐭?,
+      "block.virtual_world.deepslate_electric_ore": "娣卞眰鐢电熆鐭?,
+      "item_group.virtual_world.virtual_world_mod_tab": "铏氭嫙涓栫晫",
+      "item.virtual_world.electric_ball": "鐢电悆",
+      "item.virtual_world.electric_absorber": "鐢佃兘鍚告敹鍣?,
+      "info.virtual_world.electrocution": "浣犺鐢甸夯浜嗭紒"
     }
   },
   "metadata": {

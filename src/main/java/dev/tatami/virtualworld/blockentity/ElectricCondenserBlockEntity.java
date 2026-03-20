@@ -425,3 +425,4 @@ public class ElectricCondenserBlockEntity extends BlockEntity implements MenuPro
 		}
 	}
 }
+

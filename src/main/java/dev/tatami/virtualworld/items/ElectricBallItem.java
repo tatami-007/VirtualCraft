@@ -17,3 +17,4 @@ public class ElectricBallItem extends Item {
 		return true;
 	}
 }
+

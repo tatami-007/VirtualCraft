@@ -16,10 +16,10 @@ import java.util.Set;
 
 import dev.tatami.virtualworld.core.definitions.VWBlocks;
 
-public final class ElectricOreClusters {
+public final class OreClusterFinder {
 	private static final int[][] NEIGHBOR_OFFSETS = createNeighborOffsets();
 
-	private ElectricOreClusters() {
+	private OreClusterFinder() {
 	}
 
 	public static BlockPos findTargetedOre(Level level, LivingEntity entity, double range) {
@@ -86,3 +86,4 @@ public final class ElectricOreClusters {
 		return offsets;
 	}
 }
+

@@ -21,7 +21,7 @@ import net.minecraft.client.renderer.item.ItemProperties;
 import dev.tatami.virtualworld.VirtualWorld;
 import dev.tatami.virtualworld.items.ElectricAbsorberItem;
 import dev.tatami.virtualworld.items.ElectricBallItem;
-import dev.tatami.virtualworld.logic.ElectricAbsorberUseTimeProcedure;
+import dev.tatami.virtualworld.logic.AbsorberChargeProcedure;
 
 public final class VWItems {
 	private VWItems() {
@@ -52,8 +52,9 @@ public final class VWItems {
 		public static void clientLoad(FMLClientSetupEvent event) {
 			event.enqueueWork(() -> {
 				ItemProperties.register(ELECTRIC_ABSORBER.get(), ResourceLocation.parse("virtual_world:electric_absorber_time"),
-						(itemStackToRender, clientWorld, entity, itemEntityId) -> (float) ElectricAbsorberUseTimeProcedure.execute(entity, itemStackToRender));
+						(itemStackToRender, clientWorld, entity, itemEntityId) -> (float) AbsorberChargeProcedure.execute(entity, itemStackToRender));
 			});
 		}
 	}
 }
+

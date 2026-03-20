@@ -57,3 +57,4 @@ public class ElectricCondenserScreen extends AbstractContainerScreen<ElectricCon
 		renderTooltip(guiGraphics, mouseX, mouseY);
 	}
 }
+

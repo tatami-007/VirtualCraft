@@ -9,7 +9,7 @@ import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.core.BlockPos;
 
-import dev.tatami.virtualworld.logic.ElectricOreBrokenByPlayerProcedure;
+import dev.tatami.virtualworld.logic.OreShockProcedure;
 
 public class ElectricOreBlock extends Block {
 	public ElectricOreBlock() {
@@ -29,7 +29,8 @@ public class ElectricOreBlock extends Block {
 	@Override
 	public boolean onDestroyedByPlayer(BlockState blockstate, Level world, BlockPos pos, Player entity, boolean willHarvest, FluidState fluid) {
 		boolean retval = super.onDestroyedByPlayer(blockstate, world, pos, entity, willHarvest, fluid);
-		ElectricOreBrokenByPlayerProcedure.execute(world, entity);
+		OreShockProcedure.execute(world, entity);
 		return retval;
 	}
 }
+

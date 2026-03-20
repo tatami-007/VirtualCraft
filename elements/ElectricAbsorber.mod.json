@@ -8,7 +8,7 @@
     "guiTexture": "",
     "customProperties": {
       "time": {
-        "name": "ElectricAbsorberUseTime"
+        "name": "AbsorberCharge"
       }
     },
     "states": [
@@ -59,7 +59,7 @@
     "inventorySize": 9,
     "inventoryStackSize": 99,
     "onStoppedUsing": {
-      "name": "ElectricAbsorberRelease"
+      "name": "AbsorberRelease"
     },
     "enableRanged": false,
     "shootConstantly": false,

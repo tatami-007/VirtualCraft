@@ -24,9 +24,9 @@ import java.util.List;
 import dev.tatami.virtualworld.VirtualWorld;
 import dev.tatami.virtualworld.core.definitions.VWBlocks;
 import dev.tatami.virtualworld.core.definitions.VWItems;
-import dev.tatami.virtualworld.util.ElectricOreClusters;
+import dev.tatami.virtualworld.util.OreClusterFinder;
 
-public class ElectricAbsorberReleaseProcedure {
+public class AbsorberReleaseProcedure {
 	private static final int CHARGE_TICKS_PER_ORE = 8;
 	private static final int LIGHTNING_RANGE = 10;
 	private static final int ORE_SCAN_RANGE = 5;
@@ -43,7 +43,7 @@ public class ElectricAbsorberReleaseProcedure {
 
 		CustomData.update(DataComponents.CUSTOM_DATA, itemstack, tag -> tag.putBoolean("isGlowing", false));
 
-		BlockPos targetOre = ElectricOreClusters.findTargetedOre(serverLevel, livingEntity, ORE_SCAN_RANGE);
+		BlockPos targetOre = OreClusterFinder.findTargetedOre(serverLevel, livingEntity, ORE_SCAN_RANGE);
 		if (targetOre != null) {
 			collectTargetOreCluster(serverLevel, targetOre, livingEntity.getTicksUsingItem(), itemstack);
 			return;
@@ -94,7 +94,7 @@ public class ElectricAbsorberReleaseProcedure {
 	}
 
 	private static void collectTargetOreCluster(ServerLevel level, BlockPos targetOre, int useTicks, ItemStack absorber) {
-		List<BlockPos> connectedOres = ElectricOreClusters.collectConnectedOres(level, targetOre, MAX_CONNECTED_ORES);
+		List<BlockPos> connectedOres = OreClusterFinder.collectConnectedOres(level, targetOre, MAX_CONNECTED_ORES);
 		int absorbCount = Math.min(connectedOres.size(), getAbsorptionCapacity(useTicks));
 		if (absorbCount <= 0) {
 			return;
@@ -130,3 +130,4 @@ public class ElectricAbsorberReleaseProcedure {
 		}
 	}
 }
+

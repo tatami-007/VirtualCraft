@@ -132,7 +132,7 @@
     "fluidCapacity": 8000,
     "fluidRestrictions": [],
     "onDestroyedByPlayer": {
-      "name": "ElectricOreBrokenByPlayer"
+      "name": "OreShock"
     },
     "generateFeature": true,
     "restrictionBiomes": [],
