@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "c": { "item": "virtual_craft:currency_generator" },
+    "e": { "item": "virtual_craft:electric_ingot" },
+    "l": { "item": "virtual_craft:link_card" },
+    "q": { "item": "minecraft:quartz" },
+    "r": { "item": "minecraft:redstone_block" }
+  },
+  "pattern": [
+    "qeq",
+    "lcl",
+    "qrq"
+  ],
+  "result": {
+    "count": 1,
+    "id": "virtual_craft:pow_miner"
+  }
+}

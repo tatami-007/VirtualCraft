@@ -2,6 +2,7 @@ package dev.tatami.virtualcraft.client.screen.widget;
 
 import java.util.function.LongFunction;
 
+import dev.tatami.virtualcraft.client.screen.MachineUi;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractSliderButton;
@@ -64,11 +65,11 @@ public class AmountSliderWidget extends AbstractSliderButton {
 	@Override
 	public void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
 		boolean hovered = isHoveredOrFocused();
-		int outer = !active ? 0xFFC7D4E0 : hovered ? 0xFFB2D1DE : 0xFFC7D7E5;
-		int inner = !active ? 0xFFE8EEF4 : 0xFFF6FAFD;
-		int track = !active ? 0xFFD9E2EB : 0xFFC3D5E3;
-		int fill = hovered ? 0xFF67C6DE : 0xFF58B7D1;
-		int knob = hovered ? 0xFFFFFFFF : 0xFFF8FBFF;
+		int outer = !active ? 0xFF24303C : hovered ? 0xFF355063 : MachineUi.PANEL_OUTER;
+		int inner = !active ? 0xFF10161E : 0xFF121B27;
+		int track = !active ? 0xFF1A232D : MachineUi.TRACK;
+		int fill = hovered ? 0xFF54D9E8 : MachineUi.CYAN;
+		int knob = hovered ? 0xFFEFFFFF : 0xFFD5EFF4;
 		guiGraphics.fill(getX(), getY(), getX() + width, getY() + height, outer);
 		guiGraphics.fill(getX() + 1, getY() + 1, getX() + width - 1, getY() + height - 1, inner);
 		int trackY = getY() + height - 7;
@@ -82,8 +83,8 @@ public class AmountSliderWidget extends AbstractSliderButton {
 		knobX = Mth.clamp(knobX, trackLeft, trackRight - KNOB_WIDTH);
 		guiGraphics.fill(knobX, trackY - 4, knobX + KNOB_WIDTH, trackY + 7, knob);
 
-		Component label = getMessage();
-		int textColor = !active ? 0xFF7F94A8 : 0xFF31485F;
+		Component label = Component.literal(MachineUi.trim(Minecraft.getInstance().font, getMessage().getString(), width - 10));
+		int textColor = !active ? MachineUi.TEXT_MUTED : MachineUi.TEXT_PRIMARY;
 		int textX = getX() + width / 2 - Minecraft.getInstance().font.width(label) / 2;
 		guiGraphics.drawString(Minecraft.getInstance().font, label, textX, getY() + 6, textColor, false);
 	}

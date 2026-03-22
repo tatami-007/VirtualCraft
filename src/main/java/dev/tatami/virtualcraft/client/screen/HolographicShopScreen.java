@@ -42,14 +42,6 @@ public class HolographicShopScreen extends AbstractContainerScreen<HolographicSh
 	}
 
 	private static final int VISIBLE_OFFERS = 5;
-	private static final int PANEL_BG = 0xFFF8FBFF;
-	private static final int PANEL_ALT = 0xFFEAF1F8;
-	private static final int PANEL_ACTIVE = 0xFFDCEAF5;
-	private static final int BORDER = 0xFFB5C5D5;
-	private static final int TEXT_PRIMARY = 0xFF223347;
-	private static final int TEXT_SECONDARY = 0xFF48749B;
-	private static final int TEXT_ACCENT = 0xFF228C67;
-	private static final int TEXT_MUTED = 0xFF6E8296;
 	private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("MM-dd HH:mm").withZone(ZoneId.systemDefault());
 
 	private final Inventory playerInventory;
@@ -68,6 +60,7 @@ public class HolographicShopScreen extends AbstractContainerScreen<HolographicSh
 	private CryptoCurrency convertTargetCurrency = CryptoCurrency.BTC;
 	private CryptoCurrency shopSettlementCurrency = CryptoCurrency.USDT;
 	private CryptoCurrency transferCurrency = CryptoCurrency.USDT;
+	private CryptoCurrency miningSettlementCurrency = CryptoCurrency.BTC;
 	private Button walletTab;
 	private Button convertTab;
 	private Button shopTab;
@@ -100,135 +93,140 @@ public class HolographicShopScreen extends AbstractContainerScreen<HolographicSh
 	private AmountSliderWidget transferSlider;
 	private AmountSliderWidget miningSlider;
 	private EditBox targetBox;
-	private CryptoCurrency miningSettlementCurrency = CryptoCurrency.BTC;
 
 	public HolographicShopScreen(HolographicShopMenu menu, Inventory playerInventory, Component title) {
 		super(menu, playerInventory, title);
 		this.playerInventory = playerInventory;
-		imageWidth = 476;
-		imageHeight = 304;
+		imageWidth = 556;
+		imageHeight = 332;
 		titleLabelX = 18;
-		titleLabelY = 16;
+		titleLabelY = 14;
 		inventoryLabelY = 10_000;
 	}
 
 	@Override
 	protected void init() {
 		super.init();
-		int tabY = topPos + 62;
-		walletTab = addRenderableWidget(new FlatButton(leftPos + 16, tabY, 84, 22,
+		int navX = sidebarX() + 6;
+		int navY = topPos + 86;
+		walletTab = addRenderableWidget(new FlatButton(navX, navY, 96, 20,
 				Component.translatable("screen.virtual_craft.holographic_shop.page.wallet"),
-				button -> setPage(Page.WALLET), () -> currentPage == Page.WALLET, 0xFF52D3E0));
-		convertTab = addRenderableWidget(new FlatButton(leftPos + 104, tabY, 84, 22,
+				button -> setPage(Page.WALLET), () -> currentPage == Page.WALLET, MachineUi.CYAN));
+		convertTab = addRenderableWidget(new FlatButton(navX, navY + 24, 96, 20,
 				Component.translatable("screen.virtual_craft.holographic_shop.page.convert"),
-				button -> setPage(Page.CONVERT), () -> currentPage == Page.CONVERT, 0xFF52D3E0));
-		shopTab = addRenderableWidget(new FlatButton(leftPos + 192, tabY, 84, 22,
+				button -> setPage(Page.CONVERT), () -> currentPage == Page.CONVERT, MachineUi.CYAN));
+		shopTab = addRenderableWidget(new FlatButton(navX, navY + 48, 96, 20,
 				Component.translatable("screen.virtual_craft.holographic_shop.page.shop"),
-				button -> setPage(Page.SHOP), () -> currentPage == Page.SHOP, 0xFF52D3E0));
-		transferTab = addRenderableWidget(new FlatButton(leftPos + 280, tabY, 84, 22,
+				button -> setPage(Page.SHOP), () -> currentPage == Page.SHOP, MachineUi.CYAN));
+		transferTab = addRenderableWidget(new FlatButton(navX, navY + 72, 96, 20,
 				Component.translatable("screen.virtual_craft.holographic_shop.page.transfer"),
-				button -> setPage(Page.TRANSFER), () -> currentPage == Page.TRANSFER, 0xFF52D3E0));
-		miningTab = addRenderableWidget(new FlatButton(leftPos + 368, tabY, 92, 22,
+				button -> setPage(Page.TRANSFER), () -> currentPage == Page.TRANSFER, MachineUi.CYAN));
+		miningTab = addRenderableWidget(new FlatButton(navX, navY + 96, 96, 20,
 				Component.translatable("screen.virtual_craft.holographic_shop.page.mining"),
-				button -> setPage(Page.MINING), () -> currentPage == Page.MINING, 0xFF52D3E0));
-		refreshRatesButton = addRenderableWidget(new FlatButton(leftPos + 402, topPos + 14, 56, 18,
+				button -> setPage(Page.MINING), () -> currentPage == Page.MINING, MachineUi.GREEN));
+		refreshRatesButton = addRenderableWidget(new FlatButton(leftPos + imageWidth - 102, topPos + 14, 84, 20,
 				Component.translatable("screen.virtual_craft.holographic_shop.refresh"),
-				button -> PacketDistributor.sendToServer(new WalletActionPayload(menu.containerId, WalletActionPayload.Action.REFRESH_RATES, "", "", 0L, "")),
-				() -> false, 0xFF52D3E0));
+				button -> PacketDistributor.sendToServer(new WalletActionPayload(menu.containerId, WalletActionPayload.Action.REFRESH_RATES, "", "", 0L, ""))));
 
-		depositAllButton = addRenderableWidget(new FlatButton(rightPanelX(), topPos + 108, 102, 20,
+		int actionX = actionPanelX() + 8;
+		depositAllButton = addRenderableWidget(new FlatButton(actionX, topPos + 104, 118, 20,
 				Component.translatable("screen.virtual_craft.holographic_shop.deposit_all"),
 				button -> PacketDistributor.sendToServer(new WalletActionPayload(menu.containerId, WalletActionPayload.Action.DEPOSIT_ALL, "", "", 0L, ""))));
-		depositSelectedButton = addRenderableWidget(new FlatButton(rightPanelX(), topPos + 132, 102, 20,
+		depositSelectedButton = addRenderableWidget(new FlatButton(actionX, topPos + 130, 118, 20,
 				Component.empty(),
 				button -> PacketDistributor.sendToServer(new WalletActionPayload(menu.containerId, WalletActionPayload.Action.DEPOSIT_SELECTED, selectedWalletCurrency.id(), "", 0L, ""))));
-		walletSlider = addRenderableWidget(new AmountSliderWidget(rightPanelX(), topPos + 164, 102, 20, 0L, 0L, 1L, 0L, amount ->
+		walletSlider = addRenderableWidget(new AmountSliderWidget(actionX, topPos + 158, 118, 20, 0L, 0L, 1L, 0L, amount ->
 				Component.literal(formatTickerAmount(selectedWalletCurrency, amount))));
-		withdrawItemButton = addRenderableWidget(new FlatButton(rightPanelX(), topPos + 188, 102, 20,
+		withdrawItemButton = addRenderableWidget(new FlatButton(actionX, topPos + 186, 118, 20,
 				Component.translatable("screen.virtual_craft.holographic_shop.withdraw_item"),
 				button -> PacketDistributor.sendToServer(new WalletActionPayload(menu.containerId, WalletActionPayload.Action.WITHDRAW_ITEM, selectedWalletCurrency.id(), "", walletSlider.currentValue(), ""))));
-		withdrawEmeraldButton = addRenderableWidget(new FlatButton(rightPanelX(), topPos + 212, 102, 20,
+		withdrawEmeraldButton = addRenderableWidget(new FlatButton(actionX, topPos + 212, 118, 20,
 				Component.translatable("screen.virtual_craft.holographic_shop.withdraw_emeralds"),
 				button -> PacketDistributor.sendToServer(new WalletActionPayload(menu.containerId, WalletActionPayload.Action.WITHDRAW_EMERALDS, CryptoCurrency.USDT.id(), "", walletSlider.currentValue(), ""))));
 
-		convertSourceButton = addRenderableWidget(new FlatButton(rightPanelX(), topPos + 108, 102, 20, Component.empty(), button -> {
+		convertSourceButton = addRenderableWidget(new FlatButton(actionX, topPos + 104, 118, 20, Component.empty(), button -> {
 			convertSourceCurrency = nextCurrency(convertSourceCurrency);
 			if (convertSourceCurrency == convertTargetCurrency) {
 				convertTargetCurrency = nextCurrency(convertTargetCurrency);
 			}
 			refreshDynamicState();
 		}));
-		convertTargetButton = addRenderableWidget(new FlatButton(rightPanelX(), topPos + 132, 102, 20, Component.empty(), button -> {
+		convertTargetButton = addRenderableWidget(new FlatButton(actionX, topPos + 130, 118, 20, Component.empty(), button -> {
 			convertTargetCurrency = nextCurrency(convertTargetCurrency);
 			if (convertTargetCurrency == convertSourceCurrency) {
 				convertSourceCurrency = nextCurrency(convertSourceCurrency);
 			}
 			refreshDynamicState();
 		}));
-		flipConvertButton = addRenderableWidget(new FlatButton(rightPanelX(), topPos + 156, 102, 20, Component.literal("<>"), button -> {
+		flipConvertButton = addRenderableWidget(new FlatButton(actionX, topPos + 156, 118, 20, Component.literal("<>"), button -> {
 			CryptoCurrency previousSource = convertSourceCurrency;
 			convertSourceCurrency = convertTargetCurrency;
 			convertTargetCurrency = previousSource;
 			refreshDynamicState();
 		}));
-		convertSlider = addRenderableWidget(new AmountSliderWidget(rightPanelX(), topPos + 182, 102, 20, 0L, 0L, 1L, 0L, amount ->
+		convertSlider = addRenderableWidget(new AmountSliderWidget(actionX, topPos + 184, 118, 20, 0L, 0L, 1L, 0L, amount ->
 				Component.literal(formatTickerAmount(convertSourceCurrency, amount))));
-		convertQuarterButton = addRenderableWidget(new FlatButton(rightPanelX(), topPos + 206, 32, 18, Component.literal("25%"), button -> convertSlider.setFraction(0.25D)));
-		convertHalfButton = addRenderableWidget(new FlatButton(rightPanelX() + 35, topPos + 206, 32, 18, Component.literal("50%"), button -> convertSlider.setFraction(0.50D)));
-		convertMaxButton = addRenderableWidget(new FlatButton(rightPanelX() + 70, topPos + 206, 32, 18, Component.literal("100%"), button -> convertSlider.setFraction(1.0D)));
-		convertSubmitButton = addRenderableWidget(new FlatButton(rightPanelX(), topPos + 228, 102, 20,
+		convertQuarterButton = addRenderableWidget(new FlatButton(actionX, topPos + 212, 36, 18, Component.literal("25%"), button -> convertSlider.setFraction(0.25D)));
+		convertHalfButton = addRenderableWidget(new FlatButton(actionX + 41, topPos + 212, 36, 18, Component.literal("50%"), button -> convertSlider.setFraction(0.50D)));
+		convertMaxButton = addRenderableWidget(new FlatButton(actionX + 82, topPos + 212, 36, 18, Component.literal("100%"), button -> convertSlider.setFraction(1.0D)));
+		convertSubmitButton = addRenderableWidget(new FlatButton(actionX, topPos + 236, 118, 20,
 				Component.translatable("screen.virtual_craft.holographic_shop.convert.submit"),
 				button -> PacketDistributor.sendToServer(new WalletActionPayload(menu.containerId, WalletActionPayload.Action.CONVERT, convertSourceCurrency.id(), convertTargetCurrency.id(), convertSlider.currentValue(), ""))));
 
-		shopSettlementButton = addRenderableWidget(new FlatButton(rightPanelX(), topPos + 108, 102, 20, Component.empty(), button -> {
+		shopSettlementButton = addRenderableWidget(new FlatButton(actionX, topPos + 104, 118, 20, Component.empty(), button -> {
 			shopSettlementCurrency = nextCurrency(shopSettlementCurrency);
 			refreshDynamicState();
 		}));
-		shopSlider = addRenderableWidget(new AmountSliderWidget(rightPanelX(), topPos + 144, 102, 20, 0L, 0L, 1L, 0L, amount ->
+		shopSlider = addRenderableWidget(new AmountSliderWidget(actionX, topPos + 138, 118, 20, 0L, 0L, 1L, 0L, amount ->
 				Component.translatable("screen.virtual_craft.holographic_shop.shop_quantity", amount)));
-		buyButton = addRenderableWidget(new FlatButton(rightPanelX(), topPos + 176, 102, 20, Component.translatable("screen.virtual_craft.holographic_shop.buy"), button -> sendShopAction(ShopActionPayload.Action.BUY)));
-		sellButton = addRenderableWidget(new FlatButton(rightPanelX(), topPos + 200, 102, 20, Component.translatable("screen.virtual_craft.holographic_shop.sell"), button -> sendShopAction(ShopActionPayload.Action.SELL)));
-		previousOffersButton = addRenderableWidget(new FlatButton(rightPanelX(), topPos + 228, 48, 20, Component.literal("<"), button -> {
+		buyButton = addRenderableWidget(new FlatButton(actionX, topPos + 168, 118, 20,
+				Component.translatable("screen.virtual_craft.holographic_shop.buy"),
+				button -> sendShopAction(ShopActionPayload.Action.BUY), () -> false, MachineUi.GREEN));
+		sellButton = addRenderableWidget(new FlatButton(actionX, topPos + 194, 118, 20,
+				Component.translatable("screen.virtual_craft.holographic_shop.sell"),
+				button -> sendShopAction(ShopActionPayload.Action.SELL), () -> false, MachineUi.AMBER));
+		previousOffersButton = addRenderableWidget(new FlatButton(actionX, topPos + 222, 56, 20, Component.literal("<"), button -> {
 			offerScroll = Math.max(0, offerScroll - VISIBLE_OFFERS);
 			selectedOfferIndex = offerScroll;
 			refreshDynamicState();
 		}));
-		nextOffersButton = addRenderableWidget(new FlatButton(rightPanelX() + 54, topPos + 228, 48, 20, Component.literal(">"), button -> {
+		nextOffersButton = addRenderableWidget(new FlatButton(actionX + 62, topPos + 222, 56, 20, Component.literal(">"), button -> {
 			offerScroll = Math.min(Math.max(0, offers.size() - VISIBLE_OFFERS), offerScroll + VISIBLE_OFFERS);
 			selectedOfferIndex = offerScroll;
 			refreshDynamicState();
 		}));
 
-		targetBox = addRenderableWidget(new FlatEditBox(font, centerPanelX() + 16, topPos + 120, 148, 18, Component.translatable("screen.virtual_craft.holographic_shop.transfer.target")));
+		targetBox = addRenderableWidget(new FlatEditBox(font, contentX() + 16, topPos + 112, 220, 18, Component.translatable("screen.virtual_craft.holographic_shop.transfer.target")));
 		targetBox.setMaxLength(32);
-		transferCurrencyButton = addRenderableWidget(new FlatButton(rightPanelX(), topPos + 108, 102, 20, Component.empty(), button -> {
+		transferCurrencyButton = addRenderableWidget(new FlatButton(actionX, topPos + 104, 118, 20, Component.empty(), button -> {
 			transferCurrency = nextCurrency(transferCurrency);
 			refreshDynamicState();
 		}));
-		transferSlider = addRenderableWidget(new AmountSliderWidget(rightPanelX(), topPos + 144, 102, 20, 0L, 0L, 1L, 0L, amount ->
+		transferSlider = addRenderableWidget(new AmountSliderWidget(actionX, topPos + 138, 118, 20, 0L, 0L, 1L, 0L, amount ->
 				Component.literal(formatTickerAmount(transferCurrency, amount))));
-		sendTransferButton = addRenderableWidget(new FlatButton(rightPanelX(), topPos + 176, 102, 20,
+		sendTransferButton = addRenderableWidget(new FlatButton(actionX, topPos + 168, 118, 20,
 				Component.translatable("screen.virtual_craft.holographic_shop.transfer.send"),
 				button -> PacketDistributor.sendToServer(new WalletActionPayload(menu.containerId, WalletActionPayload.Action.TRANSFER, transferCurrency.id(), "", transferSlider.currentValue(), targetBox.getValue().trim()))));
 
 		for (int index = 0; index < 4; index++) {
 			final int suggestionIndex = index;
-			playerSuggestionButtons.add(addRenderableWidget(new FlatButton(centerPanelX() + 16 + (index % 2) * 76, topPos + 146 + (index / 2) * 22, 70, 20, Component.empty(), button -> {
+			playerSuggestionButtons.add(addRenderableWidget(new FlatButton(contentX() + 16 + (index % 2) * 112, topPos + 144 + (index / 2) * 24, 104, 20, Component.empty(), button -> {
 				if (suggestionIndex < suggestedPlayers.size()) {
 					targetBox.setValue(suggestedPlayers.get(suggestionIndex));
 				}
 			})));
 		}
 
-		miningCurrencyButton = addRenderableWidget(new FlatButton(rightPanelX(), topPos + 108, 102, 20, Component.empty(), button -> {
+		miningCurrencyButton = addRenderableWidget(new FlatButton(actionX, topPos + 104, 118, 20, Component.empty(), button -> {
 			miningSettlementCurrency = nextCurrency(miningSettlementCurrency);
 			refreshDynamicState();
 		}));
-		miningSlider = addRenderableWidget(new AmountSliderWidget(rightPanelX(), topPos + 144, 102, 20, 0L, 0L, 1L, 0L, amount ->
+		miningSlider = addRenderableWidget(new AmountSliderWidget(actionX, topPos + 138, 118, 20, 0L, 0L, 1L, 0L, amount ->
 				Component.translatable("screen.virtual_craft.holographic_shop.mining.quantity", amount)));
-		settleMiningButton = addRenderableWidget(new FlatButton(rightPanelX(), topPos + 176, 102, 20,
+		settleMiningButton = addRenderableWidget(new FlatButton(actionX, topPos + 168, 118, 20,
 				Component.translatable("screen.virtual_craft.holographic_shop.mining.settle"),
-				button -> PacketDistributor.sendToServer(new WalletActionPayload(menu.containerId, WalletActionPayload.Action.SETTLE_MINING, miningSettlementCurrency.id(), "", miningSlider.currentValue(), ""))));
+				button -> PacketDistributor.sendToServer(new WalletActionPayload(menu.containerId, WalletActionPayload.Action.SETTLE_MINING, miningSettlementCurrency.id(), "", miningSlider.currentValue(), "")),
+				() -> false, MachineUi.GREEN));
 
 		refreshDynamicState();
 		setPage(Page.WALLET);
@@ -268,26 +266,18 @@ public class HolographicShopScreen extends AbstractContainerScreen<HolographicSh
 
 	@Override
 	protected void renderBg(GuiGraphics guiGraphics, float partialTick, int mouseX, int mouseY) {
-		int left = leftPos;
-		int top = topPos;
-		guiGraphics.fill(left, top, left + imageWidth, top + imageHeight, 0xFFF1F6FB);
-		guiGraphics.fill(left + 4, top + 4, left + imageWidth - 4, top + imageHeight - 4, 0xFFE3EBF4);
-		guiGraphics.fill(left + 14, top + 14, left + imageWidth - 14, top + 48, PANEL_ACTIVE);
-		guiGraphics.fill(left + 14, top + 90, left + imageWidth - 14, top + imageHeight - 14, 0xFFF6FAFD);
-		drawPanel(guiGraphics, leftPanelX(), top + 102, 156, 170, PANEL_BG);
-		drawPanel(guiGraphics, centerPanelX(), top + 102, 160, 170, PANEL_BG);
-		drawPanel(guiGraphics, rightPanelX() - 6, top + 102, 114, 170, PANEL_BG);
-		guiGraphics.fill(leftPanelX() + 1, top + 103, leftPanelX() + 155, top + 105, 0xFF79CDE0);
-		guiGraphics.fill(centerPanelX() + 1, top + 103, centerPanelX() + 159, top + 105, 0xFF79CDE0);
-		guiGraphics.fill(rightPanelX() - 5, top + 103, rightPanelX() + 107, top + 105, 0xFFA3B8CA);
-
-		renderTopBar(guiGraphics, left, top);
+		MachineUi.drawWindow(guiGraphics, leftPos, topPos, imageWidth, imageHeight);
+		MachineUi.drawPanel(guiGraphics, sidebarX(), topPos + 70, 110, 248, false);
+		MachineUi.drawPanel(guiGraphics, contentX(), topPos + 70, 252, 248, false);
+		MachineUi.drawPanel(guiGraphics, actionPanelX(), topPos + 70, 134, 248, true);
+		renderTopBar(guiGraphics);
+		renderSidebarSummary(guiGraphics);
 		switch (currentPage) {
-			case WALLET -> renderWalletPage(guiGraphics, left, top);
-			case CONVERT -> renderConvertPage(guiGraphics, left, top);
-			case SHOP -> renderShopPage(guiGraphics, left, top);
-			case TRANSFER -> renderTransferPage(guiGraphics, left, top);
-			case MINING -> renderMiningPage(guiGraphics, left, top);
+			case WALLET -> renderWalletPage(guiGraphics);
+			case CONVERT -> renderConvertPage(guiGraphics);
+			case SHOP -> renderShopPage(guiGraphics);
+			case TRANSFER -> renderTransferPage(guiGraphics);
+			case MINING -> renderMiningPage(guiGraphics);
 		}
 	}
 
@@ -307,9 +297,8 @@ public class HolographicShopScreen extends AbstractContainerScreen<HolographicSh
 	public boolean mouseClicked(double mouseX, double mouseY, int button) {
 		if (currentPage == Page.WALLET) {
 			for (int index = 0; index < CryptoCurrency.values().length; index++) {
-				int rowX = leftPanelX() + 8;
-				int rowY = topPos + 94 + index * 30;
-				if (inside(mouseX, mouseY, rowX, rowY, 138, 26)) {
+				int rowY = topPos + 144 + index * 24;
+				if (inside(mouseX, mouseY, contentX() + 12, rowY, 228, 20)) {
 					selectedWalletCurrency = CryptoCurrency.values()[index];
 					refreshDynamicState();
 					return true;
@@ -322,8 +311,8 @@ public class HolographicShopScreen extends AbstractContainerScreen<HolographicSh
 				if (offerIndex >= offers.size()) {
 					break;
 				}
-				int rowY = topPos + 94 + index * 30;
-				if (inside(mouseX, mouseY, leftPanelX() + 8, rowY, 138, 26)) {
+				int rowY = topPos + 108 + index * 26;
+				if (inside(mouseX, mouseY, contentX() + 12, rowY, 228, 22)) {
 					selectedOfferIndex = offerIndex;
 					refreshDynamicState();
 					return true;
@@ -333,118 +322,113 @@ public class HolographicShopScreen extends AbstractContainerScreen<HolographicSh
 		return super.mouseClicked(mouseX, mouseY, button);
 	}
 
-	private void renderTopBar(GuiGraphics guiGraphics, int left, int top) {
+	private void renderTopBar(GuiGraphics guiGraphics) {
 		long totalUsdtMinor = CurrencyConversionService.totalWalletValueUsdtMinor(balances, exchangeSnapshot);
-		guiGraphics.drawString(font, title, left + 20, top + 18, TEXT_PRIMARY, false);
-		drawTrimmedString(guiGraphics, Component.translatable("screen.virtual_craft.holographic_shop.total_value", compactHeaderValue(totalUsdtMinor)).getString(), left + 20, top + 32, 158, TEXT_SECONDARY);
-		drawTrimmedString(guiGraphics, Component.translatable("screen.virtual_craft.holographic_shop.wallet_address", shortWalletAddress()).getString(), left + 182, top + 32, 116, TEXT_MUTED);
-		drawTrimmedString(guiGraphics, Component.translatable("screen.virtual_craft.holographic_shop.rate_status", exchangeSnapshot.status().name()).getString(), left + 306, top + 18, 90, statusColor());
-		drawTrimmedString(guiGraphics, Component.translatable("screen.virtual_craft.holographic_shop.rate_time", TIME_FORMAT.format(Instant.ofEpochSecond(exchangeSnapshot.updatedAtEpochSeconds()))).getString(), left + 306, top + 32, 92, TEXT_MUTED);
+		guiGraphics.drawString(font, title, leftPos + 18, topPos + 16, MachineUi.TEXT_PRIMARY, false);
+		MachineUi.drawTrimmedString(guiGraphics, font, Component.translatable("screen.virtual_craft.holographic_shop.total_value", compactHeaderValue(totalUsdtMinor)).getString(), leftPos + 18, topPos + 31, 220, MachineUi.TEXT_SECONDARY);
+		MachineUi.drawTrimmedString(guiGraphics, font, Component.translatable("screen.virtual_craft.holographic_shop.wallet_address", shortWalletAddress()).getString(), leftPos + 244, topPos + 16, 192, MachineUi.TEXT_MUTED);
+		MachineUi.drawTrimmedString(guiGraphics, font, Component.translatable("screen.virtual_craft.holographic_shop.rate_status", exchangeSnapshot.status().name()).getString(), leftPos + 244, topPos + 31, 120, statusColor());
+		MachineUi.drawTrimmedString(guiGraphics, font, Component.translatable("screen.virtual_craft.holographic_shop.rate_time", TIME_FORMAT.format(Instant.ofEpochSecond(exchangeSnapshot.updatedAtEpochSeconds()))).getString(), leftPos + 372, topPos + 31, 120, MachineUi.TEXT_MUTED);
 	}
 
-	private void renderWalletPage(GuiGraphics guiGraphics, int left, int top) {
-		for (int index = 0; index < CryptoCurrency.values().length; index++) {
-			CryptoCurrency currency = CryptoCurrency.values()[index];
-			int rowY = top + 110 + index * 30;
-			guiGraphics.fill(leftPanelX() + 8, rowY, leftPanelX() + 148, rowY + 26, currency == selectedWalletCurrency ? PANEL_ACTIVE : PANEL_ALT);
-			guiGraphics.renderItem(currency.stack(1), leftPanelX() + 14, rowY + 5);
-			drawTrimmedString(guiGraphics, currency.displayName().getString(), leftPanelX() + 36, rowY + 5, 104, TEXT_PRIMARY);
-			drawTrimmedString(guiGraphics, formatTickerAmount(currency, balances[index]), leftPanelX() + 36, rowY + 15, 104, TEXT_ACCENT);
+	private void renderSidebarSummary(GuiGraphics guiGraphics) {
+		MachineUi.drawChip(guiGraphics, font, Component.translatable("screen.virtual_craft.holographic_shop.sidebar.system"), sidebarX() + 8, topPos + 222, 94, MachineUi.CYAN, MachineUi.TEXT_ACCENT);
+		MachineUi.drawTrimmedString(guiGraphics, font, Component.translatable("screen.virtual_craft.holographic_shop.sidebar.portfolio").getString(), sidebarX() + 10, topPos + 246, 88, MachineUi.TEXT_MUTED);
+		MachineUi.drawTrimmedString(guiGraphics, font, compactHeaderValue(CurrencyConversionService.totalWalletValueUsdtMinor(balances, exchangeSnapshot)), sidebarX() + 10, topPos + 258, 88, MachineUi.TEXT_SUCCESS);
+		MachineUi.drawTrimmedString(guiGraphics, font, Component.translatable("screen.virtual_craft.holographic_shop.recent_activity").getString(), sidebarX() + 10, topPos + 278, 88, MachineUi.TEXT_SECONDARY);
+		for (int index = 0; index < Math.min(3, recentEntries.size()); index++) {
+			MachineUi.drawTrimmedString(guiGraphics, font, formatLedgerEntry(recentEntries.get(index)), sidebarX() + 10, topPos + 290 + index * 10, 88, index == 0 ? MachineUi.TEXT_ACCENT : MachineUi.TEXT_MUTED);
 		}
+	}
 
+	private void renderWalletPage(GuiGraphics guiGraphics) {
 		long selectedBalance = balances[selectedWalletCurrency.ordinal()];
 		long selectedUsdt = CurrencyConversionService.convert(selectedWalletCurrency, CryptoCurrency.USDT, selectedBalance, exchangeSnapshot, RoundingMode.DOWN);
-		guiGraphics.renderItem(selectedWalletCurrency.stack(1), centerPanelX() + 16, top + 114);
-		drawTrimmedString(guiGraphics, selectedWalletCurrency.displayName().getString(), centerPanelX() + 40, top + 115, 112, TEXT_PRIMARY);
-		drawTrimmedString(guiGraphics, formatTickerAmount(selectedWalletCurrency, selectedBalance), centerPanelX() + 16, top + 138, 140, TEXT_ACCENT);
-		drawTrimmedString(guiGraphics, "~" + CryptoCurrency.USDT.formatFixed(selectedUsdt) + " USDT", centerPanelX() + 16, top + 156, 140, TEXT_MUTED);
-		if (selectedWalletCurrency == CryptoCurrency.USDT) {
-			drawTrimmedString(guiGraphics, "Stablecoin pegged to USD", centerPanelX() + 16, top + 176, 140, TEXT_MUTED);
-		} else {
-			long quoteMinor = CurrencyConversionService.convert(selectedWalletCurrency, CryptoCurrency.USDT, selectedWalletCurrency.wholeUnitMinor(), exchangeSnapshot, RoundingMode.DOWN);
-			drawTrimmedString(guiGraphics, "1 " + selectedWalletCurrency.ticker() + " = " + CryptoCurrency.USDT.formatCompact(quoteMinor) + " USDT", centerPanelX() + 16, top + 176, 140, TEXT_MUTED);
+		guiGraphics.renderItem(selectedWalletCurrency.stack(1), contentX() + 16, topPos + 104);
+		MachineUi.drawTrimmedString(guiGraphics, font, selectedWalletCurrency.displayName().getString(), contentX() + 40, topPos + 106, 196, MachineUi.TEXT_PRIMARY);
+		MachineUi.drawTrimmedString(guiGraphics, font, formatTickerAmount(selectedWalletCurrency, selectedBalance), contentX() + 16, topPos + 124, 220, MachineUi.TEXT_SUCCESS);
+		MachineUi.drawTrimmedString(guiGraphics, font, "~" + CryptoCurrency.USDT.formatFixed(selectedUsdt) + " USDT", contentX() + 16, topPos + 136, 220, MachineUi.TEXT_MUTED);
+
+		for (int index = 0; index < CryptoCurrency.values().length; index++) {
+			CryptoCurrency currency = CryptoCurrency.values()[index];
+			int rowY = topPos + 144 + index * 24;
+			guiGraphics.fill(contentX() + 12, rowY, contentX() + 240, rowY + 20, currency == selectedWalletCurrency ? 0xFF1D2B3B : 0xFF131C28);
+			guiGraphics.renderItem(currency.stack(1), contentX() + 18, rowY + 2);
+			MachineUi.drawTrimmedString(guiGraphics, font, currency.displayName().getString(), contentX() + 40, rowY + 4, 96, MachineUi.TEXT_PRIMARY);
+			MachineUi.drawTrimmedString(guiGraphics, font, formatTickerAmount(currency, balances[index]), contentX() + 132, rowY + 4, 100, currency == selectedWalletCurrency ? MachineUi.TEXT_SUCCESS : MachineUi.TEXT_SECONDARY);
 		}
-		drawTrimmedString(guiGraphics, Component.translatable("screen.virtual_craft.holographic_shop.selected_hint").getString(), centerPanelX() + 16, top + 196, 140, TEXT_MUTED);
-		drawTrimmedString(guiGraphics, Component.translatable("screen.virtual_craft.holographic_shop.recent_activity").getString(), centerPanelX() + 16, top + 216, 140, TEXT_SECONDARY);
-		for (int index = 0; index < Math.min(5, recentEntries.size()); index++) {
-			drawTrimmedString(guiGraphics, formatLedgerEntry(recentEntries.get(index)), centerPanelX() + 16, top + 228 + index * 8, 140, index == 0 ? TEXT_ACCENT : TEXT_MUTED);
-		}
-		drawTrimmedString(guiGraphics, Component.translatable("screen.virtual_craft.holographic_shop.quick_withdraw").getString(), rightPanelX(), top + 154, 102, TEXT_SECONDARY);
+
+		MachineUi.drawWrappedText(guiGraphics, font, Component.translatable("screen.virtual_craft.holographic_shop.selected_hint"), contentX() + 16, topPos + 272, 220, MachineUi.TEXT_MUTED, 2);
 	}
 
-	private void renderConvertPage(GuiGraphics guiGraphics, int left, int top) {
-		guiGraphics.renderItem(convertSourceCurrency.stack(1), leftPanelX() + 16, top + 116);
-		guiGraphics.renderItem(convertTargetCurrency.stack(1), centerPanelX() + 16, top + 116);
-		drawTrimmedString(guiGraphics, Component.translatable("screen.virtual_craft.holographic_shop.convert.from").getString(), leftPanelX() + 16, top + 108, 120, TEXT_SECONDARY);
-		drawTrimmedString(guiGraphics, convertSourceCurrency.displayName().getString(), leftPanelX() + 40, top + 116, 96, TEXT_PRIMARY);
-		drawTrimmedString(guiGraphics, formatTickerAmount(convertSourceCurrency, balances[convertSourceCurrency.ordinal()]), leftPanelX() + 16, top + 142, 120, TEXT_ACCENT);
-		drawTrimmedString(guiGraphics, Component.translatable("screen.virtual_craft.holographic_shop.convert.to").getString(), centerPanelX() + 16, top + 108, 140, TEXT_SECONDARY);
-		drawTrimmedString(guiGraphics, convertTargetCurrency.displayName().getString(), centerPanelX() + 40, top + 116, 120, TEXT_PRIMARY);
+	private void renderConvertPage(GuiGraphics guiGraphics) {
+		guiGraphics.renderItem(convertSourceCurrency.stack(1), contentX() + 16, topPos + 106);
+		MachineUi.drawTrimmedString(guiGraphics, font, Component.translatable("screen.virtual_craft.holographic_shop.convert.from").getString(), contentX() + 40, topPos + 104, 180, MachineUi.TEXT_MUTED);
+		MachineUi.drawTrimmedString(guiGraphics, font, convertSourceCurrency.displayName().getString(), contentX() + 40, topPos + 116, 180, MachineUi.TEXT_PRIMARY);
+		MachineUi.drawTrimmedString(guiGraphics, font, formatTickerAmount(convertSourceCurrency, balances[convertSourceCurrency.ordinal()]), contentX() + 16, topPos + 136, 220, MachineUi.TEXT_SUCCESS);
+
+		guiGraphics.renderItem(convertTargetCurrency.stack(1), contentX() + 16, topPos + 166);
+		MachineUi.drawTrimmedString(guiGraphics, font, Component.translatable("screen.virtual_craft.holographic_shop.convert.to").getString(), contentX() + 40, topPos + 164, 180, MachineUi.TEXT_MUTED);
+		MachineUi.drawTrimmedString(guiGraphics, font, convertTargetCurrency.displayName().getString(), contentX() + 40, topPos + 176, 180, MachineUi.TEXT_PRIMARY);
 
 		long previewAmount = CurrencyConversionService.convert(convertSourceCurrency, convertTargetCurrency, convertSlider.currentValue(), exchangeSnapshot, RoundingMode.HALF_UP);
-		drawTrimmedString(guiGraphics, Component.translatable("screen.virtual_craft.holographic_shop.convert.preview").getString(), centerPanelX() + 16, top + 142, 140, TEXT_SECONDARY);
-		drawTrimmedString(guiGraphics, formatTickerAmount(convertTargetCurrency, previewAmount), centerPanelX() + 16, top + 162, 140, TEXT_ACCENT);
+		MachineUi.drawTrimmedString(guiGraphics, font, Component.translatable("screen.virtual_craft.holographic_shop.convert.preview").getString(), contentX() + 16, topPos + 214, 220, MachineUi.TEXT_MUTED);
+		MachineUi.drawTrimmedString(guiGraphics, font, formatTickerAmount(convertTargetCurrency, previewAmount), contentX() + 16, topPos + 228, 220, MachineUi.TEXT_SUCCESS);
 		long rateAmount = CurrencyConversionService.convert(convertSourceCurrency, convertTargetCurrency, convertSourceCurrency.wholeUnitMinor(), exchangeSnapshot, RoundingMode.DOWN);
-		drawTrimmedString(guiGraphics, "1 " + convertSourceCurrency.ticker() + " = " + convertTargetCurrency.formatCompact(rateAmount) + " " + convertTargetCurrency.ticker(), centerPanelX() + 16, top + 188, 140, TEXT_MUTED);
-		drawTrimmedString(guiGraphics, Component.translatable("screen.virtual_craft.holographic_shop.convert.auto").getString(), rightPanelX(), top + 104, 102, TEXT_SECONDARY);
+		MachineUi.drawWrappedText(guiGraphics, font, Component.literal("1 " + convertSourceCurrency.ticker() + " = " + convertTargetCurrency.formatCompact(rateAmount) + " " + convertTargetCurrency.ticker()), contentX() + 16, topPos + 250, 220, MachineUi.TEXT_MUTED, 2);
 	}
 
-	private void renderShopPage(GuiGraphics guiGraphics, int left, int top) {
+	private void renderShopPage(GuiGraphics guiGraphics) {
 		for (int index = 0; index < VISIBLE_OFFERS; index++) {
 			int offerIndex = offerScroll + index;
 			if (offerIndex >= offers.size()) {
 				break;
 			}
 			ShopOffer offer = offers.get(offerIndex);
-			int rowY = top + 110 + index * 30;
-			guiGraphics.fill(leftPanelX() + 8, rowY, leftPanelX() + 148, rowY + 26, offerIndex == selectedOfferIndex ? PANEL_ACTIVE : PANEL_ALT);
-			guiGraphics.renderItem(offer.createStack(1), leftPanelX() + 14, rowY + 5);
-			drawTrimmedString(guiGraphics, offer.displayName().getString(), leftPanelX() + 36, rowY + 5, 104, TEXT_PRIMARY);
-			drawTrimmedString(guiGraphics, CryptoCurrency.USDT.formatCompact(offer.priceUsdtMinor()) + " / " + CryptoCurrency.USDT.formatCompact(offer.sellUsdtMinor()) + " USDT", leftPanelX() + 36, rowY + 15, 104, TEXT_MUTED);
+			int rowY = topPos + 108 + index * 26;
+			guiGraphics.fill(contentX() + 12, rowY, contentX() + 240, rowY + 22, offerIndex == selectedOfferIndex ? 0xFF1D2B3B : 0xFF131C28);
+			guiGraphics.renderItem(offer.createStack(1), contentX() + 18, rowY + 3);
+			MachineUi.drawTrimmedString(guiGraphics, font, offer.displayName().getString(), contentX() + 40, rowY + 4, 120, MachineUi.TEXT_PRIMARY);
+			MachineUi.drawTrimmedString(guiGraphics, font, CryptoCurrency.USDT.formatCompact(offer.priceUsdtMinor()) + " / " + CryptoCurrency.USDT.formatCompact(offer.sellUsdtMinor()) + " USDT", contentX() + 40, rowY + 13, 188, MachineUi.TEXT_MUTED);
 		}
 
 		ShopOffer offer = selectedOffer();
 		if (offer == null) {
-			drawTrimmedString(guiGraphics, "No offers loaded", centerPanelX() + 16, top + 116, 140, TEXT_MUTED);
+			MachineUi.drawTrimmedString(guiGraphics, font, Component.translatable("screen.virtual_craft.holographic_shop.shop.empty").getString(), contentX() + 16, topPos + 250, 220, MachineUi.TEXT_WARNING);
 			return;
 		}
-		guiGraphics.renderItem(offer.createStack(1), centerPanelX() + 16, top + 116);
-		drawTrimmedString(guiGraphics, offer.displayName().getString(), centerPanelX() + 40, top + 116, 118, TEXT_PRIMARY);
-		drawTrimmedString(guiGraphics, "Base: " + CryptoCurrency.USDT.formatFixed(offer.priceUsdtMinor()) + " USDT", centerPanelX() + 16, top + 142, 140, TEXT_SECONDARY);
-		drawTrimmedString(guiGraphics, "Sell: " + CryptoCurrency.USDT.formatFixed(offer.sellUsdtMinor()) + " USDT", centerPanelX() + 16, top + 162, 140, TEXT_SECONDARY);
 		long perUnitMinor = CurrencyConversionService.convertUsdtMinorTo(shopSettlementCurrency, offer.priceUsdtMinor(), exchangeSnapshot, RoundingMode.UP);
 		long payoutMinor = CurrencyConversionService.convertUsdtMinorTo(shopSettlementCurrency, offer.sellUsdtMinor(), exchangeSnapshot, RoundingMode.DOWN);
-		drawTrimmedString(guiGraphics, "Buy: " + formatTickerAmount(shopSettlementCurrency, perUnitMinor), centerPanelX() + 16, top + 190, 140, TEXT_ACCENT);
-		drawTrimmedString(guiGraphics, "Sell: " + formatTickerAmount(shopSettlementCurrency, payoutMinor), centerPanelX() + 16, top + 210, 140, TEXT_MUTED);
+		MachineUi.drawTrimmedString(guiGraphics, font, offer.displayName().getString(), contentX() + 16, topPos + 246, 220, MachineUi.TEXT_PRIMARY);
+		MachineUi.drawTrimmedString(guiGraphics, font, "Buy: " + formatTickerAmount(shopSettlementCurrency, perUnitMinor), contentX() + 16, topPos + 260, 220, MachineUi.TEXT_SUCCESS);
+		MachineUi.drawTrimmedString(guiGraphics, font, "Sell: " + formatTickerAmount(shopSettlementCurrency, payoutMinor), contentX() + 16, topPos + 274, 220, MachineUi.TEXT_SECONDARY);
 	}
 
-	private void renderTransferPage(GuiGraphics guiGraphics, int left, int top) {
-		guiGraphics.renderItem(transferCurrency.stack(1), leftPanelX() + 16, top + 116);
-		drawTrimmedString(guiGraphics, transferCurrency.displayName().getString(), leftPanelX() + 40, top + 116, 102, TEXT_PRIMARY);
-		drawTrimmedString(guiGraphics, Component.translatable("screen.virtual_craft.holographic_shop.transfer.balance", formatTickerAmount(transferCurrency, balances[transferCurrency.ordinal()])).getString(), leftPanelX() + 16, top + 142, 122, TEXT_ACCENT);
-		drawTrimmedString(guiGraphics, Component.translatable("screen.virtual_craft.holographic_shop.transfer.target").getString(), centerPanelX() + 16, top + 104, 140, TEXT_SECONDARY);
-		drawTrimmedString(guiGraphics, Component.translatable("screen.virtual_craft.holographic_shop.transfer.quick_label").getString(), centerPanelX() + 16, top + 168, 140, TEXT_SECONDARY);
-		drawTrimmedString(guiGraphics, "Amount", rightPanelX(), top + 134, 102, TEXT_SECONDARY);
+	private void renderTransferPage(GuiGraphics guiGraphics) {
+		guiGraphics.renderItem(transferCurrency.stack(1), contentX() + 16, topPos + 104);
+		MachineUi.drawTrimmedString(guiGraphics, font, transferCurrency.displayName().getString(), contentX() + 40, topPos + 106, 196, MachineUi.TEXT_PRIMARY);
+		MachineUi.drawTrimmedString(guiGraphics, font, Component.translatable("screen.virtual_craft.holographic_shop.transfer.balance", formatTickerAmount(transferCurrency, balances[transferCurrency.ordinal()])).getString(), contentX() + 16, topPos + 128, 220, MachineUi.TEXT_SUCCESS);
+		MachineUi.drawTrimmedString(guiGraphics, font, Component.translatable("screen.virtual_craft.holographic_shop.transfer.target").getString(), contentX() + 16, topPos + 96, 220, MachineUi.TEXT_MUTED);
+		MachineUi.drawTrimmedString(guiGraphics, font, Component.translatable("screen.virtual_craft.holographic_shop.transfer.quick_label").getString(), contentX() + 16, topPos + 144, 220, MachineUi.TEXT_SECONDARY);
 	}
 
-	private void renderMiningPage(GuiGraphics guiGraphics, int left, int top) {
+	private void renderMiningPage(GuiGraphics guiGraphics) {
 		int vouchers = countHashVouchers();
 		long btcMinor = Math.multiplyExact(HashVoucherItem.BTC_PAYOUT_MINOR, Math.max(0, (int) miningSlider.currentValue()));
 		long payoutMinor = CurrencyConversionService.convert(CryptoCurrency.BTC, miningSettlementCurrency, btcMinor, exchangeSnapshot, RoundingMode.DOWN);
-		guiGraphics.renderItem(ModItems.HASH_VOUCHER.toStack(), leftPanelX() + 16, top + 116);
-		drawTrimmedString(guiGraphics, Component.translatable("screen.virtual_craft.holographic_shop.mining.available", vouchers).getString(), leftPanelX() + 40, top + 116, 104, TEXT_PRIMARY);
-		drawTrimmedString(guiGraphics, Component.translatable("screen.virtual_craft.holographic_shop.mining.base", CryptoCurrency.BTC.formatCompact(HashVoucherItem.BTC_PAYOUT_MINOR), CryptoCurrency.BTC.ticker()).getString(), leftPanelX() + 16, top + 142, 120, TEXT_MUTED);
-		drawTrimmedString(guiGraphics, Component.translatable("screen.virtual_craft.holographic_shop.mining.preview").getString(), centerPanelX() + 16, top + 116, 140, TEXT_SECONDARY);
-		drawTrimmedString(guiGraphics, formatTickerAmount(miningSettlementCurrency, payoutMinor), centerPanelX() + 16, top + 140, 140, TEXT_ACCENT);
-		drawTrimmedString(guiGraphics, Component.translatable("screen.virtual_craft.holographic_shop.mining.hint").getString(), centerPanelX() + 16, top + 168, 140, TEXT_MUTED);
+		guiGraphics.renderItem(ModItems.HASH_VOUCHER.toStack(), contentX() + 16, topPos + 106);
+		MachineUi.drawTrimmedString(guiGraphics, font, Component.translatable("screen.virtual_craft.holographic_shop.mining.available", vouchers).getString(), contentX() + 40, topPos + 108, 196, MachineUi.TEXT_PRIMARY);
+		MachineUi.drawTrimmedString(guiGraphics, font, Component.translatable("screen.virtual_craft.holographic_shop.mining.base", CryptoCurrency.BTC.formatCompact(HashVoucherItem.BTC_PAYOUT_MINOR), CryptoCurrency.BTC.ticker()).getString(), contentX() + 16, topPos + 132, 220, MachineUi.TEXT_MUTED);
+		MachineUi.drawTrimmedString(guiGraphics, font, Component.translatable("screen.virtual_craft.holographic_shop.mining.preview").getString(), contentX() + 16, topPos + 168, 220, MachineUi.TEXT_MUTED);
+		MachineUi.drawTrimmedString(guiGraphics, font, formatTickerAmount(miningSettlementCurrency, payoutMinor), contentX() + 16, topPos + 184, 220, MachineUi.TEXT_SUCCESS);
+		MachineUi.drawWrappedText(guiGraphics, font, Component.translatable("screen.virtual_craft.holographic_shop.mining.hint"), contentX() + 16, topPos + 212, 220, MachineUi.TEXT_MUTED, 3);
 	}
 
 	private void renderHoverTooltip(GuiGraphics guiGraphics, int mouseX, int mouseY) {
 		if (currentPage == Page.WALLET) {
 			for (int index = 0; index < CryptoCurrency.values().length; index++) {
-				int rowX = leftPanelX() + 8;
-				int rowY = topPos + 94 + index * 30;
-				if (inside(mouseX, mouseY, rowX, rowY, 138, 26)) {
+				int rowY = topPos + 144 + index * 24;
+				if (inside(mouseX, mouseY, contentX() + 12, rowY, 228, 20)) {
 					CryptoCurrency currency = CryptoCurrency.values()[index];
 					long usdtValue = CurrencyConversionService.convert(currency, CryptoCurrency.USDT, balances[index], exchangeSnapshot, RoundingMode.DOWN);
 					guiGraphics.renderComponentTooltip(font, List.of(
@@ -462,9 +446,8 @@ public class HolographicShopScreen extends AbstractContainerScreen<HolographicSh
 				if (offerIndex >= offers.size()) {
 					break;
 				}
-				int rowX = leftPanelX() + 8;
-				int rowY = topPos + 94 + index * 30;
-				if (inside(mouseX, mouseY, rowX, rowY, 138, 26)) {
+				int rowY = topPos + 108 + index * 26;
+				if (inside(mouseX, mouseY, contentX() + 12, rowY, 228, 22)) {
 					ShopOffer offer = offers.get(offerIndex);
 					guiGraphics.renderComponentTooltip(font, List.of(
 							offer.displayName(),
@@ -484,11 +467,14 @@ public class HolographicShopScreen extends AbstractContainerScreen<HolographicSh
 		convertTab.active = currentPage != Page.CONVERT;
 		shopTab.active = currentPage != Page.SHOP;
 		transferTab.active = currentPage != Page.TRANSFER;
+		miningTab.active = currentPage != Page.MINING;
+
 		depositSelectedButton.setMessage(Component.translatable("screen.virtual_craft.holographic_shop.deposit_current", Component.literal(selectedWalletCurrency.ticker())));
 		convertSourceButton.setMessage(Component.literal(convertSourceCurrency.ticker()));
 		convertTargetButton.setMessage(Component.literal(convertTargetCurrency.ticker()));
 		shopSettlementButton.setMessage(Component.translatable("screen.virtual_craft.holographic_shop.shop_currency", shopSettlementCurrency.ticker()));
 		transferCurrencyButton.setMessage(Component.literal(transferCurrency.ticker()));
+		miningCurrencyButton.setMessage(Component.literal(miningSettlementCurrency.ticker()));
 
 		long walletMax = wholeMinorBalance(selectedWalletCurrency);
 		long walletCurrent = walletSlider.currentValue();
@@ -528,6 +514,14 @@ public class HolographicShopScreen extends AbstractContainerScreen<HolographicSh
 		transferSlider.configure(transferMax > 0 ? 1L : 0L, transferMax, transferStep, Math.min(transferCurrent, transferMax));
 		sendTransferButton.active = transferSlider.currentValue() > 0 && !targetBox.getValue().trim().isBlank();
 		refreshPlayerSuggestions();
+
+		int vouchers = countHashVouchers();
+		long miningCurrent = miningSlider.currentValue();
+		if (miningCurrent <= 0 && vouchers > 0) {
+			miningCurrent = 1L;
+		}
+		miningSlider.configure(vouchers > 0 ? 1L : 0L, vouchers, 1L, Math.min(miningCurrent, vouchers));
+		settleMiningButton.active = miningSlider.currentValue() > 0;
 
 		boolean walletVisible = currentPage == Page.WALLET;
 		depositAllButton.visible = walletVisible;
@@ -586,6 +580,14 @@ public class HolographicShopScreen extends AbstractContainerScreen<HolographicSh
 			button.visible = transferVisible;
 			button.active = transferVisible && !button.getMessage().getString().isBlank();
 		}
+
+		boolean miningVisible = currentPage == Page.MINING;
+		miningCurrencyButton.visible = miningVisible;
+		miningCurrencyButton.active = miningVisible;
+		miningSlider.visible = miningVisible;
+		miningSlider.active = miningVisible && miningSlider.active;
+		settleMiningButton.visible = miningVisible;
+		settleMiningButton.active = miningVisible && settleMiningButton.active;
 	}
 
 	private void setPage(Page page) {
@@ -669,10 +671,6 @@ public class HolographicShopScreen extends AbstractContainerScreen<HolographicSh
 		return balances[currency.ordinal()] / currency.wholeUnitMinor() * currency.wholeUnitMinor();
 	}
 
-	private long sliderMinorStep(CryptoCurrency currency) {
-		return Math.max(1L, currency.wholeUnitMinor() / 1000L);
-	}
-
 	private String compactHeaderValue(long totalUsdtMinor) {
 		return CryptoCurrency.USDT.formatCompact(totalUsdtMinor) + " " + CryptoCurrency.USDT.ticker();
 	}
@@ -689,9 +687,9 @@ public class HolographicShopScreen extends AbstractContainerScreen<HolographicSh
 
 	private int statusColor() {
 		return switch (exchangeSnapshot.status()) {
-			case LIVE -> TEXT_ACCENT;
-			case CACHED -> TEXT_SECONDARY;
-			case DEFAULT, STALE -> 0xFFC97A3D;
+			case LIVE -> MachineUi.TEXT_SUCCESS;
+			case CACHED -> MachineUi.TEXT_SECONDARY;
+			case DEFAULT, STALE -> MachineUi.TEXT_WARNING;
 		};
 	}
 
@@ -705,42 +703,16 @@ public class HolographicShopScreen extends AbstractContainerScreen<HolographicSh
 		return total;
 	}
 
-	private int leftPanelX() {
+	private int sidebarX() {
 		return leftPos + 18;
 	}
 
-	private int centerPanelX() {
-		return leftPos + 182;
+	private int contentX() {
+		return leftPos + 140;
 	}
 
-	private int rightPanelX() {
-		return leftPos + 360;
-	}
-
-	private void drawPanel(GuiGraphics guiGraphics, int x, int y, int width, int height, int color) {
-		guiGraphics.fill(x, y, x + width, y + height, BORDER);
-		guiGraphics.fill(x + 1, y + 1, x + width - 1, y + height - 1, color);
-	}
-
-	private void drawTrimmedString(GuiGraphics guiGraphics, String text, int x, int y, int width, int color) {
-		guiGraphics.drawString(font, trimToWidth(text, width), x, y, color, false);
-	}
-
-	private String trimToWidth(String text, int maxWidth) {
-		if (font.width(text) <= maxWidth) {
-			return text;
-		}
-		String ellipsis = "...";
-		int ellipsisWidth = font.width(ellipsis);
-		StringBuilder builder = new StringBuilder();
-		for (int index = 0; index < text.length(); index++) {
-			String candidate = builder.toString() + text.charAt(index);
-			if (font.width(candidate) + ellipsisWidth > maxWidth) {
-				break;
-			}
-			builder.append(text.charAt(index));
-		}
-		return builder + ellipsis;
+	private int actionPanelX() {
+		return leftPos + 404;
 	}
 
 	private boolean inside(double mouseX, double mouseY, int x, int y, int width, int height) {
@@ -760,11 +732,12 @@ public class HolographicShopScreen extends AbstractContainerScreen<HolographicSh
 			case "premium_buy" -> "buy";
 			case "premium_sell" -> "sell";
 			case "power_link" -> "link";
+			case "mining_settlement" -> "mine";
 			default -> entry.typeId();
 		};
 		return switch (entry.typeId()) {
 			case "swap" -> prefix + " " + formatAmount(entry.primaryCurrencyId(), entry.primaryAmountMinor()) + " > " + formatAmount(entry.secondaryCurrencyId(), entry.secondaryAmountMinor());
-			case "transfer", "premium_buy", "premium_sell", "power_link" -> prefix + " " + trimToWidth(entry.detail(), 72);
+			case "transfer", "premium_buy", "premium_sell", "power_link", "mining_settlement" -> prefix + " " + MachineUi.trim(font, entry.detail(), 72);
 			default -> prefix + " " + formatAmount(entry.primaryCurrencyId(), entry.primaryAmountMinor());
 		};
 	}

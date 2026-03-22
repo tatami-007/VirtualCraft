@@ -47,8 +47,8 @@ public abstract class AbstractWirelessPowerBlockEntity extends BlockEntity imple
 		@Override
 		public int get(int index) {
 			return switch (index) {
-				case 0 -> getEnergyStorage(null).getEnergyStored();
-				case 1 -> getEnergyStorage(null).getMaxEnergyStored();
+				case 0 -> getDisplayedEnergyStored();
+				case 1 -> getDisplayedMaxEnergyStored();
 				case 2 -> hasBoundLinkCard() ? 1 : 0;
 				case 3 -> getLinkedNodeCount();
 				case 4 -> linkChannel();
@@ -138,6 +138,10 @@ public abstract class AbstractWirelessPowerBlockEntity extends BlockEntity imple
 	}
 
 	public abstract IEnergyStorage getEnergyStorage(net.minecraft.core.Direction side);
+
+	protected abstract int getDisplayedEnergyStored();
+
+	protected abstract int getDisplayedMaxEnergyStored();
 
 	protected abstract int getLinkedNodeCount();
 

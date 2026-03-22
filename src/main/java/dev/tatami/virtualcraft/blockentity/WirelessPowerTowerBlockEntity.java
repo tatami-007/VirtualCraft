@@ -3,11 +3,11 @@ package dev.tatami.virtualcraft.blockentity;
 import java.util.List;
 
 import dev.tatami.virtualcraft.registry.ModBlockEntities;
+import dev.tatami.virtualcraft.wireless.WirelessTransferPlanner;
 import dev.tatami.virtualcraft.wireless.WirelessNetworkManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
@@ -15,11 +15,9 @@ import net.neoforged.neoforge.energy.EnergyStorage;
 import net.neoforged.neoforge.energy.IEnergyStorage;
 
 public class WirelessPowerTowerBlockEntity extends AbstractWirelessPowerBlockEntity {
-	public static final int MAX_ENERGY = 1_000_000;
-	public static final int MAX_RECEIVE = 16_384;
-	public static final int TRANSFER_PER_TICK = 4_096;
 	private final TowerEnergyStorage energyStorage = new TowerEnergyStorage();
 	private int linkedReceivers;
+	private int lastTransferAmount;
 
 	public WirelessPowerTowerBlockEntity(BlockPos pos, BlockState blockState) {
 		super(ModBlockEntities.WIRELESS_POWER_TOWER.get(), pos, blockState);
@@ -32,26 +30,25 @@ public class WirelessPowerTowerBlockEntity extends AbstractWirelessPowerBlockEnt
 
 		List<WirelessPowerReceiverBlockEntity> receivers = WirelessNetworkManager.findReceivers(level, blockEntity);
 		blockEntity.linkedReceivers = receivers.size();
-		if (!blockEntity.hasBoundLinkCard() || receivers.isEmpty() || blockEntity.energyStorage.getEnergyStored() <= 0) {
+		blockEntity.lastTransferAmount = 0;
+		if (!blockEntity.hasBoundLinkCard() || receivers.isEmpty()) {
 			return;
 		}
 
-		int transferBudget = Math.min(TRANSFER_PER_TICK, blockEntity.energyStorage.getEnergyStored());
-		int share = Math.max(1, transferBudget / receivers.size());
-		int transferred = 0;
-		int remaining = transferBudget;
-
-		for (WirelessPowerReceiverBlockEntity receiver : receivers) {
-			if (remaining <= 0) {
-				break;
-			}
-			int accepted = receiver.receiveFromTower(Math.min(share, remaining));
-			transferred += accepted;
-			remaining -= accepted;
+		int availableEnergy = blockEntity.energyStorage.consumeBufferedInput();
+		if (availableEnergy <= 0) {
+			return;
 		}
 
+		List<Integer> demand = receivers.stream().map(WirelessPowerReceiverBlockEntity::currentDemand).toList();
+		List<Integer> planned = WirelessTransferPlanner.planTransfers(availableEnergy, demand);
+		int transferred = 0;
+		for (int index = 0; index < receivers.size(); index++) {
+			int accepted = receivers.get(index).relayFromTower(planned.get(index));
+			transferred += accepted;
+		}
+		blockEntity.lastTransferAmount = transferred;
 		if (transferred > 0) {
-			blockEntity.energyStorage.extractInternal(transferred);
 			blockEntity.setChanged();
 		}
 	}
@@ -59,6 +56,16 @@ public class WirelessPowerTowerBlockEntity extends AbstractWirelessPowerBlockEnt
 	@Override
 	public IEnergyStorage getEnergyStorage(Direction side) {
 		return energyStorage;
+	}
+
+	@Override
+	protected int getDisplayedEnergyStored() {
+		return lastTransferAmount;
+	}
+
+	@Override
+	protected int getDisplayedMaxEnergyStored() {
+		return 0;
 	}
 
 	@Override
@@ -86,34 +93,37 @@ public class WirelessPowerTowerBlockEntity extends AbstractWirelessPowerBlockEnt
 		return Component.translatable("block.virtual_craft.wireless_power_tower");
 	}
 
-	@Override
-	protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-		super.saveAdditional(tag, registries);
-		tag.put("energy", energyStorage.serializeNBT(registries));
-	}
-
-	@Override
-	protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-		super.loadAdditional(tag, registries);
-		energyStorage.deserializeNBT(registries, tag.get("energy"));
-	}
-
 	private final class TowerEnergyStorage extends EnergyStorage {
+		private int bufferedInput;
+
 		private TowerEnergyStorage() {
-			super(MAX_ENERGY, MAX_RECEIVE, 0, 0);
+			super(0, Integer.MAX_VALUE, 0, 0);
 		}
 
 		@Override
 		public int receiveEnergy(int toReceive, boolean simulate) {
-			int received = super.receiveEnergy(toReceive, simulate);
+			int received = Math.max(0, toReceive);
 			if (!simulate && received > 0) {
+				bufferedInput += received;
 				setChanged();
 			}
 			return received;
 		}
 
-		private void extractInternal(int amount) {
-			energy = Math.max(0, energy - amount);
+		@Override
+		public int getEnergyStored() {
+			return 0;
+		}
+
+		@Override
+		public int getMaxEnergyStored() {
+			return 0;
+		}
+
+		private int consumeBufferedInput() {
+			int available = bufferedInput;
+			bufferedInput = 0;
+			return available;
 		}
 	}
 }

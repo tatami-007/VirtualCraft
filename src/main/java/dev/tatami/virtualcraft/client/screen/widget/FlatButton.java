@@ -2,6 +2,7 @@ package dev.tatami.virtualcraft.client.screen.widget;
 
 import java.util.function.BooleanSupplier;
 
+import dev.tatami.virtualcraft.client.screen.MachineUi;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -25,15 +26,15 @@ public class FlatButton extends Button {
 	protected void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
 		boolean selected = selectedSupplier.getAsBoolean();
 		boolean hovered = isHoveredOrFocused();
-		int outer = !active ? 0xFFC8D4E0 : selected ? 0xFFB8DAE6 : 0xFFCAD9E6;
-		int inner = !active ? 0xFFE7EDF4 : hovered ? 0xFFF7FBFF : 0xFFF1F6FB;
-		int accent = selected ? accentColor : hovered ? 0xFF84B7D2 : 0xFFA2B9CB;
+		int outer = !active ? 0xFF24303C : selected ? 0xFF375065 : hovered ? 0xFF304454 : MachineUi.PANEL_OUTER;
+		int inner = !active ? 0xFF10161E : selected ? 0xFF182533 : hovered ? 0xFF15202C : MachineUi.PANEL_FILL;
+		int accent = !active ? 0xFF394959 : selected ? accentColor : hovered ? 0xFF53C5DA : MachineUi.CYAN_DIM;
 		guiGraphics.fill(getX(), getY(), getX() + width, getY() + height, outer);
 		guiGraphics.fill(getX() + 1, getY() + 1, getX() + width - 1, getY() + height - 1, inner);
-		guiGraphics.fill(getX() + 1, getY() + 1, getX() + width - 1, getY() + 3, accent);
+		guiGraphics.fill(getX() + 1, getY() + 1, getX() + width - 1, getY() + 4, accent);
 
-		int textColor = !active ? 0xFF7C8FA4 : selected ? 0xFF1F3952 : hovered ? 0xFF20384D : 0xFF33485E;
-		Component label = getMessage();
+		int textColor = !active ? MachineUi.TEXT_MUTED : selected ? MachineUi.TEXT_PRIMARY : hovered ? 0xFFE7FBFF : MachineUi.TEXT_SECONDARY;
+		Component label = Component.literal(MachineUi.trim(Minecraft.getInstance().font, getMessage().getString(), width - 10));
 		int textX = getX() + width / 2 - Minecraft.getInstance().font.width(label) / 2;
 		int textY = getY() + (height - 8) / 2;
 		guiGraphics.drawString(Minecraft.getInstance().font, label, textX, textY, textColor, false);

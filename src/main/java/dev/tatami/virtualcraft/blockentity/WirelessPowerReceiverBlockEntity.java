@@ -4,8 +4,6 @@ import dev.tatami.virtualcraft.registry.ModBlockEntities;
 import dev.tatami.virtualcraft.wireless.WirelessNetworkManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
@@ -14,10 +12,9 @@ import net.neoforged.neoforge.energy.EnergyStorage;
 import net.neoforged.neoforge.energy.IEnergyStorage;
 
 public class WirelessPowerReceiverBlockEntity extends AbstractWirelessPowerBlockEntity {
-	public static final int MAX_ENERGY = 200_000;
-	public static final int MAX_EXTRACT = 4_096;
 	private final ReceiverEnergyStorage energyStorage = new ReceiverEnergyStorage();
 	private int linkedTowers;
+	private int lastTransferAmount;
 
 	public WirelessPowerReceiverBlockEntity(BlockPos pos, BlockState blockState) {
 		super(ModBlockEntities.WIRELESS_POWER_RECEIVER.get(), pos, blockState);
@@ -28,18 +25,38 @@ public class WirelessPowerReceiverBlockEntity extends AbstractWirelessPowerBlock
 			return;
 		}
 		blockEntity.linkedTowers = WirelessNetworkManager.findTowers(level, blockEntity).size();
-		if (blockEntity.energyStorage.getEnergyStored() > 0) {
-			blockEntity.pushEnergyToNeighbors(level, pos);
-		}
+		blockEntity.lastTransferAmount = blockEntity.pushEnergyToNeighbors(level, pos, blockEntity.energyStorage.consumeBufferedInput());
 	}
 
-	public int receiveFromTower(int amount) {
+	public int currentDemand() {
+		int totalDemand = 0;
+		for (Direction direction : Direction.values()) {
+			IEnergyStorage target = level == null ? null : level.getCapability(Capabilities.EnergyStorage.BLOCK, worldPosition.relative(direction), direction.getOpposite());
+			if (target == null || !target.canReceive()) {
+				continue;
+			}
+			totalDemand += Math.max(0, target.receiveEnergy(Integer.MAX_VALUE, true));
+		}
+		return totalDemand;
+	}
+
+	public int relayFromTower(int amount) {
 		return energyStorage.acceptInternal(amount);
 	}
 
 	@Override
 	public IEnergyStorage getEnergyStorage(Direction side) {
 		return energyStorage;
+	}
+
+	@Override
+	protected int getDisplayedEnergyStored() {
+		return lastTransferAmount;
+	}
+
+	@Override
+	protected int getDisplayedMaxEnergyStored() {
+		return 0;
 	}
 
 	@Override
@@ -67,59 +84,59 @@ public class WirelessPowerReceiverBlockEntity extends AbstractWirelessPowerBlock
 		return Component.translatable("block.virtual_craft.wireless_power_receiver");
 	}
 
-	@Override
-	protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-		super.saveAdditional(tag, registries);
-		tag.put("energy", energyStorage.serializeNBT(registries));
-	}
-
-	@Override
-	protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-		super.loadAdditional(tag, registries);
-		energyStorage.deserializeNBT(registries, tag.get("energy"));
-	}
-
-	private void pushEnergyToNeighbors(Level level, BlockPos pos) {
+	private int pushEnergyToNeighbors(Level level, BlockPos pos, int availableEnergy) {
+		int remaining = Math.max(0, availableEnergy);
+		int transferred = 0;
 		for (Direction direction : Direction.values()) {
-			if (energyStorage.getEnergyStored() <= 0) {
+			if (remaining <= 0) {
 				break;
 			}
 			IEnergyStorage target = level.getCapability(Capabilities.EnergyStorage.BLOCK, pos.relative(direction), direction.getOpposite());
 			if (target == null || !target.canReceive()) {
 				continue;
 			}
-			int offered = Math.min(MAX_EXTRACT, energyStorage.getEnergyStored());
-			int accepted = target.receiveEnergy(offered, false);
+			int accepted = target.receiveEnergy(remaining, false);
 			if (accepted > 0) {
-				energyStorage.extractEnergy(accepted, false);
+				remaining -= accepted;
+				transferred += accepted;
 			}
 		}
+		return transferred;
 	}
 
 	private final class ReceiverEnergyStorage extends EnergyStorage {
+		private int bufferedInput;
+
 		private ReceiverEnergyStorage() {
-			super(MAX_ENERGY, 0, MAX_EXTRACT, 0);
+			super(0, 0, Integer.MAX_VALUE, 0);
 		}
 
 		private int acceptInternal(int amount) {
 			if (amount <= 0) {
 				return 0;
 			}
-			int accepted = Math.min(capacity - energy, amount);
+			int accepted = amount;
 			if (accepted > 0) {
-				energy += accepted;
+				bufferedInput += accepted;
 				setChanged();
 			}
 			return accepted;
 		}
 
 		@Override
-		public int extractEnergy(int toExtract, boolean simulate) {
-			int extracted = super.extractEnergy(toExtract, simulate);
-			if (!simulate && extracted > 0) {
-				setChanged();
-			}
-			return extracted;
+		public int getEnergyStored() {
+			return 0;
+		}
+
+		@Override
+		public int getMaxEnergyStored() {
+			return 0;
+		}
+
+		private int consumeBufferedInput() {
+			int available = bufferedInput;
+			bufferedInput = 0;
+			return available;
 		}
 	}
 }

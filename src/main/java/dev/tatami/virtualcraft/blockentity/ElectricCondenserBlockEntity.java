@@ -41,11 +41,9 @@ public class ElectricCondenserBlockEntity extends BlockEntity implements MenuPro
 	public static final int OUTPUT_SLOT = 2;
 	public static final int UPGRADE_SLOT_START = 3;
 	public static final int UPGRADE_SLOT_END = 6;
-	private static final int MAX_PROGRESS = 72;
+	private static final int MAX_PROGRESS = ElectricCondenserTuning.maxProgress();
 	private static final int MAX_ENERGY = 200_000;
 	private static final int MAX_RECEIVE = 4_000;
-	private static final int BASE_ENERGY_PER_TICK = 80;
-	private static final int SPEED_CARD_ENERGY_PER_TICK = 90;
 	private static final int TRANSFER_PER_SIDE = 16;
 	private static final TagKey<Item> INGOTS_TAG = TagKey.create(Registries.ITEM, ResourceLocation.parse("c:ingots"));
 	private static final Direction[] DATA_DIRECTIONS = {
@@ -417,11 +415,11 @@ public class ElectricCondenserBlockEntity extends BlockEntity implements MenuPro
 	}
 
 	private int currentProgressPerTick() {
-		return 1 + countSpeedCards();
+		return ElectricCondenserTuning.progressPerTick(countSpeedCards());
 	}
 
 	private int currentEnergyPerTick() {
-		return BASE_ENERGY_PER_TICK + countSpeedCards() * SPEED_CARD_ENERGY_PER_TICK;
+		return ElectricCondenserTuning.energyPerTick(countSpeedCards());
 	}
 
 	private final class SidedItemHandler implements IItemHandler {

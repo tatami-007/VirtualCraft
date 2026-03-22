@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:block",
+  "pools": [
+    {
+      "bonus_rolls": 0.0,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "virtual_craft:electric_ball_generator"
+        }
+      ],
+      "rolls": 1.0
+    }
+  ],
+  "random_sequence": "virtual_craft:blocks/electric_ball_generator"
+}

@@ -52,6 +52,10 @@ public class WirelessPowerMenu extends AbstractContainerMenu {
 		return data.get(1);
 	}
 
+	public int getLiveTransferAmount() {
+		return data.get(0);
+	}
+
 	public boolean hasBoundLinkCard() {
 		return data.get(2) != 0;
 	}
