@@ -1,0 +1,8 @@
+{
+  "replace": false,
+  "values": [
+    "virtual_craft:electric_condenser",
+    "virtual_craft:holographic_shop",
+    "virtual_craft:currency_generator"
+  ]
+}

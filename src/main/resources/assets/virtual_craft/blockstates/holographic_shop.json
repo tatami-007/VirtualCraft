@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "virtual_craft:block/holographic_shop" },
+    "facing=south": { "model": "virtual_craft:block/holographic_shop", "y": 180 },
+    "facing=west": { "model": "virtual_craft:block/holographic_shop", "y": 270 },
+    "facing=east": { "model": "virtual_craft:block/holographic_shop", "y": 90 }
+  }
+}

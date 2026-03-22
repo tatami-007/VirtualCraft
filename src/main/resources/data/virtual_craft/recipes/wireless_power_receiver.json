@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "b": { "item": "virtual_craft:electric_ball" },
+    "i": { "item": "minecraft:iron_ingot" },
+    "l": { "item": "virtual_craft:link_card" },
+    "q": { "item": "minecraft:quartz" },
+    "r": { "item": "minecraft:redstone" }
+  },
+  "pattern": [
+    "iqi",
+    "lbl",
+    "iri"
+  ],
+  "result": {
+    "count": 1,
+    "id": "virtual_craft:wireless_power_receiver"
+  }
+}

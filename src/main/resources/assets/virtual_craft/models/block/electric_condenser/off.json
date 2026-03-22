@@ -1,0 +1,12 @@
+{
+  "parent": "minecraft:block/cube",
+  "textures": {
+    "down": "virtual_craft:block/electric_condenser/off/bottom",
+    "east": "virtual_craft:block/electric_condenser/off/left",
+    "north": "virtual_craft:block/electric_condenser/off/front",
+    "particle": "virtual_craft:block/electric_condenser/off/front",
+    "south": "virtual_craft:block/electric_condenser/off/back",
+    "up": "virtual_craft:block/electric_condenser/off/top",
+    "west": "virtual_craft:block/electric_condenser/off/right"
+  }
+}

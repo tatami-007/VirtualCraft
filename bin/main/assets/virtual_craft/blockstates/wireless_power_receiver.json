@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "virtual_craft:block/wireless_power_receiver" },
+    "facing=south": { "model": "virtual_craft:block/wireless_power_receiver", "y": 180 },
+    "facing=west": { "model": "virtual_craft:block/wireless_power_receiver", "y": 270 },
+    "facing=east": { "model": "virtual_craft:block/wireless_power_receiver", "y": 90 }
+  }
+}

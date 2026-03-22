@@ -1,0 +1,52 @@
+{
+  "offers": [
+    {
+      "id": "electric_ball",
+      "item": "virtual_craft:electric_ball",
+      "count": 1,
+      "priceUsdt": "64.00",
+      "sellUsdt": "24.00",
+      "enabled": true
+    },
+    {
+      "id": "electric_ingot",
+      "item": "virtual_craft:electric_ingot",
+      "count": 2,
+      "priceUsdt": "180.00",
+      "sellUsdt": "120.00",
+      "enabled": true
+    },
+    {
+      "id": "speed_upgrade_card",
+      "item": "virtual_craft:speed_upgrade_card",
+      "count": 1,
+      "priceUsdt": "320.00",
+      "sellUsdt": "180.00",
+      "enabled": true
+    },
+    {
+      "id": "diamond_bundle",
+      "item": "minecraft:diamond",
+      "count": 4,
+      "priceUsdt": "220.00",
+      "sellUsdt": "140.00",
+      "enabled": true
+    },
+    {
+      "id": "echo_shard_bundle",
+      "item": "minecraft:echo_shard",
+      "count": 2,
+      "priceUsdt": "260.00",
+      "sellUsdt": "160.00",
+      "enabled": true
+    },
+    {
+      "id": "netherite_scrap",
+      "item": "minecraft:netherite_scrap",
+      "count": 1,
+      "priceUsdt": "480.00",
+      "sellUsdt": "300.00",
+      "enabled": true
+    }
+  ]
+}

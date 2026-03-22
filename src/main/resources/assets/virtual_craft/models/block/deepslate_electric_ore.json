@@ -1,0 +1,13 @@
+{
+  "parent": "block/cube",
+  "textures": {
+    "down": "virtual_craft:block/deepslate_electric_ore",
+    "up": "virtual_craft:block/deepslate_electric_ore",
+    "north": "virtual_craft:block/deepslate_electric_ore",
+    "east": "virtual_craft:block/deepslate_electric_ore",
+    "south": "virtual_craft:block/deepslate_electric_ore",
+    "west": "virtual_craft:block/deepslate_electric_ore",
+    "particle": "virtual_craft:block/deepslate_electric_ore"
+  },
+  "render_type": "solid"
+}

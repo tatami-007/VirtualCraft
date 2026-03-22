@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "a": { "item": "minecraft:amethyst_shard" },
+    "e": { "item": "virtual_craft:electric_ingot" },
+    "g": { "item": "minecraft:glass" },
+    "i": { "item": "minecraft:iron_ingot" },
+    "r": { "item": "minecraft:redstone" }
+  },
+  "pattern": [
+    "gig",
+    "aea",
+    "grg"
+  ],
+  "result": {
+    "count": 1,
+    "id": "virtual_craft:holographic_shop"
+  }
+}

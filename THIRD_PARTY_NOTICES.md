@@ -10,15 +10,15 @@ This project includes adapted visual assets derived from:
 
 Included derived assets:
 
-- `src/main/resources/assets/virtual_world/textures/gui/electric_condenser.png`
+- `src/main/resources/assets/virtual_craft/textures/gui/electric_condenser.png`
   - Derived from `assets/ae2cs/textures/gui/circuit_etcher_menu.png`
-- `src/main/resources/assets/virtual_world/textures/gui/electric_condenser_side_config.png`
+- `src/main/resources/assets/virtual_craft/textures/gui/electric_condenser_side_config.png`
   - Derived from `assets/ae2cs/textures/gui/side_config_menu.png`
-- `src/main/resources/assets/virtual_world/textures/gui/icons.png`
+- `src/main/resources/assets/virtual_craft/textures/gui/icons.png`
   - Derived from `assets/ae2cs/textures/gui/icons.png`
-- `src/main/resources/assets/virtual_world/textures/block/electric_condenser/off/*`
+- `src/main/resources/assets/virtual_craft/textures/block/electric_condenser/off/*`
   - Derived from `assets/ae2cs/textures/block/circuit_etcher/off/*`
-- `src/main/resources/assets/virtual_world/textures/block/electric_condenser/on/*`
+- `src/main/resources/assets/virtual_craft/textures/block/electric_condenser/on/*`
   - Derived from `assets/ae2cs/textures/block/circuit_etcher/on/*`
 
 License information from AECS:

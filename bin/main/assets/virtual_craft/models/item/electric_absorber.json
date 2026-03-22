@@ -1,0 +1,14 @@
+{
+  "parent": "item/generated",
+  "textures": {
+    "layer0": "virtual_craft:item/electric_absorber"
+  },
+  "overrides": [
+    {
+      "predicate": {
+        "virtual_craft:electric_absorber_time": 1
+      },
+      "model": "virtual_craft:item/electric_absorber_0"
+    }
+  ]
+}

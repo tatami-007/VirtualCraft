@@ -3,8 +3,6 @@ build/
 run/
 .idea/
 .eclipse/
-.mcreator/
-
 *.iml
 *.log
 *.tmp
