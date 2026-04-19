@@ -6,6 +6,7 @@ import java.util.List;
 import java.math.BigDecimal;
 
 import dev.tatami.virtualcraft.VirtualCraft;
+import dev.tatami.virtualcraft.client.screen.HolographicShopFragment;
 import dev.tatami.virtualcraft.client.screen.HolographicShopScreen;
 import dev.tatami.virtualcraft.currency.CryptoCurrency;
 import dev.tatami.virtualcraft.exchange.ExchangeRateSnapshot;
@@ -75,18 +76,24 @@ public record SyncExchangePayload(int menuId, String status, long updatedAtEpoch
 	@OnlyIn(Dist.CLIENT)
 	private static final class ClientHooks {
 		private static void handle(SyncExchangePayload payload) {
+			EnumMap<CryptoCurrency, BigDecimal> quotes = new EnumMap<>(CryptoCurrency.class);
+			for (Entry entry : payload.entries()) {
+				CryptoCurrency.byId(entry.currencyId()).ifPresent(currency -> quotes.put(currency, new BigDecimal(entry.quoteToUsdt())));
+			}
+			ExchangeRateSnapshot.SourceStatus sourceStatus;
+			try {
+				sourceStatus = ExchangeRateSnapshot.SourceStatus.valueOf(payload.status());
+			} catch (IllegalArgumentException exception) {
+				sourceStatus = ExchangeRateSnapshot.SourceStatus.DEFAULT;
+			}
+			ExchangeRateSnapshot snapshot = new ExchangeRateSnapshot(quotes, payload.updatedAtEpochSeconds(), sourceStatus);
 			if (Minecraft.getInstance().screen instanceof HolographicShopScreen screen && screen.matchesMenu(payload.menuId())) {
-				EnumMap<CryptoCurrency, BigDecimal> quotes = new EnumMap<>(CryptoCurrency.class);
-				for (Entry entry : payload.entries()) {
-					CryptoCurrency.byId(entry.currencyId()).ifPresent(currency -> quotes.put(currency, new BigDecimal(entry.quoteToUsdt())));
-				}
-				ExchangeRateSnapshot.SourceStatus sourceStatus;
-				try {
-					sourceStatus = ExchangeRateSnapshot.SourceStatus.valueOf(payload.status());
-				} catch (IllegalArgumentException exception) {
-					sourceStatus = ExchangeRateSnapshot.SourceStatus.DEFAULT;
-				}
-				screen.applyExchangeSync(new ExchangeRateSnapshot(quotes, payload.updatedAtEpochSeconds(), sourceStatus));
+				screen.applyExchangeSync(snapshot);
+				return;
+			}
+			HolographicShopFragment fragment = HolographicShopFragment.fromCurrentScreen(payload.menuId());
+			if (fragment != null) {
+				fragment.applyExchangeSync(snapshot);
 			}
 		}
 	}

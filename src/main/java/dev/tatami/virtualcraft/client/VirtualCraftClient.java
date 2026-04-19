@@ -1,5 +1,6 @@
 package dev.tatami.virtualcraft.client;
 
+import icyllis.modernui.mc.neoforge.MenuScreenFactory;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.client.event.RegisterShadersEvent;
 import net.neoforged.neoforge.client.event.RenderGuiLayerEvent;
@@ -10,6 +11,7 @@ import dev.tatami.virtualcraft.client.screen.CurrencyGeneratorScreen;
 import dev.tatami.virtualcraft.client.screen.ElectricBallGeneratorScreen;
 import dev.tatami.virtualcraft.client.screen.ElectricCondenserScreen;
 import dev.tatami.virtualcraft.client.screen.ElectricCondenserSideConfigScreen;
+import dev.tatami.virtualcraft.client.screen.HolographicShopFragment;
 import dev.tatami.virtualcraft.client.screen.HolographicShopScreen;
 import dev.tatami.virtualcraft.client.screen.PowMinerScreen;
 import dev.tatami.virtualcraft.client.screen.WirelessPowerScreen;
@@ -23,7 +25,7 @@ public final class VirtualCraftClient {
 		event.register(ModMenuTypes.ELECTRIC_CONDENSER.get(), ElectricCondenserScreen::new);
 		event.register(ModMenuTypes.ELECTRIC_BALL_GENERATOR.get(), ElectricBallGeneratorScreen::new);
 		event.register(ModMenuTypes.ELECTRIC_CONDENSER_SIDE_CONFIG.get(), ElectricCondenserSideConfigScreen::new);
-		event.register(ModMenuTypes.HOLOGRAPHIC_SHOP.get(), HolographicShopScreen::new);
+		event.register(ModMenuTypes.HOLOGRAPHIC_SHOP.get(), MenuScreenFactory.create(HolographicShopFragment::new));
 		event.register(ModMenuTypes.CURRENCY_GENERATOR.get(), CurrencyGeneratorScreen::new);
 		event.register(ModMenuTypes.POW_MINER.get(), PowMinerScreen::new);
 		event.register(ModMenuTypes.WIRELESS_POWER.get(), WirelessPowerScreen::new);

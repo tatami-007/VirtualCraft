@@ -1,6 +1,7 @@
 package dev.tatami.virtualcraft.network;
 
 import dev.tatami.virtualcraft.VirtualCraft;
+import dev.tatami.virtualcraft.client.screen.HolographicShopFragment;
 import dev.tatami.virtualcraft.client.screen.HolographicShopScreen;
 import dev.tatami.virtualcraft.wallet.WalletLedgerEntry;
 import io.netty.buffer.ByteBuf;
@@ -97,6 +98,11 @@ public record SyncWalletPayload(int menuId, long[] balances, String walletAddres
 		private static void handle(SyncWalletPayload payload) {
 			if (Minecraft.getInstance().screen instanceof HolographicShopScreen screen && screen.matchesMenu(payload.menuId())) {
 				screen.applyWalletSync(payload.balances(), payload.walletAddress(), payload.entries());
+				return;
+			}
+			HolographicShopFragment fragment = HolographicShopFragment.fromCurrentScreen(payload.menuId());
+			if (fragment != null) {
+				fragment.applyWalletSync(payload.balances(), payload.walletAddress(), payload.entries());
 			}
 		}
 	}

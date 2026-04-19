@@ -221,28 +221,18 @@ public record WalletActionPayload(int menuId, Action action, String primaryCurre
 			player.displayClientMessage(Component.translatable("message.virtual_craft.convert.same_currency"), true);
 			return;
 		}
-		if (!WalletService.canAfford(player, CryptoCurrency.SOL, WalletEconomyRules.SWAP_GAS_MINOR)) {
-			player.displayClientMessage(Component.translatable("message.virtual_craft.wallet.gas_missing", CryptoCurrency.SOL.formatCompact(WalletEconomyRules.SWAP_GAS_MINOR), CryptoCurrency.SOL.ticker()), true);
-			return;
-		}
 		if (sourceMinor <= 0 || !WalletService.withdrawMinorUnits(player, source, sourceMinor)) {
 			player.displayClientMessage(Component.translatable("message.virtual_craft.wallet.insufficient"), true);
-			return;
-		}
-		if (!WalletService.withdrawMinorUnits(player, CryptoCurrency.SOL, WalletEconomyRules.SWAP_GAS_MINOR)) {
-			WalletService.depositMinorUnits(player, source, sourceMinor);
-			player.displayClientMessage(Component.translatable("message.virtual_craft.wallet.gas_missing", CryptoCurrency.SOL.formatCompact(WalletEconomyRules.SWAP_GAS_MINOR), CryptoCurrency.SOL.ticker()), true);
 			return;
 		}
 		long convertedMinor = CurrencyConversionService.convert(source, target, sourceMinor, snapshot, RoundingMode.HALF_UP);
 		if (convertedMinor <= 0) {
 			WalletService.depositMinorUnits(player, source, sourceMinor);
-			WalletService.depositMinorUnits(player, CryptoCurrency.SOL, WalletEconomyRules.SWAP_GAS_MINOR);
 			player.displayClientMessage(Component.translatable("message.virtual_craft.convert.too_small"), true);
 			return;
 		}
 		WalletService.depositMinorUnits(player, target, convertedMinor);
-		WalletService.record(player, WalletLedgerType.SWAP, source, sourceMinor, target, convertedMinor, "gas:" + CryptoCurrency.SOL.formatCompact(WalletEconomyRules.SWAP_GAS_MINOR));
+		WalletService.record(player, WalletLedgerType.SWAP, source, sourceMinor, target, convertedMinor, "");
 		player.displayClientMessage(Component.translatable("message.virtual_craft.convert.success", source.formatCompact(sourceMinor), source.displayName(), target.formatCompact(convertedMinor), target.displayName()), true);
 	}
 

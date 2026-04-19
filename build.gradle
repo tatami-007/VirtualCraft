@@ -9,6 +9,10 @@ base.archivesName = 'virtual_craft'
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
+repositories {
+    maven { url = 'https://maven.izzel.io/releases/' }
+}
+
 neoForge {
     version = "21.1.176"
 
@@ -34,6 +38,10 @@ neoForge {
 }
 
 dependencies {
+    implementation 'icyllis.modernui:ModernUI-NeoForge:1.21.1-3.12.0.2'
+    compileOnly('icyllis.modernui:ModernUI-Core:3.12.0') {
+        transitive = false
+    }
     testImplementation platform('org.junit:junit-bom:5.10.2')
     testImplementation 'org.junit.jupiter:junit-jupiter'
 }

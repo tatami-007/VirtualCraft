@@ -24,3 +24,10 @@ description="Explore different ways to play in Virtual Craft."
     versionRange="[1.21.1]"
     ordering="AFTER"
     side="BOTH"
+
+[[dependencies.virtual_craft]]
+    modId="modernui"
+    type="required"
+    versionRange="[3.12.0,)"
+    ordering="AFTER"
+    side="CLIENT"
