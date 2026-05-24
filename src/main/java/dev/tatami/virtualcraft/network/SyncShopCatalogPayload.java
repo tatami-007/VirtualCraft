@@ -4,10 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import dev.tatami.virtualcraft.VirtualCraft;
-import dev.tatami.virtualcraft.client.screen.HolographicShopFragment;
-import dev.tatami.virtualcraft.client.screen.HolographicShopScreen;
+import dev.tatami.virtualcraft.client.screen.holographic.HolographicShopFragment;
 import dev.tatami.virtualcraft.shop.ShopOffer;
-import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -85,10 +83,6 @@ public record SyncShopCatalogPayload(int menuId, List<Entry> entries) implements
 	@OnlyIn(Dist.CLIENT)
 	private static final class ClientHooks {
 		private static void handle(SyncShopCatalogPayload payload) {
-			if (Minecraft.getInstance().screen instanceof HolographicShopScreen screen && screen.matchesMenu(payload.menuId())) {
-				screen.applyCatalogSync(payload.entries());
-				return;
-			}
 			HolographicShopFragment fragment = HolographicShopFragment.fromCurrentScreen(payload.menuId());
 			if (fragment != null) {
 				fragment.applyCatalogSync(payload.entries());

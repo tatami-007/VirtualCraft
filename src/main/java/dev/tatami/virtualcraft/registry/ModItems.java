@@ -17,11 +17,12 @@ import net.minecraft.client.renderer.item.ItemProperties;
 
 import dev.tatami.virtualcraft.VirtualCraft;
 import dev.tatami.virtualcraft.currency.CryptoCurrency;
+import dev.tatami.virtualcraft.item.ComputerItem;
 import dev.tatami.virtualcraft.item.ElectricAbsorberItem;
 import dev.tatami.virtualcraft.item.ElectricBallItem;
 import dev.tatami.virtualcraft.item.HashVoucherItem;
 import dev.tatami.virtualcraft.item.HolographicTerminalItem;
-import dev.tatami.virtualcraft.item.LinkCardItem;
+import dev.tatami.virtualcraft.item.LaserBindingTool;
 import dev.tatami.virtualcraft.item.MiningSurveyorItem;
 import dev.tatami.virtualcraft.item.SpeedUpgradeCardItem;
 import dev.tatami.virtualcraft.gameplay.ElectricAbsorberChargeHelper;
@@ -41,17 +42,38 @@ public final class ModItems {
 	public static final DeferredItem<Item> HASH_VOUCHER = REGISTRY.register("hash_voucher", HashVoucherItem::new);
 	public static final DeferredItem<Item> MINING_SURVEYOR = REGISTRY.register("mining_surveyor", MiningSurveyorItem::new);
 	public static final DeferredItem<Item> SPEED_UPGRADE_CARD = REGISTRY.register("speed_upgrade_card", SpeedUpgradeCardItem::new);
-	public static final DeferredItem<Item> LINK_CARD = REGISTRY.register("link_card", LinkCardItem::new);
+	/**
+	 * 光束绑定器 — 1:1 还原 ME-Beam-Former 1.21.1 的 LaserBindingTool。
+	 * 交互：Shift+右键塔选源 / Shift+右键机器绑机器 / 右键塔绑塔 / Shift+右键空气清空。
+	 */
+	public static final DeferredItem<Item> LASER_BINDING_TOOL = REGISTRY.register("laser_binding_tool",
+			() -> new LaserBindingTool(new Item.Properties().stacksTo(1)));
 	public static final DeferredItem<Item> HOLOGRAPHIC_SHOP = REGISTRY.register("holographic_shop", HolographicTerminalItem::new);
-	public static final DeferredItem<Item> CURRENCY_GENERATOR = block(ModBlocks.CURRENCY_GENERATOR);
 	public static final DeferredItem<Item> POW_MINER = block(ModBlocks.POW_MINER);
 	public static final DeferredItem<Item> WIRELESS_POWER_TOWER = block(ModBlocks.WIRELESS_POWER_TOWER);
-	public static final DeferredItem<Item> WIRELESS_POWER_RECEIVER = block(ModBlocks.WIRELESS_POWER_RECEIVER);
 	public static final DeferredItem<Item> CRYPTO_BTC = REGISTRY.register(CryptoCurrency.BTC.itemName(), () -> new Item(new Item.Properties().stacksTo(CryptoCurrency.BTC.stackLimit())));
 	public static final DeferredItem<Item> CRYPTO_ETH = REGISTRY.register(CryptoCurrency.ETH.itemName(), () -> new Item(new Item.Properties().stacksTo(CryptoCurrency.ETH.stackLimit())));
 	public static final DeferredItem<Item> CRYPTO_USDT = REGISTRY.register(CryptoCurrency.USDT.itemName(), () -> new Item(new Item.Properties().stacksTo(CryptoCurrency.USDT.stackLimit())));
 	public static final DeferredItem<Item> CRYPTO_SOL = REGISTRY.register(CryptoCurrency.SOL.itemName(), () -> new Item(new Item.Properties().stacksTo(CryptoCurrency.SOL.stackLimit())));
+	public static final DeferredItem<Item> CRYPTO_TRX = REGISTRY.register(CryptoCurrency.TRX.itemName(), () -> new Item(new Item.Properties().stacksTo(CryptoCurrency.TRX.stackLimit())));
 	public static final DeferredItem<Item> CRYPTO_DOGE = REGISTRY.register(CryptoCurrency.DOGE.itemName(), () -> new Item(new Item.Properties().stacksTo(CryptoCurrency.DOGE.stackLimit())));
+
+	// === "电脑 + 进入虚拟世界" 流程物品（移植自 1.16.5 旧工程） =================
+	// 合成依赖链：iron_button + mouse_wheel → mouse；circuit_board + battery + cpu → computer_mainframe
+	//             computer_mainframe + display + keyboard + mouse → computer
+	// 旧版的 InsulatedElectricWire 在新工程被红石替代（绝缘装备体系已移除）。
+	public static final DeferredItem<Item> IRON_BUTTON = REGISTRY.register("iron_button", () -> new Item(new Item.Properties()));
+	public static final DeferredItem<Item> MOUSE_WHEEL = REGISTRY.register("mouse_wheel", () -> new Item(new Item.Properties()));
+	public static final DeferredItem<Item> CIRCUIT_BOARD = REGISTRY.register("circuit_board", () -> new Item(new Item.Properties()));
+	public static final DeferredItem<Item> CPU = REGISTRY.register("cpu", () -> new Item(new Item.Properties()));
+	public static final DeferredItem<Item> BATTERY = REGISTRY.register("battery", () -> new Item(new Item.Properties()));
+	public static final DeferredItem<Item> DISPLAY = REGISTRY.register("display", () -> new Item(new Item.Properties()));
+	public static final DeferredItem<Item> KEYBOARD = REGISTRY.register("keyboard", () -> new Item(new Item.Properties()));
+	public static final DeferredItem<Item> MOUSE = REGISTRY.register("mouse", () -> new Item(new Item.Properties()));
+	public static final DeferredItem<Item> COMPUTER_MAINFRAME = REGISTRY.register("computer_mainframe", () -> new Item(new Item.Properties()));
+	/** 电脑：右键空气在主世界 ↔ 虚拟世界之间切换。 */
+	public static final DeferredItem<Item> COMPUTER = REGISTRY.register("computer", ComputerItem::new);
+
 	private static DeferredItem<Item> block(DeferredHolder<Block, Block> block) {
 		return block(block, new Item.Properties());
 	}

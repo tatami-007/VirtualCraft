@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "a": { "item": "minecraft:amethyst_shard" },
+    "e": { "item": "virtual_craft:electric_ingot" },
+    "l": { "item": "virtual_craft:link_card" },
+    "r": { "item": "minecraft:redstone" }
+  },
+  "pattern": [
+    "rar",
+    "ele",
+    "rar"
+  ],
+  "result": {
+    "count": 1,
+    "id": "virtual_craft:wireless_transfer_upgrade_card"
+  }
+}

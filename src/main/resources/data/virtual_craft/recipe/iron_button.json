@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    { "item": "minecraft:iron_ingot" },
+    { "item": "virtual_craft:electric_ball" }
+  ],
+  "result": {
+    "count": 1,
+    "id": "virtual_craft:iron_button"
+  }
+}

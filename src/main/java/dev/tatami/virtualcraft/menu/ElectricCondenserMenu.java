@@ -7,7 +7,6 @@ import dev.tatami.virtualcraft.registry.ModMenuTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -20,6 +19,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import net.neoforged.neoforge.items.SlotItemHandler;
 
+@SuppressWarnings("this-escape") // addSlot() in the constructor is the required AbstractContainerMenu pattern.
 public class ElectricCondenserMenu extends AbstractContainerMenu {
 	private static final int MACHINE_SLOTS = 6;
 	private static final int PLAYER_INV_START = MACHINE_SLOTS;
@@ -27,22 +27,39 @@ public class ElectricCondenserMenu extends AbstractContainerMenu {
 	private static final int HOTBAR_START = PLAYER_INV_END;
 	private static final int HOTBAR_END = HOTBAR_START + 9;
 	private static final int OPEN_SIDE_CONFIG_BUTTON = 120;
-	private static final int INGOT_SLOT_X = 38;
-	private static final int INGOT_SLOT_Y = 44;
-	private static final int BALL_SLOT_X = 38;
-	private static final int BALL_SLOT_Y = 68;
-	private static final int OUTPUT_SLOT_X = 116;
-	private static final int OUTPUT_SLOT_Y = 56;
-	private static final int UPGRADE_ONE_X = 166;
-	private static final int UPGRADE_TWO_X = 166;
-	private static final int UPGRADE_THREE_X = 166;
-	private static final int UPGRADE_ONE_Y = 40;
-	private static final int UPGRADE_TWO_Y = 62;
-	private static final int UPGRADE_THREE_Y = 84;
-	private static final int PLAYER_INVENTORY_X = 20;
-	private static final int PLAYER_INVENTORY_Y = 136;
-	private static final int HOTBAR_X = 20;
-	private static final int HOTBAR_Y = 194;
+	// ============================================================
+	// v20.2 槽位坐标：以画面中轴 X=88 严格对称排列上半区 widget
+	// imageWidth=176, imageHeight=178
+	// ============================================================
+	// v20.1 旧布局：全部 X +13对齐背包中心，但能量条/UPGRADE 偏内、INPUT 双格贴在一起
+	// v20.2 调整：能量条与 UPGRADE 各自往最外偏（离中轴 72）、INPUT 双格加 gap=4 分开、严格左右对称
+	//   ENERGY     (8, 25)   16×52 中点 (16, 51)  — 离中轴 72
+	//   INGOT_SLOT (47, 31)  18×18 中点 (56, 40)
+	//   BALL_SLOT  (47, 53)  18×18 中点 (56, 62)  — 双格中线 (56, 51)，gap=4 分开
+	//   ARROW      (77, 43)  22×16 中点 (88, 51)  — 正中
+	//   OUTPUT     (111, 42) 18×18 中点 (120, 51) — 离中轴 32
+	//   UPGRADE    (152, 24/42/60) 1×3 组中点 (160, 51) — 离中轴 72
+	//   玩家背包 (8, 96)、Hotbar (8, 154)、齿轮按钮 (152, 4)
+	// v20.13 widget 整体上移 2px 让 ENERGY 上下边距接近对称（与 GuiTextureGenerator v20.13 同步）
+	private static final int INGOT_SLOT_X = 47;
+	private static final int INGOT_SLOT_Y = 29;          // v20.13 31→29
+	private static final int BALL_SLOT_X = 47;
+	private static final int BALL_SLOT_Y = 51;          // v20.13 53→51
+	private static final int OUTPUT_SLOT_X = 111;
+	private static final int OUTPUT_SLOT_Y = 40;       // v20.13 42→40
+	// UPGRADE 3 槽垂直堆叠 @ (152, 24/42/60)，组中点 (160, 51)
+	// 与齿轮按钮 (152, 4) 18×18：X 完全重叠、Y 不重（齿轮 4-22 vs slot 24-78）
+	// UPGRADE 顶 24 > 标题区底 22 （1px 间距）、底 78 < 玩家背包标签 84 （6px 间距）
+	private static final int UPGRADE_ONE_X = 152;
+	private static final int UPGRADE_TWO_X = 152;
+	private static final int UPGRADE_THREE_X = 152;
+	private static final int UPGRADE_ONE_Y = 28;
+	private static final int UPGRADE_TWO_Y = 46;
+	private static final int UPGRADE_THREE_Y = 64;
+	private static final int PLAYER_INVENTORY_X = 8;
+	private static final int PLAYER_INVENTORY_Y = 96;
+	private static final int HOTBAR_X = 8;
+	private static final int HOTBAR_Y = 154;
 
 	private final ElectricCondenserBlockEntity blockEntity;
 	private final Level level;
@@ -76,10 +93,11 @@ public class ElectricCondenserMenu extends AbstractContainerMenu {
 		addDataSlots(data);
 	}
 
+	/** 进度返回 [0..22]：v16 贴图进度箭头宽 22 像素（AE2-CS crystal_pulverizer 标准）。 */
 	public int getScaledProgress() {
 		int progress = data.get(0);
 		int maxProgress = data.get(1);
-		return progress != 0 && maxProgress != 0 ? progress * 28 / maxProgress : 0;
+		return progress != 0 && maxProgress != 0 ? progress * 22 / maxProgress : 0;
 	}
 
 	public int getEnergyStored() {
@@ -97,11 +115,9 @@ public class ElectricCondenserMenu extends AbstractContainerMenu {
 	@Override
 	public boolean clickMenuButton(Player player, int id) {
 		if (id == OPEN_SIDE_CONFIG_BUTTON && player instanceof ServerPlayer serverPlayer) {
-			serverPlayer.openMenu(
-					new SimpleMenuProvider(
-							(containerId, inventory, ignored) -> new ElectricCondenserSideConfigMenu(containerId, inventory, blockEntity, blockEntity.getSideConfigData()),
-							net.minecraft.network.chat.Component.translatable("screen.virtual_craft.electric_condenser_side_config")),
-					buffer -> buffer.writeBlockPos(blockEntity.getBlockPos()));
+			// v15: 改用通用 SideConfigMenu — 由 BE (implements IConfigurableSidedMachine) 直接驱动，
+			// 不再依赖 ElectricCondenser 专属 SideConfigMenu。
+			SideConfigMenu.openFor(serverPlayer, blockEntity);
 			return true;
 		}
 		return super.clickMenuButton(player, id);

@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "g": { "item": "minecraft:gold_ingot" },
+    "r": { "item": "minecraft:redstone" },
+    "c": { "item": "virtual_craft:circuit_board" }
+  },
+  "pattern": [
+    "grg",
+    "rcr",
+    "grg"
+  ],
+  "result": {
+    "count": 1,
+    "id": "virtual_craft:cpu"
+  }
+}

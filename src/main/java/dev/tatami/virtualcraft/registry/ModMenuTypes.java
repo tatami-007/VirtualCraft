@@ -7,13 +7,10 @@ import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
 import dev.tatami.virtualcraft.VirtualCraft;
-import dev.tatami.virtualcraft.menu.CurrencyGeneratorMenu;
 import dev.tatami.virtualcraft.menu.ElectricBallGeneratorMenu;
 import dev.tatami.virtualcraft.menu.ElectricCondenserMenu;
-import dev.tatami.virtualcraft.menu.ElectricCondenserSideConfigMenu;
-import dev.tatami.virtualcraft.menu.HolographicShopMenu;
+import dev.tatami.virtualcraft.menu.SideConfigMenu;
 import dev.tatami.virtualcraft.menu.PowMinerMenu;
-import dev.tatami.virtualcraft.menu.WirelessPowerMenu;
 
 public final class ModMenuTypes {
 	private ModMenuTypes() {
@@ -25,16 +22,19 @@ public final class ModMenuTypes {
 			() -> IMenuTypeExtension.create(ElectricCondenserMenu::new));
 	public static final DeferredHolder<MenuType<?>, MenuType<ElectricBallGeneratorMenu>> ELECTRIC_BALL_GENERATOR = REGISTRY.register("electric_ball_generator",
 			() -> IMenuTypeExtension.create(ElectricBallGeneratorMenu::new));
-	public static final DeferredHolder<MenuType<?>, MenuType<ElectricCondenserSideConfigMenu>> ELECTRIC_CONDENSER_SIDE_CONFIG = REGISTRY.register("electric_condenser_side_config",
-			() -> IMenuTypeExtension.create(ElectricCondenserSideConfigMenu::new));
-	public static final DeferredHolder<MenuType<?>, MenuType<HolographicShopMenu>> HOLOGRAPHIC_SHOP = REGISTRY.register("holographic_shop",
-			() -> IMenuTypeExtension.create(HolographicShopMenu::new));
-	public static final DeferredHolder<MenuType<?>, MenuType<CurrencyGeneratorMenu>> CURRENCY_GENERATOR = REGISTRY.register("currency_generator",
-			() -> IMenuTypeExtension.create(CurrencyGeneratorMenu::new));
+	/**
+	 * v15 通用面配置 MenuType — 所有 implements {@code IConfigurableSidedMachine} 的 BE 共用。
+	 * 替代了 v14 之前的 ELECTRIC_CONDENSER_SIDE_CONFIG。未来新机器接入时无需新增 MenuType。
+	 */
+	public static final DeferredHolder<MenuType<?>, MenuType<SideConfigMenu>> SIDE_CONFIG = REGISTRY.register("side_config",
+			() -> IMenuTypeExtension.create(SideConfigMenu::new));
+	// HOLOGRAPHIC_SHOP MenuType 已被移除：HolographicShop GUI 不再走 menu 系统。
+	// 客户端通过 OpenHolographicTerminalPayload + MuiModApi.openScreen 打开 ModernUI SimpleScreen
+	// （非 AbstractContainerScreen），从根本上避免 JEI 误识别为容器 GUI 而画 Ingredient Overlay。
+	// 服务端 sessionId 由 HolographicTerminalSession 管理，替代旧的 MenuType.containerId。
 	public static final DeferredHolder<MenuType<?>, MenuType<PowMinerMenu>> POW_MINER = REGISTRY.register("pow_miner",
 			() -> IMenuTypeExtension.create(PowMinerMenu::new));
-	public static final DeferredHolder<MenuType<?>, MenuType<WirelessPowerMenu>> WIRELESS_POWER = REGISTRY.register("wireless_power",
-			() -> IMenuTypeExtension.create(WirelessPowerMenu::new));
+	// WirelessPowerTower 重做后无 GUI — LinkCard 直接 toggleBinding 完成所有交互
 }
 
 

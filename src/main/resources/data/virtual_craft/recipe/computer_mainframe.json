@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "i": { "item": "minecraft:iron_ingot" },
+    "c": { "item": "virtual_craft:circuit_board" },
+    "b": { "item": "virtual_craft:battery" },
+    "p": { "item": "virtual_craft:cpu" }
+  },
+  "pattern": [
+    "ici",
+    "ibi",
+    "ipi"
+  ],
+  "result": {
+    "count": 1,
+    "id": "virtual_craft:computer_mainframe"
+  }
+}

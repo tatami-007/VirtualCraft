@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "a": { "item": "minecraft:amethyst_shard" },
+    "i": { "item": "minecraft:iron_ingot" },
+    "p": { "item": "minecraft:paper" },
+    "r": { "item": "minecraft:redstone" }
+  },
+  "pattern": [
+    "pap",
+    "rir",
+    "pap"
+  ],
+  "result": {
+    "count": 1,
+    "id": "virtual_craft:link_card"
+  }
+}

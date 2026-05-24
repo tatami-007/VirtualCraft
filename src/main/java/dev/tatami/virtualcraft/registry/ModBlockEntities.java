@@ -6,12 +6,10 @@ import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
 import dev.tatami.virtualcraft.VirtualCraft;
-import dev.tatami.virtualcraft.blockentity.CurrencyGeneratorBlockEntity;
 import dev.tatami.virtualcraft.blockentity.ElectricBallGeneratorBlockEntity;
 import dev.tatami.virtualcraft.blockentity.ElectricCondenserBlockEntity;
 import dev.tatami.virtualcraft.blockentity.HolographicShopBlockEntity;
 import dev.tatami.virtualcraft.blockentity.PowMinerBlockEntity;
-import dev.tatami.virtualcraft.blockentity.WirelessPowerReceiverBlockEntity;
 import dev.tatami.virtualcraft.blockentity.WirelessPowerTowerBlockEntity;
 
 public final class ModBlockEntities {
@@ -26,14 +24,10 @@ public final class ModBlockEntities {
 			() -> BlockEntityType.Builder.of(ElectricBallGeneratorBlockEntity::new, ModBlocks.ELECTRIC_BALL_GENERATOR.get()).build(null));
 	public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<HolographicShopBlockEntity>> HOLOGRAPHIC_SHOP = REGISTRY.register("holographic_shop",
 			() -> BlockEntityType.Builder.of(HolographicShopBlockEntity::new, ModBlocks.HOLOGRAPHIC_SHOP.get()).build(null));
-	public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<CurrencyGeneratorBlockEntity>> CURRENCY_GENERATOR = REGISTRY.register("currency_generator",
-			() -> BlockEntityType.Builder.of(CurrencyGeneratorBlockEntity::new, ModBlocks.CURRENCY_GENERATOR.get()).build(null));
 	public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<PowMinerBlockEntity>> POW_MINER = REGISTRY.register("pow_miner",
 			() -> BlockEntityType.Builder.of(PowMinerBlockEntity::new, ModBlocks.POW_MINER.get()).build(null));
 	public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<WirelessPowerTowerBlockEntity>> WIRELESS_POWER_TOWER = REGISTRY.register("wireless_power_tower",
 			() -> BlockEntityType.Builder.of(WirelessPowerTowerBlockEntity::new, ModBlocks.WIRELESS_POWER_TOWER.get()).build(null));
-	public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<WirelessPowerReceiverBlockEntity>> WIRELESS_POWER_RECEIVER = REGISTRY.register("wireless_power_receiver",
-			() -> BlockEntityType.Builder.of(WirelessPowerReceiverBlockEntity::new, ModBlocks.WIRELESS_POWER_RECEIVER.get()).build(null));
 }
 
 

@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "tools",
+  "ingredients": [
+    { "item": "virtual_craft:computer_mainframe" },
+    { "item": "virtual_craft:display" },
+    { "item": "virtual_craft:keyboard" },
+    { "item": "virtual_craft:mouse" },
+    { "item": "minecraft:redstone" }
+  ],
+  "result": {
+    "count": 1,
+    "id": "virtual_craft:computer"
+  }
+}

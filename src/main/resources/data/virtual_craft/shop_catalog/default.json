@@ -4,48 +4,168 @@
       "id": "electric_ball",
       "item": "virtual_craft:electric_ball",
       "count": 1,
-      "priceUsdt": "64.00",
-      "sellUsdt": "24.00",
+      "priceUsdt": "45.00",
+      "sellUsdt": "22.00",
       "enabled": true
     },
     {
-      "id": "electric_ingot",
+      "id": "electric_ingot_pair",
       "item": "virtual_craft:electric_ingot",
       "count": 2,
-      "priceUsdt": "180.00",
-      "sellUsdt": "120.00",
+      "priceUsdt": "120.00",
+      "sellUsdt": "72.00",
+      "enabled": true
+    },
+    {
+      "id": "electric_absorber",
+      "item": "virtual_craft:electric_absorber",
+      "count": 1,
+      "priceUsdt": "90.00",
+      "sellUsdt": "45.00",
+      "enabled": true
+    },
+    {
+      "id": "link_card",
+      "item": "virtual_craft:link_card",
+      "count": 1,
+      "priceUsdt": "80.00",
+      "sellUsdt": "45.00",
       "enabled": true
     },
     {
       "id": "speed_upgrade_card",
       "item": "virtual_craft:speed_upgrade_card",
       "count": 1,
-      "priceUsdt": "320.00",
-      "sellUsdt": "180.00",
+      "priceUsdt": "240.00",
+      "sellUsdt": "132.00",
+      "enabled": true
+    },
+    {
+      "id": "wireless_transfer_upgrade_card",
+      "item": "virtual_craft:wireless_transfer_upgrade_card",
+      "count": 1,
+      "priceUsdt": "360.00",
+      "sellUsdt": "200.00",
+      "enabled": true
+    },
+    {
+      "id": "mining_surveyor",
+      "item": "virtual_craft:mining_surveyor",
+      "count": 1,
+      "priceUsdt": "280.00",
+      "sellUsdt": "150.00",
+      "enabled": true
+    },
+    {
+      "id": "redstone_bulk",
+      "item": "minecraft:redstone",
+      "count": 32,
+      "priceUsdt": "32.00",
+      "sellUsdt": "18.00",
+      "enabled": true
+    },
+    {
+      "id": "lapis_bulk",
+      "item": "minecraft:lapis_lazuli",
+      "count": 24,
+      "priceUsdt": "45.00",
+      "sellUsdt": "25.00",
+      "enabled": true
+    },
+    {
+      "id": "quartz_bulk",
+      "item": "minecraft:quartz",
+      "count": 32,
+      "priceUsdt": "50.00",
+      "sellUsdt": "28.00",
+      "enabled": true
+    },
+    {
+      "id": "amethyst_bundle",
+      "item": "minecraft:amethyst_shard",
+      "count": 16,
+      "priceUsdt": "48.00",
+      "sellUsdt": "28.00",
+      "enabled": true
+    },
+    {
+      "id": "emerald_bundle",
+      "item": "minecraft:emerald",
+      "count": 8,
+      "priceUsdt": "120.00",
+      "sellUsdt": "70.00",
       "enabled": true
     },
     {
       "id": "diamond_bundle",
       "item": "minecraft:diamond",
       "count": 4,
-      "priceUsdt": "220.00",
-      "sellUsdt": "140.00",
+      "priceUsdt": "180.00",
+      "sellUsdt": "110.00",
+      "enabled": true
+    },
+    {
+      "id": "ender_pearl_bundle",
+      "item": "minecraft:ender_pearl",
+      "count": 8,
+      "priceUsdt": "80.00",
+      "sellUsdt": "45.00",
+      "enabled": true
+    },
+    {
+      "id": "blaze_rod_bundle",
+      "item": "minecraft:blaze_rod",
+      "count": 8,
+      "priceUsdt": "72.00",
+      "sellUsdt": "42.00",
+      "enabled": true
+    },
+    {
+      "id": "slime_ball_bundle",
+      "item": "minecraft:slime_ball",
+      "count": 12,
+      "priceUsdt": "72.00",
+      "sellUsdt": "42.00",
+      "enabled": true
+    },
+    {
+      "id": "prismarine_shard_bundle",
+      "item": "minecraft:prismarine_shard",
+      "count": 16,
+      "priceUsdt": "64.00",
+      "sellUsdt": "36.00",
       "enabled": true
     },
     {
       "id": "echo_shard_bundle",
       "item": "minecraft:echo_shard",
       "count": 2,
-      "priceUsdt": "260.00",
-      "sellUsdt": "160.00",
+      "priceUsdt": "220.00",
+      "sellUsdt": "132.00",
       "enabled": true
     },
     {
       "id": "netherite_scrap",
       "item": "minecraft:netherite_scrap",
       "count": 1,
-      "priceUsdt": "480.00",
-      "sellUsdt": "300.00",
+      "priceUsdt": "360.00",
+      "sellUsdt": "220.00",
+      "enabled": true
+    },
+    {
+      "id": "shulker_shell_pair",
+      "item": "minecraft:shulker_shell",
+      "count": 2,
+      "priceUsdt": "420.00",
+      "sellUsdt": "260.00",
+      "enabled": true
+    },
+    {
+      "id": "nether_star",
+      "item": "minecraft:nether_star",
+      "count": 1,
+      "priceUsdt": "900.00",
+      "sellUsdt": "520.00",
       "enabled": true
     }
   ]

@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "tools",
+  "key": {
+    "a": { "item": "minecraft:amethyst_shard" },
+    "b": { "item": "virtual_craft:electric_absorber" },
+    "c": { "item": "minecraft:compass" },
+    "i": { "item": "virtual_craft:electric_ingot" }
+  },
+  "pattern": [
+    " a ",
+    "cbc",
+    " i "
+  ],
+  "result": {
+    "count": 1,
+    "id": "virtual_craft:mining_surveyor"
+  }
+}

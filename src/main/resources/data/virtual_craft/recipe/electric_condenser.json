@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "a": {
+      "item": "virtual_craft:electric_absorber"
+    },
+    "b": {
+      "item": "virtual_craft:electric_ball"
+    },
+    "i": {
+      "item": "minecraft:iron_ingot"
+    },
+    "r": {
+      "item": "minecraft:redstone"
+    }
+  },
+  "pattern": [
+    "ibi",
+    "ara",
+    "iri"
+  ],
+  "result": {
+    "count": 1,
+    "id": "virtual_craft:electric_condenser"
+  }
+}

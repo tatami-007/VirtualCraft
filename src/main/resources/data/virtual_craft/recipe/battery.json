@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "i": { "item": "minecraft:iron_ingot" },
+    "r": { "item": "minecraft:redstone" },
+    "b": { "item": "virtual_craft:electric_ball" }
+  },
+  "pattern": [
+    "iii",
+    "rbr",
+    "iii"
+  ],
+  "result": {
+    "count": 1,
+    "id": "virtual_craft:battery"
+  }
+}

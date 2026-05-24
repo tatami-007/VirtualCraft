@@ -7,10 +7,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.MenuProvider;
-import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
@@ -28,9 +25,10 @@ import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.BlockHitResult;
 
 import dev.tatami.virtualcraft.blockentity.ElectricCondenserBlockEntity;
+import dev.tatami.virtualcraft.menu.SideConfigMenu;
 import dev.tatami.virtualcraft.registry.ModBlockEntities;
-import dev.tatami.virtualcraft.menu.ElectricCondenserSideConfigMenu;
 
+@SuppressWarnings("this-escape") // registerDefaultState() in the constructor is the canonical Mojang Block pattern.
 public class ElectricCondenserBlock extends BaseEntityBlock {
 	public static final MapCodec<ElectricCondenserBlock> CODEC = simpleCodec(ElectricCondenserBlock::new);
 	public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
@@ -77,7 +75,8 @@ public class ElectricCondenserBlock extends BaseEntityBlock {
 
 	@Override
 	protected BlockState mirror(BlockState state, Mirror mirror) {
-		return state.rotate(mirror.getRotation(state.getValue(FACING)));
+		// Avoid deprecated BlockState.rotate(Rotation); delegate to our own rotate() impl.
+		return rotate(state, mirror.getRotation(state.getValue(FACING)));
 	}
 
 	@Override
@@ -85,7 +84,8 @@ public class ElectricCondenserBlock extends BaseEntityBlock {
 		if (level.getBlockEntity(pos) instanceof ElectricCondenserBlockEntity condenser) {
 			if (!level.isClientSide && player instanceof ServerPlayer serverPlayer) {
 				if (player.isSecondaryUseActive()) {
-					serverPlayer.openMenu(createSideConfigProvider(condenser), buffer -> buffer.writeBlockPos(pos));
+					// shift+右键直接打开通用 SideConfigMenu（v15 通用化）
+					SideConfigMenu.openFor(serverPlayer, condenser);
 				} else {
 					serverPlayer.openMenu(condenser, buffer -> buffer.writeBlockPos(pos));
 				}
@@ -112,12 +112,6 @@ public class ElectricCondenserBlock extends BaseEntityBlock {
 	@Override
 	public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> blockEntityType) {
 		return createTickerHelper(blockEntityType, ModBlockEntities.ELECTRIC_CONDENSER.get(), ElectricCondenserBlockEntity::tick);
-	}
-
-	private MenuProvider createSideConfigProvider(ElectricCondenserBlockEntity condenser) {
-		return new SimpleMenuProvider(
-				(containerId, inventory, player) -> new ElectricCondenserSideConfigMenu(containerId, inventory, condenser, condenser.getSideConfigData()),
-				net.minecraft.network.chat.Component.translatable("screen.virtual_craft.electric_condenser_side_config"));
 	}
 }
 

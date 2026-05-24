@@ -1,8 +1,13 @@
 {
   "variants": {
-    "facing=north": { "model": "virtual_craft:block/wireless_power_tower" },
-    "facing=south": { "model": "virtual_craft:block/wireless_power_tower", "y": 180 },
-    "facing=west": { "model": "virtual_craft:block/wireless_power_tower", "y": 270 },
-    "facing=east": { "model": "virtual_craft:block/wireless_power_tower", "y": 90 }
+    "part=0": {
+      "model": "virtual_craft:block/wireless_power_tower_bottom"
+    },
+    "part=1": {
+      "model": "virtual_craft:block/wireless_power_tower_middle"
+    },
+    "part=2": {
+      "model": "virtual_craft:block/wireless_power_tower_top"
+    }
   }
 }

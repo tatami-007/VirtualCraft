@@ -5,12 +5,15 @@ import javax.annotation.Nullable;
 import com.mojang.serialization.MapCodec;
 
 import dev.tatami.virtualcraft.blockentity.HolographicShopBlockEntity;
+import dev.tatami.virtualcraft.gameplay.HolographicTerminalSession;
+import dev.tatami.virtualcraft.network.HolographicShopSyncDispatcher;
+import dev.tatami.virtualcraft.network.OpenHolographicTerminalPayload;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.neoforged.neoforge.network.PacketDistributor;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.Mirror;
@@ -23,6 +26,7 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.BlockHitResult;
 
+@SuppressWarnings("this-escape") // registerDefaultState() in the constructor is the canonical Mojang Block pattern.
 public class HolographicShopBlock extends BaseEntityBlock {
 	public static final MapCodec<HolographicShopBlock> CODEC = simpleCodec(HolographicShopBlock::new);
 	public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
@@ -63,18 +67,20 @@ public class HolographicShopBlock extends BaseEntityBlock {
 
 	@Override
 	protected BlockState mirror(BlockState state, Mirror mirror) {
-		return state.rotate(mirror.getRotation(state.getValue(FACING)));
+		// Avoid deprecated BlockState.rotate(Rotation); delegate to our own rotate() impl.
+		return rotate(state, mirror.getRotation(state.getValue(FACING)));
 	}
 
 	@Override
 	protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hitResult) {
 		if (!level.isClientSide && player instanceof ServerPlayer serverPlayer) {
+			// 与 HolographicTerminalItem 同一路径：发 Open payload 到客户端，客户端用
+			// MuiModApi.openScreen 打开 SimpleScreen（非 AbstractContainerScreen）——JEI 默认不识别。
 			BlockEntity blockEntity = level.getBlockEntity(pos);
-			if (blockEntity instanceof MenuProvider provider) {
-				serverPlayer.openMenu(provider, buffer -> {
-					buffer.writeBoolean(false);
-					buffer.writeBlockPos(pos);
-				});
+			if (blockEntity instanceof HolographicShopBlockEntity) {
+				int sessionId = HolographicTerminalSession.open(serverPlayer);
+				PacketDistributor.sendToPlayer(serverPlayer, new OpenHolographicTerminalPayload(sessionId, /*itemMode=*/ false, pos));
+				HolographicShopSyncDispatcher.pushInitialSnapshot(serverPlayer);
 			}
 		}
 		return InteractionResult.sidedSuccess(level.isClientSide);

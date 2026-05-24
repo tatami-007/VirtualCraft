@@ -5,6 +5,7 @@ import javax.annotation.Nullable;
 import com.mojang.serialization.MapCodec;
 
 import dev.tatami.virtualcraft.blockentity.ElectricBallGeneratorBlockEntity;
+import dev.tatami.virtualcraft.menu.SideConfigMenu;
 import dev.tatami.virtualcraft.registry.ModBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
@@ -26,6 +27,7 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.BlockHitResult;
 
+@SuppressWarnings("this-escape") // registerDefaultState() in the constructor is the canonical Mojang Block pattern.
 public class ElectricBallGeneratorBlock extends BaseEntityBlock {
 	public static final MapCodec<ElectricBallGeneratorBlock> CODEC = simpleCodec(ElectricBallGeneratorBlock::new);
 	public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
@@ -66,13 +68,18 @@ public class ElectricBallGeneratorBlock extends BaseEntityBlock {
 
 	@Override
 	protected BlockState mirror(BlockState state, Mirror mirror) {
-		return state.rotate(mirror.getRotation(state.getValue(FACING)));
+		// Avoid deprecated BlockState.rotate(Rotation); delegate to our own rotate() impl.
+		return rotate(state, mirror.getRotation(state.getValue(FACING)));
 	}
 
 	@Override
 	protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hitResult) {
 		if (!level.isClientSide && player instanceof ServerPlayer serverPlayer) {
 			BlockEntity blockEntity = level.getBlockEntity(pos);
+			if (player.isShiftKeyDown() && blockEntity instanceof ElectricBallGeneratorBlockEntity generator) {
+				SideConfigMenu.openFor(serverPlayer, generator);
+				return InteractionResult.CONSUME;
+			}
 			if (blockEntity instanceof MenuProvider provider) {
 				serverPlayer.openMenu(provider, buffer -> buffer.writeBlockPos(pos));
 			}

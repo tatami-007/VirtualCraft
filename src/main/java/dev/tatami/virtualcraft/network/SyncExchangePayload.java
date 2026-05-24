@@ -6,11 +6,9 @@ import java.util.List;
 import java.math.BigDecimal;
 
 import dev.tatami.virtualcraft.VirtualCraft;
-import dev.tatami.virtualcraft.client.screen.HolographicShopFragment;
-import dev.tatami.virtualcraft.client.screen.HolographicShopScreen;
+import dev.tatami.virtualcraft.client.screen.holographic.HolographicShopFragment;
 import dev.tatami.virtualcraft.currency.CryptoCurrency;
 import dev.tatami.virtualcraft.exchange.ExchangeRateSnapshot;
-import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -87,10 +85,6 @@ public record SyncExchangePayload(int menuId, String status, long updatedAtEpoch
 				sourceStatus = ExchangeRateSnapshot.SourceStatus.DEFAULT;
 			}
 			ExchangeRateSnapshot snapshot = new ExchangeRateSnapshot(quotes, payload.updatedAtEpochSeconds(), sourceStatus);
-			if (Minecraft.getInstance().screen instanceof HolographicShopScreen screen && screen.matchesMenu(payload.menuId())) {
-				screen.applyExchangeSync(snapshot);
-				return;
-			}
 			HolographicShopFragment fragment = HolographicShopFragment.fromCurrentScreen(payload.menuId());
 			if (fragment != null) {
 				fragment.applyExchangeSync(snapshot);

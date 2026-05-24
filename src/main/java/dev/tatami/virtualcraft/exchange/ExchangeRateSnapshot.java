@@ -63,6 +63,7 @@ public final class ExchangeRateSnapshot {
 		quotes.put(CryptoCurrency.ETH, new BigDecimal("2100.00"));
 		quotes.put(CryptoCurrency.USDT, BigDecimal.ONE.setScale(2, RoundingMode.DOWN));
 		quotes.put(CryptoCurrency.SOL, new BigDecimal("130.00"));
+		quotes.put(CryptoCurrency.TRX, new BigDecimal("0.22"));
 		quotes.put(CryptoCurrency.DOGE, new BigDecimal("0.18"));
 		return new ExchangeRateSnapshot(quotes, Instant.now().getEpochSecond(), SourceStatus.DEFAULT);
 	}

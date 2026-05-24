@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "i": { "item": "minecraft:iron_ingot" }
+  },
+  "pattern": [
+    " i ",
+    " i ",
+    "   "
+  ],
+  "result": {
+    "count": 1,
+    "id": "virtual_craft:mouse_wheel"
+  }
+}

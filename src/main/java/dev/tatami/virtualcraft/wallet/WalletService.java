@@ -3,6 +3,7 @@ package dev.tatami.virtualcraft.wallet;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 
 import dev.tatami.virtualcraft.currency.CryptoCurrency;
@@ -19,6 +20,10 @@ public final class WalletService {
 
 	public static WalletLedger getLedger(Player player) {
 		return getWallet(player).ledger();
+	}
+
+	public static WalletPreferences getPreferences(Player player) {
+		return player.getData(ModAttachments.WALLET_PREFERENCES.get());
 	}
 
 	public static long getMinorUnits(Player player, CryptoCurrency currency) {
@@ -54,6 +59,10 @@ public final class WalletService {
 	}
 
 	public static void record(Player player, WalletLedgerType type, CryptoCurrency primaryCurrency, long primaryAmountMinor, CryptoCurrency secondaryCurrency, long secondaryAmountMinor, String detail) {
+		record(player, type, primaryCurrency, primaryAmountMinor, secondaryCurrency, secondaryAmountMinor, detail, "");
+	}
+
+	public static void record(Player player, WalletLedgerType type, CryptoCurrency primaryCurrency, long primaryAmountMinor, CryptoCurrency secondaryCurrency, long secondaryAmountMinor, String detail, String memo) {
 		getLedger(player).add(new WalletLedgerEntry(
 				type,
 				primaryCurrency == null ? "" : primaryCurrency.id(),
@@ -61,11 +70,20 @@ public final class WalletService {
 				secondaryCurrency == null ? "" : secondaryCurrency.id(),
 				Math.max(0L, secondaryAmountMinor),
 				detail == null ? "" : detail,
-				Instant.now().getEpochSecond()));
+				Instant.now().getEpochSecond(),
+				memo == null ? "" : memo));
 	}
 
 	public static List<WalletLedgerEntry> recentEntries(Player player, int limit) {
 		return getLedger(player).recent(limit);
+	}
+
+	public static List<WalletLedgerEntry> pageEntries(Player player, int offset, int limit, Set<WalletLedgerType> typeFilter, Set<String> currencyFilter) {
+		return getLedger(player).page(offset, limit, typeFilter, currencyFilter);
+	}
+
+	public static int ledgerMatchCount(Player player, Set<WalletLedgerType> typeFilter, Set<String> currencyFilter) {
+		return getLedger(player).countMatching(typeFilter, currencyFilter);
 	}
 
 	public static String walletAddress(Player player) {

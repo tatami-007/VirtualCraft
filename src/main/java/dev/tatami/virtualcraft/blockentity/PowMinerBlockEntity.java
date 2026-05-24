@@ -1,7 +1,14 @@
 package dev.tatami.virtualcraft.blockentity;
 
+import java.util.EnumMap;
+
+import dev.tatami.virtualcraft.block.PowMinerBlock;
+import dev.tatami.virtualcraft.machine.IConfigurableSidedMachine;
+import dev.tatami.virtualcraft.machine.MachineSideConfig;
+import dev.tatami.virtualcraft.machine.SideMode;
 import dev.tatami.virtualcraft.menu.PowMinerMenu;
 import dev.tatami.virtualcraft.registry.ModBlockEntities;
+import dev.tatami.virtualcraft.registry.ModBlocks;
 import dev.tatami.virtualcraft.registry.ModItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -18,18 +25,23 @@ import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.inventory.SimpleContainerData;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.energy.EnergyStorage;
 import net.neoforged.neoforge.energy.IEnergyStorage;
+import net.neoforged.neoforge.items.IItemHandler;
+import net.neoforged.neoforge.items.ItemHandlerHelper;
 import net.neoforged.neoforge.items.ItemStackHandler;
 
-public class PowMinerBlockEntity extends BlockEntity implements MenuProvider {
+public class PowMinerBlockEntity extends BlockEntity implements MenuProvider, IConfigurableSidedMachine {
 	public static final int OUTPUT_SLOT = 0;
-	private static final int MAX_PROGRESS = 120;
+	private static final int MAX_PROGRESS = 600;
 	private static final int MAX_ENERGY = 200_000;
 	private static final int MAX_RECEIVE = 4_000;
 	private static final int ENERGY_PER_TICK = 240;
+	private static final int TRANSFER_PER_SIDE = 16;
 	private final ItemStackHandler inventory = new ItemStackHandler(1) {
 		@Override
 		protected void onContentsChanged(int slot) {
@@ -61,17 +73,31 @@ public class PowMinerBlockEntity extends BlockEntity implements MenuProvider {
 			}
 		}
 	};
-
+	private final EnumMap<Direction, SideMode> sideModes = new EnumMap<>(Direction.class);
+	private final EnumMap<Direction, IItemHandler> sidedHandlers = new EnumMap<>(Direction.class);
 	private int progress;
+	private boolean autoImport;
+	private boolean autoExport;
+	private final ContainerData sideConfigData = MachineSideConfig.createData(
+			sideModes,
+			() -> autoImport,
+			value -> autoImport = value,
+			() -> autoExport,
+			value -> autoExport = value);
 
 	public PowMinerBlockEntity(BlockPos pos, BlockState blockState) {
 		super(ModBlockEntities.POW_MINER.get(), pos, blockState);
+		MachineSideConfig.initDefaults(sideModes);
+		for (Direction direction : MachineSideConfig.DATA_DIRECTIONS) {
+			sidedHandlers.put(direction, new SidedItemHandler(direction));
+		}
 	}
 
 	public static void tick(Level level, BlockPos pos, BlockState state, PowMinerBlockEntity blockEntity) {
 		if (level.isClientSide) {
 			return;
 		}
+		blockEntity.tickAutomation(level, pos);
 
 		if (!blockEntity.canMine()) {
 			if (blockEntity.progress != 0) {
@@ -98,12 +124,63 @@ public class PowMinerBlockEntity extends BlockEntity implements MenuProvider {
 		return inventory;
 	}
 
+	public IItemHandler getItemHandler(Direction direction) {
+		if (direction == null) {
+			return inventory;
+		}
+		SideMode mode = sideModes.get(direction);
+		return mode == SideMode.NONE ? null : sidedHandlers.get(direction);
+	}
+
 	public IEnergyStorage getEnergyStorage(Direction side) {
 		return energyStorage;
 	}
 
 	public ContainerData getData() {
 		return data;
+	}
+
+	@Override
+	public ContainerData getSideConfigData() {
+		return sideConfigData;
+	}
+
+	@Override
+	public SideMode getSideMode(Direction direction) {
+		return sideModes.get(direction);
+	}
+
+	@Override
+	public void cycleSideMode(Direction direction) {
+		sideModes.put(direction, sideModes.get(direction).next());
+		setChanged();
+	}
+
+	@Override
+	public void toggleAutoImport() {
+		autoImport = !autoImport;
+		setChanged();
+	}
+
+	@Override
+	public void toggleAutoExport() {
+		autoExport = !autoExport;
+		setChanged();
+	}
+
+	@Override
+	public Direction getMachineFacing() {
+		return getBlockState().getValue(PowMinerBlock.FACING);
+	}
+
+	@Override
+	public Block getMachineBlock() {
+		return ModBlocks.POW_MINER.get();
+	}
+
+	@Override
+	public MenuProvider createMainMenuProvider() {
+		return this;
 	}
 
 	public void dropContents(Level level, BlockPos pos) {
@@ -130,6 +207,9 @@ public class PowMinerBlockEntity extends BlockEntity implements MenuProvider {
 		tag.put("inventory", inventory.serializeNBT(registries));
 		tag.put("energy", energyStorage.serializeNBT(registries));
 		tag.putInt("progress", progress);
+		tag.putBoolean("auto_import", autoImport);
+		tag.putBoolean("auto_export", autoExport);
+		MachineSideConfig.save(tag, sideModes);
 	}
 
 	@Override
@@ -138,6 +218,39 @@ public class PowMinerBlockEntity extends BlockEntity implements MenuProvider {
 		inventory.deserializeNBT(registries, tag.getCompound("inventory"));
 		energyStorage.deserializeNBT(registries, tag.get("energy"));
 		progress = tag.getInt("progress");
+		autoImport = tag.getBoolean("auto_import");
+		autoExport = tag.getBoolean("auto_export");
+		MachineSideConfig.load(tag, sideModes);
+	}
+
+	private void tickAutomation(Level level, BlockPos pos) {
+		if (!autoExport) {
+			return;
+		}
+		for (Direction direction : MachineSideConfig.DATA_DIRECTIONS) {
+			if (sideModes.get(direction).allowsExtract()) {
+				pushOutputTo(level, pos, direction);
+			}
+		}
+	}
+
+	private void pushOutputTo(Level level, BlockPos pos, Direction direction) {
+		ItemStack output = inventory.getStackInSlot(OUTPUT_SLOT);
+		if (output.isEmpty()) {
+			return;
+		}
+		IItemHandler target = level.getCapability(Capabilities.ItemHandler.BLOCK, pos.relative(direction), direction.getOpposite());
+		if (target == null) {
+			return;
+		}
+		ItemStack toMove = output.copy();
+		toMove.setCount(Math.min(output.getCount(), TRANSFER_PER_SIDE));
+		ItemStack remainder = ItemHandlerHelper.insertItem(target, toMove, false);
+		int moved = toMove.getCount() - remainder.getCount();
+		if (moved > 0) {
+			inventory.extractItem(OUTPUT_SLOT, moved, false);
+			setChanged();
+		}
 	}
 
 	private boolean canMine() {
@@ -175,6 +288,47 @@ public class PowMinerBlockEntity extends BlockEntity implements MenuProvider {
 				setChanged();
 			}
 			return received;
+		}
+	}
+
+	private final class SidedItemHandler implements IItemHandler {
+		private final Direction direction;
+
+		private SidedItemHandler(Direction direction) {
+			this.direction = direction;
+		}
+
+		@Override
+		public int getSlots() {
+			return inventory.getSlots();
+		}
+
+		@Override
+		public ItemStack getStackInSlot(int slot) {
+			return inventory.getStackInSlot(slot);
+		}
+
+		@Override
+		public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
+			return stack;
+		}
+
+		@Override
+		public ItemStack extractItem(int slot, int amount, boolean simulate) {
+			if (!sideModes.get(direction).allowsExtract() || slot != OUTPUT_SLOT) {
+				return ItemStack.EMPTY;
+			}
+			return inventory.extractItem(slot, amount, simulate);
+		}
+
+		@Override
+		public int getSlotLimit(int slot) {
+			return inventory.getSlotLimit(slot);
+		}
+
+		@Override
+		public boolean isItemValid(int slot, ItemStack stack) {
+			return false;
 		}
 	}
 }

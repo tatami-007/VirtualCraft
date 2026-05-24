@@ -1,8 +1,0 @@
-{
-  "variants": {
-    "facing=north": { "model": "virtual_craft:block/currency_generator" },
-    "facing=south": { "model": "virtual_craft:block/currency_generator", "y": 180 },
-    "facing=west": { "model": "virtual_craft:block/currency_generator", "y": 270 },
-    "facing=east": { "model": "virtual_craft:block/currency_generator", "y": 90 }
-  }
-}

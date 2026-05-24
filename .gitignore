@@ -1,11 +1,22 @@
+# --- Build / Gradle ---
 .gradle/
 build/
+bin/
+
+# --- Runtime (keeps saves/mods locally, don't track) ---
 run/
+
+# --- IDE / Editor ---
 .idea/
 .eclipse/
 *.iml
+
+# --- AI / Temp ---
+.cascade-tmp/
+.tmp/
 *.log
 *.tmp
 
+# --- OS ---
 Thumbs.db
 Desktop.ini

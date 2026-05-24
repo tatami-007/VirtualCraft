@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "a": { "item": "minecraft:amethyst_shard" },
+    "i": { "item": "minecraft:iron_ingot" },
+    "q": { "item": "minecraft:quartz" },
+    "r": { "item": "minecraft:redstone" }
+  },
+  "pattern": [
+    "qrq",
+    "iai",
+    "qrq"
+  ],
+  "result": {
+    "count": 1,
+    "id": "virtual_craft:wireless_power_tower"
+  }
+}

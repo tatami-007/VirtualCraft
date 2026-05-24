@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "i": { "item": "minecraft:iron_ingot" },
+    "b": { "item": "virtual_craft:iron_button" }
+  },
+  "pattern": [
+    "bbb",
+    "bbb",
+    "iii"
+  ],
+  "result": {
+    "count": 1,
+    "id": "virtual_craft:keyboard"
+  }
+}

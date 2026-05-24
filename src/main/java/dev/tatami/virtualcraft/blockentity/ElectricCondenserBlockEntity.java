@@ -3,9 +3,13 @@ package dev.tatami.virtualcraft.blockentity;
 import java.util.EnumMap;
 
 import dev.tatami.virtualcraft.block.ElectricCondenserBlock;
-import dev.tatami.virtualcraft.machine.CondenserSideMode;
+import dev.tatami.virtualcraft.machine.IConfigurableSidedMachine;
+import dev.tatami.virtualcraft.machine.ElectricCondenserTuning;
+import dev.tatami.virtualcraft.machine.MachineSideConfig;
+import dev.tatami.virtualcraft.machine.SideMode;
 import dev.tatami.virtualcraft.menu.ElectricCondenserMenu;
 import dev.tatami.virtualcraft.registry.ModBlockEntities;
+import dev.tatami.virtualcraft.registry.ModBlocks;
 import dev.tatami.virtualcraft.registry.ModItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -26,6 +30,7 @@ import net.minecraft.world.inventory.SimpleContainerData;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.capabilities.Capabilities;
@@ -35,7 +40,7 @@ import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemHandlerHelper;
 import net.neoforged.neoforge.items.ItemStackHandler;
 
-public class ElectricCondenserBlockEntity extends BlockEntity implements MenuProvider {
+public class ElectricCondenserBlockEntity extends BlockEntity implements MenuProvider, IConfigurableSidedMachine {
 	public static final int INGOT_SLOT = 0;
 	public static final int BALL_SLOT = 1;
 	public static final int OUTPUT_SLOT = 2;
@@ -46,14 +51,6 @@ public class ElectricCondenserBlockEntity extends BlockEntity implements MenuPro
 	private static final int MAX_RECEIVE = 4_000;
 	private static final int TRANSFER_PER_SIDE = 16;
 	private static final TagKey<Item> INGOTS_TAG = TagKey.create(Registries.ITEM, ResourceLocation.parse("c:ingots"));
-	private static final Direction[] DATA_DIRECTIONS = {
-			Direction.UP,
-			Direction.DOWN,
-			Direction.NORTH,
-			Direction.SOUTH,
-			Direction.WEST,
-			Direction.EAST
-	};
 
 	private final ItemStackHandler inventory = new ItemStackHandler(6) {
 		@Override
@@ -100,41 +97,21 @@ public class ElectricCondenserBlockEntity extends BlockEntity implements MenuPro
 		}
 	};
 
-	private final ContainerData sideConfigData = new SimpleContainerData(8) {
-		@Override
-		public int get(int index) {
-			if (index >= 0 && index < DATA_DIRECTIONS.length) {
-				return sideModes.get(DATA_DIRECTIONS[index]).ordinal();
-			}
-			return switch (index) {
-				case 6 -> autoImport ? 1 : 0;
-				case 7 -> autoExport ? 1 : 0;
-				default -> 0;
-			};
-		}
-
-		@Override
-		public void set(int index, int value) {
-			if (index >= 0 && index < DATA_DIRECTIONS.length) {
-				sideModes.put(DATA_DIRECTIONS[index], CondenserSideMode.values()[Math.max(0, Math.min(CondenserSideMode.values().length - 1, value))]);
-			} else if (index == 6) {
-				autoImport = value != 0;
-			} else if (index == 7) {
-				autoExport = value != 0;
-			}
-		}
-	};
-
-	private final EnumMap<Direction, CondenserSideMode> sideModes = new EnumMap<>(Direction.class);
+	private final EnumMap<Direction, SideMode> sideModes = new EnumMap<>(Direction.class);
 	private final EnumMap<Direction, IItemHandler> sidedHandlers = new EnumMap<>(Direction.class);
 	private int progress;
 	private boolean autoImport;
 	private boolean autoExport;
-
+	private final ContainerData sideConfigData = MachineSideConfig.createData(
+			sideModes,
+			() -> autoImport,
+			value -> autoImport = value,
+			() -> autoExport,
+			value -> autoExport = value);
 	public ElectricCondenserBlockEntity(BlockPos pos, BlockState blockState) {
 		super(ModBlockEntities.ELECTRIC_CONDENSER.get(), pos, blockState);
-		for (Direction direction : Direction.values()) {
-			sideModes.put(direction, CondenserSideMode.BOTH);
+		MachineSideConfig.initDefaults(sideModes);
+		for (Direction direction : MachineSideConfig.DATA_DIRECTIONS) {
 			sidedHandlers.put(direction, new SidedItemHandler(direction));
 		}
 	}
@@ -148,10 +125,15 @@ public class ElectricCondenserBlockEntity extends BlockEntity implements MenuPro
 
 		boolean active = false;
 		if (blockEntity.canCraft()) {
-			int energyCost = blockEntity.currentEnergyPerTick();
+			// Hoist countSpeedCards() out of the per-tick path: it iterates 3
+			// upgrade slots and is otherwise computed up to 4× per tick (energy,
+			// progress, ContainerData GUI sync, plus any debug call). With the
+			// snapshot, the inner code stays branch-free.
+			int speedCards = blockEntity.countSpeedCards();
+			int energyCost = ElectricCondenserTuning.energyPerTick(speedCards);
 			if (blockEntity.energyStorage.getEnergyStored() >= energyCost) {
 				blockEntity.energyStorage.consumeEnergy(energyCost);
-				blockEntity.progress += blockEntity.currentProgressPerTick();
+				blockEntity.progress += ElectricCondenserTuning.progressPerTick(speedCards);
 				active = true;
 				blockEntity.setChanged();
 				if (blockEntity.progress >= MAX_PROGRESS) {
@@ -187,7 +169,7 @@ public class ElectricCondenserBlockEntity extends BlockEntity implements MenuPro
 		return sideConfigData;
 	}
 
-	public CondenserSideMode getSideMode(Direction direction) {
+	public SideMode getSideMode(Direction direction) {
 		return sideModes.get(direction);
 	}
 
@@ -218,8 +200,8 @@ public class ElectricCondenserBlockEntity extends BlockEntity implements MenuPro
 		if (direction == null) {
 			return inventory;
 		}
-		CondenserSideMode mode = sideModes.get(direction);
-		return mode == CondenserSideMode.NONE ? null : sidedHandlers.get(direction);
+		SideMode mode = sideModes.get(direction);
+		return mode == SideMode.NONE ? null : sidedHandlers.get(direction);
 	}
 
 	public void dropContents(Level level, BlockPos pos) {
@@ -240,6 +222,27 @@ public class ElectricCondenserBlockEntity extends BlockEntity implements MenuPro
 		return new ElectricCondenserMenu(containerId, playerInventory, this, data);
 	}
 
+	// ==================================================================
+	// IConfigurableSidedMachine 接口实现
+	// (getSideMode / cycleSideMode / toggleAutoImport / toggleAutoExport / getSideConfigData 在上面已实现)
+	// ==================================================================
+
+	@Override
+	public Direction getMachineFacing() {
+		return getBlockState().getValue(ElectricCondenserBlock.FACING);
+	}
+
+	@Override
+	public Block getMachineBlock() {
+		return ModBlocks.ELECTRIC_CONDENSER.get();
+	}
+
+	@Override
+	public MenuProvider createMainMenuProvider() {
+		// BE 自身就是 MenuProvider（createMenu 返回 ElectricCondenserMenu），BACK 按钮直接复用。
+		return this;
+	}
+
 	@Override
 	protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
 		super.saveAdditional(tag, registries);
@@ -249,11 +252,7 @@ public class ElectricCondenserBlockEntity extends BlockEntity implements MenuPro
 		tag.putBoolean("auto_import", autoImport);
 		tag.putBoolean("auto_export", autoExport);
 
-		CompoundTag sideTag = new CompoundTag();
-		for (Direction direction : Direction.values()) {
-			sideTag.putString(direction.getName(), sideModes.get(direction).name());
-		}
-		tag.put("side_modes", sideTag);
+		MachineSideConfig.save(tag, sideModes);
 	}
 
 	@Override
@@ -265,20 +264,7 @@ public class ElectricCondenserBlockEntity extends BlockEntity implements MenuPro
 		autoImport = tag.getBoolean("auto_import");
 		autoExport = tag.getBoolean("auto_export");
 
-		for (Direction direction : Direction.values()) {
-			sideModes.put(direction, CondenserSideMode.BOTH);
-		}
-		if (tag.contains("side_modes")) {
-			CompoundTag sideTag = tag.getCompound("side_modes");
-			for (Direction direction : Direction.values()) {
-				if (sideTag.contains(direction.getName())) {
-					try {
-						sideModes.put(direction, CondenserSideMode.valueOf(sideTag.getString(direction.getName())));
-					} catch (IllegalArgumentException ignored) {
-					}
-				}
-			}
-		}
+		MachineSideConfig.load(tag, sideModes);
 	}
 
 	private void updateActiveState(Level level, BlockState state, boolean active) {
@@ -329,8 +315,8 @@ public class ElectricCondenserBlockEntity extends BlockEntity implements MenuPro
 			return;
 		}
 
-		for (Direction direction : Direction.values()) {
-			CondenserSideMode mode = sideModes.get(direction);
+		for (Direction direction : MachineSideConfig.DATA_DIRECTIONS) {
+			SideMode mode = sideModes.get(direction);
 			if (autoExport && mode.allowsExtract()) {
 				pushOutputTo(level, pos, direction);
 			}
@@ -414,13 +400,10 @@ public class ElectricCondenserBlockEntity extends BlockEntity implements MenuPro
 		return count;
 	}
 
-	private int currentProgressPerTick() {
-		return ElectricCondenserTuning.progressPerTick(countSpeedCards());
-	}
-
-	private int currentEnergyPerTick() {
-		return ElectricCondenserTuning.energyPerTick(countSpeedCards());
-	}
+	// {@code currentProgressPerTick / currentEnergyPerTick} were thin wrappers that
+	// each re-walked the upgrade slots. The tick path now caches countSpeedCards()
+	// once and feeds it to ElectricCondenserTuning directly, so the wrappers were
+	// removed to eliminate duplicated slot iteration on the hot path.
 
 	private final class SidedItemHandler implements IItemHandler {
 		private final Direction direction;
@@ -441,7 +424,7 @@ public class ElectricCondenserBlockEntity extends BlockEntity implements MenuPro
 
 		@Override
 		public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
-			CondenserSideMode mode = sideModes.get(direction);
+			SideMode mode = sideModes.get(direction);
 			if (!mode.allowsInsert() || slot == OUTPUT_SLOT || slot >= UPGRADE_SLOT_START) {
 				return stack;
 			}
@@ -450,7 +433,7 @@ public class ElectricCondenserBlockEntity extends BlockEntity implements MenuPro
 
 		@Override
 		public ItemStack extractItem(int slot, int amount, boolean simulate) {
-			CondenserSideMode mode = sideModes.get(direction);
+			SideMode mode = sideModes.get(direction);
 			if (!mode.allowsExtract() || slot != OUTPUT_SLOT) {
 				return ItemStack.EMPTY;
 			}

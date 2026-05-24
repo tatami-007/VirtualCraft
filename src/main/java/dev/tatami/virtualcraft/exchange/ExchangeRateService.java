@@ -151,7 +151,7 @@ public final class ExchangeRateService {
 
 	private static ExchangeRateSnapshot fetchLiveSnapshot() throws IOException, InterruptedException {
 		HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
-				.uri(URI.create("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,dogecoin&vs_currencies=usd&include_last_updated_at=true&precision=full"))
+				.uri(URI.create("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,tron,dogecoin&vs_currencies=usd&include_last_updated_at=true&precision=full"))
 				.timeout(Duration.ofSeconds(5))
 				.GET()
 				.header("Accept", "application/json");
@@ -171,6 +171,7 @@ public final class ExchangeRateService {
 		quotes.put(CryptoCurrency.ETH, getQuote(root, "ethereum"));
 		quotes.put(CryptoCurrency.USDT, BigDecimal.ONE.setScale(2, RoundingMode.DOWN));
 		quotes.put(CryptoCurrency.SOL, getQuote(root, "solana"));
+		quotes.put(CryptoCurrency.TRX, getQuote(root, "tron"));
 		quotes.put(CryptoCurrency.DOGE, getQuote(root, "dogecoin"));
 		long updatedAt = latestUpdatedAt(root);
 		return new ExchangeRateSnapshot(quotes, updatedAt, ExchangeRateSnapshot.SourceStatus.LIVE);
@@ -187,7 +188,7 @@ public final class ExchangeRateService {
 
 	private static long latestUpdatedAt(JsonObject root) {
 		long latest = Instant.now().getEpochSecond();
-		for (String key : new String[] {"bitcoin", "ethereum", "solana", "dogecoin"}) {
+		for (String key : new String[] {"bitcoin", "ethereum", "solana", "tron", "dogecoin"}) {
 			JsonObject entry = GsonHelper.getAsJsonObject(root, key);
 			if (entry.has("last_updated_at")) {
 				latest = Math.max(latest, entry.get("last_updated_at").getAsLong());

@@ -1,4 +1,4 @@
-package dev.tatami.virtualcraft.client;
+package dev.tatami.virtualcraft.client.render;
 
 import java.util.Objects;
 
@@ -10,7 +10,7 @@ import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
 
-import dev.tatami.virtualcraft.client.ShockOverlayShaders;
+import dev.tatami.virtualcraft.client.overlay.ShockOverlayShaders;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ShaderInstance;
@@ -49,5 +49,4 @@ public final class ShockTextRenderTarget extends RenderTarget {
 		GlStateManager._colorMask(true, true, true, true);
 	}
 }
-
 

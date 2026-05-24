@@ -1,11 +1,8 @@
 package dev.tatami.virtualcraft.network;
 
 import dev.tatami.virtualcraft.VirtualCraft;
-import dev.tatami.virtualcraft.client.screen.HolographicShopFragment;
-import dev.tatami.virtualcraft.client.screen.HolographicShopScreen;
+import dev.tatami.virtualcraft.client.screen.holographic.HolographicShopFragment;
 import dev.tatami.virtualcraft.wallet.WalletLedgerEntry;
-import io.netty.buffer.ByteBuf;
-import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -18,7 +15,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 public record SyncWalletPayload(int menuId, long[] balances, String walletAddress, List<Entry> entries) implements CustomPacketPayload {
-	public record Entry(String typeId, String primaryCurrencyId, long primaryAmountMinor, String secondaryCurrencyId, long secondaryAmountMinor, String detail, long timestampSeconds) {
+	public record Entry(String typeId, String primaryCurrencyId, long primaryAmountMinor, String secondaryCurrencyId, long secondaryAmountMinor, String detail, long timestampSeconds, String memo) {
+		public Entry {
+			if (memo == null) {
+				memo = "";
+			}
+		}
+
 		private static Entry read(FriendlyByteBuf buffer) {
 			return new Entry(
 					buffer.readUtf(32),
@@ -27,7 +30,8 @@ public record SyncWalletPayload(int menuId, long[] balances, String walletAddres
 					buffer.readUtf(16),
 					buffer.readVarLong(),
 					buffer.readUtf(128),
-					buffer.readVarLong());
+					buffer.readVarLong(),
+					buffer.readUtf(64));
 		}
 
 		private static void write(FriendlyByteBuf buffer, Entry entry) {
@@ -38,6 +42,7 @@ public record SyncWalletPayload(int menuId, long[] balances, String walletAddres
 			buffer.writeVarLong(entry.secondaryAmountMinor);
 			buffer.writeUtf(entry.detail, 128);
 			buffer.writeVarLong(entry.timestampSeconds);
+			buffer.writeUtf(entry.memo, 64);
 		}
 
 		public static Entry fromLedgerEntry(WalletLedgerEntry entry) {
@@ -48,7 +53,8 @@ public record SyncWalletPayload(int menuId, long[] balances, String walletAddres
 					entry.secondaryCurrencyId(),
 					entry.secondaryAmountMinor(),
 					entry.detail(),
-					entry.timestampSeconds());
+					entry.timestampSeconds(),
+					entry.memo());
 		}
 	}
 
@@ -96,10 +102,6 @@ public record SyncWalletPayload(int menuId, long[] balances, String walletAddres
 	@OnlyIn(Dist.CLIENT)
 	private static final class ClientHooks {
 		private static void handle(SyncWalletPayload payload) {
-			if (Minecraft.getInstance().screen instanceof HolographicShopScreen screen && screen.matchesMenu(payload.menuId())) {
-				screen.applyWalletSync(payload.balances(), payload.walletAddress(), payload.entries());
-				return;
-			}
 			HolographicShopFragment fragment = HolographicShopFragment.fromCurrentScreen(payload.menuId());
 			if (fragment != null) {
 				fragment.applyWalletSync(payload.balances(), payload.walletAddress(), payload.entries());

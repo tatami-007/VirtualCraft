@@ -22,6 +22,9 @@ public enum CryptoCurrency {
 	ETH("eth", "crypto_eth", 64, "ethereum", 6, false, 1800, 8_192),
 	USDT("usdt", "crypto_usdt", 64, "tether", 2, true, 1200, 2_048),
 	SOL("sol", "crypto_sol", 64, "solana", 6, false, 900, 4_096),
+	// TRX（波场币）：市价与 DOGE 接近（0.18~0.25 USD），质量加量采微调透近实际
+	// burn 360 ticks * 5_120 J/tick = 1,843,200 J/item，与 DOGE 总能量一致，能量密度略高。
+	TRX("trx", "crypto_trx", 64, "tron", 6, false, 360, 5_120),
 	DOGE("doge", "crypto_doge", 64, "dogecoin", 6, false, 300, 6_144);
 
 	private static final EnumMap<CryptoCurrency, Long> MINOR_FACTORS = new EnumMap<>(CryptoCurrency.class);
@@ -124,6 +127,7 @@ public enum CryptoCurrency {
 			case ETH -> ModItems.CRYPTO_ETH.get();
 			case USDT -> ModItems.CRYPTO_USDT.get();
 			case SOL -> ModItems.CRYPTO_SOL.get();
+			case TRX -> ModItems.CRYPTO_TRX.get();
 			case DOGE -> ModItems.CRYPTO_DOGE.get();
 		};
 	}

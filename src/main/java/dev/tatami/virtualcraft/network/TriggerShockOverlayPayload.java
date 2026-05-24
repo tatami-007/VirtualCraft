@@ -1,7 +1,7 @@
 package dev.tatami.virtualcraft.network;
 
 import dev.tatami.virtualcraft.VirtualCraft;
-import dev.tatami.virtualcraft.client.ShockTextOverlay;
+import dev.tatami.virtualcraft.client.overlay.ShockTextOverlay;
 
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
