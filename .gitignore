@@ -6,16 +6,27 @@ bin/
 # --- Runtime (keeps saves/mods locally, don't track) ---
 run/
 
+# --- Local reference / generated helper folders ---
+net/
+tools/
+
 # --- IDE / Editor ---
+.classpath
+.project
+.settings/
+.vscode/
 .idea/
 .eclipse/
 *.iml
 
 # --- AI / Temp ---
+AGENTS.md
+.codex/
 .cascade-tmp/
 .tmp/
 *.log
 *.tmp
+tlog.txt
 
 # --- OS ---
 Thumbs.db

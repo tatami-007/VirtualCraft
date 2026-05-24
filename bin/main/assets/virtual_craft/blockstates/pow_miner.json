@@ -1,8 +1,0 @@
-{
-  "variants": {
-    "facing=north": { "model": "virtual_craft:block/pow_miner" },
-    "facing=south": { "model": "virtual_craft:block/pow_miner", "y": 180 },
-    "facing=west": { "model": "virtual_craft:block/pow_miner", "y": 270 },
-    "facing=east": { "model": "virtual_craft:block/pow_miner", "y": 90 }
-  }
-}
