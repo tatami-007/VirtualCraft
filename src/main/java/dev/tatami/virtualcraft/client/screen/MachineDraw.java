@@ -7,6 +7,8 @@ import net.minecraft.resources.ResourceLocation;
  * Drawing primitives for classic machine screens.
  */
 public final class MachineDraw {
+	private static final int ICON_BUTTON_CONTENT_Y_OFFSET = -1;
+
 	public static void drawBackground(GuiGraphics guiGraphics, int x, int y, int w, int h, ResourceLocation texture) {
 		guiGraphics.blit(texture, x, y, 0, 0, w, h, MachineAssets.BG_TEX_SIZE, MachineAssets.BG_TEX_SIZE);
 	}
@@ -55,7 +57,10 @@ public final class MachineDraw {
 	public static void drawIconButton(GuiGraphics guiGraphics, int x, int y, int iconU, boolean hovered, int frameU, int frameV) {
 		int hoverOffset = hovered ? 1 : 0;
 		drawIconButtonFrame(guiGraphics, x, y, hovered, frameU, frameV);
-		guiGraphics.blit(MachineAssets.ICONS_TEXTURE, x, y + 1 + hoverOffset, iconU, MachineAssets.ICON_V, MachineAssets.ICON_SIZE,
+		int frameX = x - 1;
+		int iconX = frameX + (MachineAssets.ICON_BUTTON_W - MachineAssets.ICON_SIZE) / 2;
+		int iconY = y + hoverOffset + (MachineAssets.ICON_BUTTON_H - MachineAssets.ICON_SIZE) / 2 + ICON_BUTTON_CONTENT_Y_OFFSET;
+		guiGraphics.blit(MachineAssets.ICONS_TEXTURE, iconX, iconY, iconU, MachineAssets.ICON_V, MachineAssets.ICON_SIZE,
 				MachineAssets.ICON_SIZE, MachineAssets.ICONS_TEX_W, MachineAssets.ICONS_TEX_H);
 	}
 

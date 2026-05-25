@@ -3,13 +3,14 @@
   "category": "misc",
   "key": {
     "g": { "item": "minecraft:gold_ingot" },
-    "r": { "item": "minecraft:redstone" },
-    "c": { "item": "virtual_craft:circuit_board" }
+    "w": { "item": "virtual_craft:copper_wire" },
+    "c": { "item": "virtual_craft:circuit_board" },
+    "s": { "item": "virtual_craft:silicon_wafer" }
   },
   "pattern": [
-    "grg",
-    "rcr",
-    "grg"
+    "wgw",
+    "scs",
+    "wgw"
   ],
   "result": {
     "count": 1,

@@ -65,12 +65,17 @@ public class VirtualCraft {
 			// 1:1 ME-Beam-Former 风格的塔光束渲染：光束从塔顶射向每个绑定目标
 			modEventBus.addListener(VirtualCraftClient::registerBlockEntityRenderers);
 			NeoForge.EVENT_BUS.addListener(VirtualCraftClient::renderShockOverlay);
+			NeoForge.EVENT_BUS.addListener(surveyorHighlighter::renderGui);
 			// Pre-warm Holographic Terminal currency icons on world join (so the first
 			// open of the terminal does not pay synchronous resource-pack IO),
 			// and drop the per-session client cache on disconnect so we never paint
 			// stale balances/addresses from a previous server.
 			NeoForge.EVENT_BUS.addListener(VirtualCraftClient::onClientLogin);
 			NeoForge.EVENT_BUS.addListener(VirtualCraftClient::onClientLogout);
+			// v24 tick-driven holographic shop refresh button state machine —
+			// ModernUI View.postDelayed is unreliable on the render thread, so
+			// we drive transitions from the 20 Hz client tick instead.
+			NeoForge.EVENT_BUS.addListener(VirtualCraftClient::onClientTick);
 		}
 
 		// 1:1 ME-Beam-Former 全局无线塔管理器 — 集中调度所有塔的能量转发，应听 ServerTickEvent.Post + ServerStoppedEvent

@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "s": { "item": "virtual_craft:silicon" },
+    "g": { "item": "minecraft:glass_pane" }
+  },
+  "pattern": [
+    " g ",
+    "sss",
+    " g "
+  ],
+  "result": {
+    "count": 6,
+    "id": "virtual_craft:silicon_wafer"
+  }
+}

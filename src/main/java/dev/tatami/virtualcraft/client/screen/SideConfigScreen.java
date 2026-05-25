@@ -123,6 +123,7 @@ public class SideConfigScreen extends AbstractContainerScreen<SideConfigMenu> {
 		for (Map.Entry<Integer, SideFaceButton> entry : sideButtons.entrySet()) {
 			SideMode mode = menu.getMode(entry.getKey());
 			entry.getValue().setMode(mode);
+			entry.getValue().setAdjacentStack(menu.getAdjacentBlockItem(entry.getKey()));
 		}
 
 		// 4) 工具按钮高亮：AUTO_IMPORT/AUTO_EXPORT 当前 toggle 状态

@@ -175,6 +175,24 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	private boolean refreshScheduled;
 	private boolean refreshIncludeHeader;
 	private FocusTarget refreshFocusTarget = FocusTarget.NONE;
+	private boolean exchangeRefreshPending;
+	private long exchangeRefreshStartedAtMs;
+	private Button headerRefreshButton;
+	private int exchangeRefreshRequestId;
+	// v24: success-flash window. applyExchangeSync sets this to (now + 1200 ms),
+	// and the header rebuild path reads it to flash the refresh button green with
+	// “同步成功” before reverting to “刷新”. Expired timestamps are
+	// cleared in-place during the rebuild check so no extra cleanup hook is needed.
+	private long exchangeRefreshSuccessUntilMs;
+	// v24 tick-driven: timestamp when a snapshot arrived while pending=true.
+	// Held here (not promoted directly) so the tick handler can flip pending
+	// → success only AFTER the 300 ms minimum AMBER window has elapsed.
+	// 0 = no deferred flip queued. Tick reads + clears this.
+	private long exchangeRefreshSnapshotArrivedMs;
+	// v24 tick-driven: dedup flag so the 20 Hz client tick doesn't enqueue a
+	// fresh root.post(applyRefreshButtonState) every frame while a transition
+	// is in flight. Set when we post, cleared by the posted Runnable.
+	private boolean refreshStateUpdateScheduled;
 
 	public HolographicShopFragment(int sessionId, boolean itemMode, BlockPos blockPos) {
 		this.sessionId = sessionId;
@@ -212,6 +230,51 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			return fragment;
 		}
 		return null;
+	}
+
+	/**
+	 * v24 tick-driven refresh button: called from VirtualCraftClient’s
+	 * ClientTickEvent.Post listener at 20 Hz. Walks the currently displayed
+	 * screen and, if it’s a HolographicShopFragment with active refresh state,
+	 * advances the state machine and repaints the button.
+	 *
+	 * <p>Replaces an earlier postDelayed-chained design that silently failed
+	 * because ModernUI’s View.postDelayed does not reliably fire on the
+	 * Minecraft render thread.</p>
+	 */
+	public static void tickActiveRefreshButton() {
+		if (!(Minecraft.getInstance().screen instanceof MuiScreen mui)) {
+			return;
+		}
+		if (!(mui.getFragment() instanceof HolographicShopFragment fragment)) {
+			return;
+		}
+		// Cheap early-out: if no refresh state is active, nothing to do.
+		// (Pure state reads, safe on render thread.)
+		if (!fragment.exchangeRefreshPending
+				&& fragment.exchangeRefreshSuccessUntilMs == 0L
+				&& fragment.exchangeRefreshSnapshotArrivedMs == 0L) {
+			return;
+		}
+		// CRITICAL: ClientTickEvent.Post fires on the Render thread, but
+		// applyRefreshButtonState calls View.setText which mutates ModernUI
+		// views and MUST run on ModernUI's UI thread (otherwise the engine
+		// asserts and the client crashes via Core.checkUiThread). Dispatch
+		// via root.post(Runnable) — that posts to the UI thread queue and
+		// executes on the next UI cycle.
+		//
+		// The refreshStateUpdateScheduled guard prevents the 20 Hz tick from
+		// enqueuing 20 redundant Runnables per second while a 1.2 s success
+		// flash is in flight. One queued update at a time is enough; the
+		// state machine is idempotent and converges on next tick if needed.
+		if (fragment.root == null || fragment.refreshStateUpdateScheduled) {
+			return;
+		}
+		fragment.refreshStateUpdateScheduled = true;
+		fragment.root.post(() -> {
+			fragment.refreshStateUpdateScheduled = false;
+			fragment.applyRefreshButtonState();
+		});
 	}
 
 	@Override
@@ -348,6 +411,13 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	public void applyExchangeSync(ExchangeRateSnapshot snapshot) {
 		exchangeSnapshot = snapshot;
 		HolographicShopClientCache.storeExchange(snapshot);
+		// v24 tick-driven: if a refresh is pending, record the snapshot-arrived
+		// timestamp. The next ClientTickEvent.Post will call applyRefreshButtonState
+		// which promotes pending→success once the 300 ms min AMBER window elapsed.
+		// We don’t flip directly here to guarantee AMBER “同步中” is visible.
+		if (exchangeRefreshPending && exchangeRefreshSnapshotArrivedMs == 0L) {
+			exchangeRefreshSnapshotArrivedMs = System.currentTimeMillis();
+		}
 		requestRefresh(true, captureFocusTarget());
 	}
 
@@ -414,8 +484,28 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		titleBlock.addView(subtitle);
 		header.addView(titleBlock, weighted(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-		Button refreshButton = actionButton(t("screen.virtual_craft.holographic_shop.refresh"), CYAN, () ->
-				PacketDistributor.sendToServer(new WalletActionPayload(sessionId, WalletActionPayload.Action.REFRESH_RATES, "", "", 0L, "")));
+		long nowMs = System.currentTimeMillis();
+		if (exchangeRefreshPending && nowMs - exchangeRefreshStartedAtMs > 900L) {
+			exchangeRefreshPending = false;
+		}
+		if (exchangeRefreshSuccessUntilMs > 0L && nowMs >= exchangeRefreshSuccessUntilMs) {
+			exchangeRefreshSuccessUntilMs = 0L;
+		}
+		boolean refreshShowSuccess = exchangeRefreshSuccessUntilMs > nowMs && !exchangeRefreshPending;
+		String refreshKey;
+		int refreshAccent;
+		if (exchangeRefreshPending) {
+			refreshKey = "screen.virtual_craft.holographic_shop.refreshing";
+			refreshAccent = AMBER;
+		} else if (refreshShowSuccess) {
+			refreshKey = "screen.virtual_craft.holographic_shop.refresh_success";
+			refreshAccent = GREEN;
+		} else {
+			refreshKey = "screen.virtual_craft.holographic_shop.refresh";
+			refreshAccent = CYAN;
+		}
+		Button refreshButton = actionButton(t(refreshKey), refreshAccent, this::requestExchangeRefresh);
+		headerRefreshButton = refreshButton;
 		var refreshParams = new LinearLayout.LayoutParams(dp(HEADER_REFRESH_WIDTH_DP), dp(30));
 		refreshParams.setMargins(0, 0, dp(10), 0);
 		header.addView(refreshButton, refreshParams);
@@ -464,15 +554,90 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		return header;
 	}
 
+	private void requestExchangeRefresh() {
+		if (exchangeRefreshPending) {
+			return;
+		}
+		exchangeRefreshPending = true;
+		exchangeRefreshStartedAtMs = System.currentTimeMillis();
+		// Any in-flight success flash or queued promotion from a previous sync is stale.
+		exchangeRefreshSuccessUntilMs = 0L;
+		exchangeRefreshSnapshotArrivedMs = 0L;
+		exchangeRefreshRequestId++;
+		// v24 tick-driven: paint “同步中” immediately on click so the user gets
+		// instant feedback. All time-based transitions (900 ms timeout, 300 ms
+		// min AMBER → GREEN flip, 1200 ms GREEN → CYAN revert) are owned by the
+		// ClientTickEvent.Post handler calling applyRefreshButtonState() at 20 Hz.
+		// View.postDelayed is NOT used because it doesn’t reliably fire on the
+		// Minecraft render thread under ModernUI — callbacks silently drop.
+		applyRefreshButtonState();
+		PacketDistributor.sendToServer(new WalletActionPayload(sessionId, WalletActionPayload.Action.REFRESH_RATES, "", "", 0L, ""));
+		requestRefresh(true, captureFocusTarget());
+	}
+
 	private void refreshHeader() {
 		long totalUsdtMinor = CurrencyConversionService.totalWalletValueUsdtMinor(balances, exchangeSnapshot);
 		headerValue.setText(CryptoCurrency.USDT.formatCompact(totalUsdtMinor) + " USDT");
+		// v24: status chip stays on the real rate-status label even during a
+		// refresh — progress is now owned by the refresh button alone.
 		headerStatus.setText(rateStatusLabel());
 		headerStatus.setTextColor(rateStatusColor());
+		// v24 fix: header is built once in onCreateView; refreshHeader is the
+		// only update path the rebuild scheduler invokes. Re-apply the refresh
+		// button state here so click → “同步中” → “同步成功” → “刷新”
+		// transitions actually become visible on screen.
+		applyRefreshButtonState();
 		// 原用 shortWalletAddress() 主动取中间裁出 "VC-38...1F6" 省略号。用户明确要求不要省略号，
 		// 改走完整 displayWalletAddress（上文 onCreateView 里 headerAddress 已 setMaxLines(2)+不裁断）。
 		headerAddress.setText(displayWalletAddress());
 		headerTime.setText(TIME_FORMAT.format(Instant.ofEpochSecond(exchangeSnapshot.updatedAtEpochSeconds())));
+	}
+
+	/**
+	 * v24: single source of truth for the refresh button's three visual states
+	 * (idle “刷新” CYAN / pending “同步中” AMBER / success “同步成功”
+	 * GREEN). Called from refreshHeader (so the scheduled rebuild path picks
+	 * up state changes) and from requestExchangeRefresh (so click feels
+	 * instant instead of waiting one frame for root.post to fire).
+	 */
+	private void applyRefreshButtonState() {
+		if (headerRefreshButton == null) {
+			return;
+		}
+		long nowMs = System.currentTimeMillis();
+		// v24 tick-driven state machine. Idempotent; safe to call every tick.
+		// (1) Promote a queued snapshot to success once the 300 ms min AMBER
+		//     window has elapsed. This guarantees the user sees “同步中”.
+		if (exchangeRefreshSnapshotArrivedMs > 0L && exchangeRefreshPending
+				&& nowMs - exchangeRefreshStartedAtMs >= 300L) {
+			exchangeRefreshPending = false;
+			exchangeRefreshSuccessUntilMs = nowMs + 1200L;
+			exchangeRefreshSnapshotArrivedMs = 0L;
+		}
+		// (2) Timeout fallback: if no snapshot ever arrives, clear pending
+		//     after 900 ms so the button doesn’t stay stuck on AMBER.
+		if (exchangeRefreshPending && nowMs - exchangeRefreshStartedAtMs > 900L) {
+			exchangeRefreshPending = false;
+			exchangeRefreshSnapshotArrivedMs = 0L;
+		}
+		// (3) Expire success window so the button reverts to CYAN “刷新”.
+		if (exchangeRefreshSuccessUntilMs > 0L && nowMs >= exchangeRefreshSuccessUntilMs) {
+			exchangeRefreshSuccessUntilMs = 0L;
+		}
+		String key;
+		int accent;
+		if (exchangeRefreshPending) {
+			key = "screen.virtual_craft.holographic_shop.refreshing";
+			accent = AMBER;
+		} else if (exchangeRefreshSuccessUntilMs > nowMs) {
+			key = "screen.virtual_craft.holographic_shop.refresh_success";
+			accent = GREEN;
+		} else {
+			key = "screen.virtual_craft.holographic_shop.refresh";
+			accent = CYAN;
+		}
+		headerRefreshButton.setText(t(key));
+		headerRefreshButton.setBackground(rounded(PANEL_BUTTON, accent, 9f, 1));
 	}
 
 	/**
@@ -1129,8 +1294,14 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		// Search + sort + favorites toolbar.
 		LinearLayout toolbar = new LinearLayout(requireContext());
 		toolbar.setOrientation(LinearLayout.HORIZONTAL);
+		// v24: parent must be taller than children (dp(34)) by at least 2 dp on each
+		// side, otherwise the rounded background's bottom 1-px stroke / corner arc
+		// is sub-pixel-clipped by the parent's bottom edge (visible as "被遮挡" on
+		// the "默认" / "全部" / "★" buttons). dp(40) parent + CENTER_VERTICAL gives
+		// the buttons (dp(34)) 3 dp slack top + 3 dp slack bottom.
+		toolbar.setGravity(Gravity.CENTER_VERTICAL);
 		shopSearchInput = input(shopSearchText, t("screen.virtual_craft.holographic_shop.shop.search_hint"));
-		toolbar.addView(shopSearchInput, weighted(0, dp(30), 1f));
+		toolbar.addView(shopSearchInput, weighted(0, dp(34), 1f));
 		Button sortButton = compactActionButton(t("screen.virtual_craft.holographic_shop.shop.sort." + shopSortMode.name().toLowerCase(java.util.Locale.ROOT)), () -> {
 			ShopSortMode[] modes = ShopSortMode.values();
 			shopSortMode = modes[(shopSortMode.ordinal() + 1) % modes.length];
@@ -1140,8 +1311,8 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		// 时 wrap 出来的第 2 行就会被父 LinearLayout 切掉（用户报告的"按钮被切开"根因）。
 		// 现在 lang 已缩短到最多 5 字符（"名称 A→Z"），dp(132) 宽下单行可装；万一字体异常 wrap，
 		// LayoutParams 高度用 WRAP_CONTENT + minHeight 兜底，让按钮整体长高而不是裁文字。
-		sortButton.setMinimumHeight(dp(28));
-		var sortParams = new LinearLayout.LayoutParams(dp(132), ViewGroup.LayoutParams.WRAP_CONTENT);
+		sortButton.setMinimumHeight(dp(34));
+		var sortParams = new LinearLayout.LayoutParams(dp(132), dp(34));
 		sortParams.setMargins(dp(6), 0, 0, 0);
 		toolbar.addView(sortButton, sortParams);
 		Button favButton = compactActionButton(
@@ -1153,11 +1324,11 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 					requestRefresh(false, FocusTarget.SHOP_SEARCH);
 				});
 		// favButton 同样套 WRAP_CONTENT + minHeight 防 wrap 被裁。dp(84) 宽对"★ 仅看"4 字符够用。
-		favButton.setMinimumHeight(dp(28));
-		var favParams = new LinearLayout.LayoutParams(dp(84), ViewGroup.LayoutParams.WRAP_CONTENT);
+		favButton.setMinimumHeight(dp(34));
+		var favParams = new LinearLayout.LayoutParams(dp(88), dp(34));
 		favParams.setMargins(dp(6), 0, 0, 0);
 		toolbar.addView(favButton, favParams);
-		contentColumn.addView(toolbar, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+		contentColumn.addView(toolbar, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(40)));
 		contentColumn.addView(spacer(dp(8)));
 
 		List<IndexedOffer> filteredOffers = filteredShopOffers();
@@ -1275,6 +1446,10 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		targetCard.addView(hintText(t("screen.virtual_craft.holographic_shop.transfer.target")));
 		LinearLayout targetRow = new LinearLayout(requireContext());
 		targetRow.setOrientation(LinearLayout.HORIZONTAL);
+		// v24: same fix as shopContent toolbar — WRAP_CONTENT row + dp(34) children
+		// leaves 0 dp slack and clips the rounded button's bottom stroke ("选择" /
+		// "粘贴" 被遮挡). Force dp(40) + CENTER_VERTICAL so the stroke has room.
+		targetRow.setGravity(Gravity.CENTER_VERTICAL);
 		transferTargetInput = input(transferTargetText, t("screen.virtual_craft.holographic_shop.transfer.target"));
 		targetRow.addView(transferTargetInput, weighted(0, dp(34), 1f));
 		var chooseParams = new LinearLayout.LayoutParams(dp(64), dp(34));
@@ -1295,7 +1470,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			requestRefresh(false, FocusTarget.TRANSFER_TARGET);
 		}), pasteParams);
 		targetCard.addView(spacer(dp(6)));
-		targetCard.addView(targetRow);
+		targetCard.addView(targetRow, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(40)));
 		targetCard.addView(spacer(dp(10)));
 		if (!recentContacts.isEmpty()) {
 			targetCard.addView(spacer(dp(10)));
@@ -1359,8 +1534,14 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 
 		LinearLayout top = new LinearLayout(requireContext());
 		top.setOrientation(LinearLayout.HORIZONTAL);
-		top.addView(infoCard(t("item.virtual_craft.hash_voucher"), t("screen.virtual_craft.holographic_shop.mining.available", vouchers), t("screen.virtual_craft.holographic_shop.mining.base", CryptoCurrency.BTC.formatCompact(HashVoucherItem.BTC_PAYOUT_MINOR), CryptoCurrency.BTC.ticker()), CYAN), weighted(0, ViewGroup.LayoutParams.WRAP_CONTENT, 0.48f));
-		var previewParams = weighted(0, ViewGroup.LayoutParams.WRAP_CONTENT, 0.52f);
+		// v24: equal weights + measureWithLargestChildEnabled so both info cards
+		// share the same width AND height (“哈希凭证” wrap was making the left
+		// card visibly taller than “结算预览”). MATCH_PARENT on each child’s height
+		// then lets the shorter card stretch to the taller one’s measured height.
+		top.setMeasureWithLargestChildEnabled(true);
+		var voucherParams = weighted(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
+		top.addView(infoCard(t("item.virtual_craft.hash_voucher"), t("screen.virtual_craft.holographic_shop.mining.available", vouchers), t("screen.virtual_craft.holographic_shop.mining.base", CryptoCurrency.BTC.formatCompact(HashVoucherItem.BTC_PAYOUT_MINOR), CryptoCurrency.BTC.ticker()), CYAN), voucherParams);
+		var previewParams = weighted(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
 		previewParams.setMargins(dp(10), 0, 0, 0);
 		top.addView(infoCard(t("screen.virtual_craft.holographic_shop.mining.preview"), miningSettlementCurrency.displayName().getString(), formatTickerAmount(miningSettlementCurrency, payoutMinor), GREEN), previewParams);
 		contentColumn.addView(top, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -1759,7 +1940,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		LinearLayout row = card(selected ? PANEL_ACTIVE : PANEL_ROW, selected ? CYAN : WINDOW_STROKE, 10f);
 		row.setOrientation(LinearLayout.HORIZONTAL);
 		row.setGravity(Gravity.CENTER_VERTICAL);
-		row.setPadding(dp(10), dp(9), dp(10), dp(9));
+		row.setPadding(dp(10), dp(9), dp(16), dp(9));
 		row.setOnClickListener(v -> action.run());
 
 		// v23 hover tooltip 触发器从整行收紧到图标（用户原话："鼠标停留到图标"）。
@@ -1810,9 +1991,9 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		boolean favorite = favoriteOfferIds.contains(offer.id());
 		Button favBtn = compactIconButton(favorite ? "★" : "☆", () -> toggleFavoriteOffer(offer));
 		favBtn.setTextColor(favorite ? AMBER : TEXT_SOFT);
-		// 单字符 ★/☆ 用 compactIconButton（无 ellipsize），宽度 dp(34) 证字符稳稳塞下。
-		var favParams = new LinearLayout.LayoutParams(dp(34), dp(28));
-		favParams.setMargins(dp(8), 0, 0, 0);
+		// 单字符 ★/☆ 仍需要给圆角背景留安全边，否则 ModernUI 父行偶发裁掉描边。
+		var favParams = new LinearLayout.LayoutParams(dp(40), dp(34));
+		favParams.setMargins(dp(10), 0, 0, 0);
 		row.addView(favBtn, favParams);
 		return row;
 	}
@@ -2429,7 +2610,9 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		button.setSingleLine();
 		button.setGravity(Gravity.CENTER);
 		button.setTextColor(TEXT);
-		button.setPadding(dp(4), dp(4), dp(4), dp(4));
+		button.setMinimumWidth(0);
+		button.setMinimumHeight(0);
+		button.setPadding(0, 0, 0, 0);
 		button.setBackground(rounded(PANEL_BUTTON, WINDOW_STROKE, 9f, 1));
 		button.setOnClickListener(v -> action.run());
 		return button;

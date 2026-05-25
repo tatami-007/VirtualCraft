@@ -25,8 +25,8 @@
       "enabled": true
     },
     {
-      "id": "link_card",
-      "item": "virtual_craft:link_card",
+      "id": "laser_binding_tool",
+      "item": "virtual_craft:laser_binding_tool",
       "count": 1,
       "priceUsdt": "80.00",
       "sellUsdt": "45.00",
@@ -38,14 +38,6 @@
       "count": 1,
       "priceUsdt": "240.00",
       "sellUsdt": "132.00",
-      "enabled": true
-    },
-    {
-      "id": "wireless_transfer_upgrade_card",
-      "item": "virtual_craft:wireless_transfer_upgrade_card",
-      "count": 1,
-      "priceUsdt": "360.00",
-      "sellUsdt": "200.00",
       "enabled": true
     },
     {

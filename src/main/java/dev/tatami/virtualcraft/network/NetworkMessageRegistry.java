@@ -35,6 +35,8 @@ public final class NetworkMessageRegistry {
 		add(OpenHolographicTerminalPayload.TYPE, OpenHolographicTerminalPayload.STREAM_CODEC, OpenHolographicTerminalPayload::handle);
 		add(CloseHolographicTerminalPayload.TYPE, CloseHolographicTerminalPayload.STREAM_CODEC, CloseHolographicTerminalPayload::handle);
 		add(LaserBatchBindPayload.TYPE, LaserBatchBindPayload.STREAM_CODEC, LaserBatchBindPayload::handle);
+		add(MiningSurveyorActionPayload.TYPE, MiningSurveyorActionPayload.STREAM_CODEC, MiningSurveyorActionPayload::handle);
+		add(SyncMiningSurveyorPayload.TYPE, SyncMiningSurveyorPayload.STREAM_CODEC, SyncMiningSurveyorPayload::handle);
 	}
 
 	public static <T extends CustomPacketPayload> void add(CustomPacketPayload.Type<T> id, StreamCodec<? extends FriendlyByteBuf, T> reader, IPayloadHandler<T> handler) {

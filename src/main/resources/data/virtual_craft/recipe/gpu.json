@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "r": { "item": "minecraft:redstone" },
+    "g": { "item": "minecraft:gold_ingot" },
+    "c": { "item": "virtual_craft:circuit_board" },
+    "w": { "item": "virtual_craft:copper_wire" }
+  },
+  "pattern": [
+    "wrw",
+    "gcg",
+    "wrw"
+  ],
+  "result": {
+    "count": 1,
+    "id": "virtual_craft:gpu"
+  }
+}

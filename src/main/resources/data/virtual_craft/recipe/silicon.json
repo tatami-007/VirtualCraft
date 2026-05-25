@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "q": { "item": "minecraft:quartz" },
+    "c": { "item": "minecraft:coal" }
+  },
+  "pattern": [
+    " q ",
+    "qcq",
+    " q "
+  ],
+  "result": {
+    "count": 4,
+    "id": "virtual_craft:silicon"
+  }
+}

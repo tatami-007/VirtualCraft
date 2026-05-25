@@ -2,16 +2,16 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "key": {
-    "c": { "item": "virtual_craft:electric_ingot" },
     "e": { "item": "virtual_craft:electric_ingot" },
-    "l": { "item": "virtual_craft:link_card" },
+    "g": { "item": "virtual_craft:gpu" },
+    "p": { "item": "virtual_craft:power_supply" },
     "s": { "item": "virtual_craft:speed_upgrade_card" },
     "q": { "item": "minecraft:quartz" },
     "r": { "item": "minecraft:redstone_block" }
   },
   "pattern": [
     "qeq",
-    "scs",
+    "sgp",
     "qrq"
   ],
   "result": {

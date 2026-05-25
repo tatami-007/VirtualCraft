@@ -2,7 +2,6 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "key": {
-    "a": { "item": "virtual_craft:electric_absorber" },
     "b": { "item": "virtual_craft:electric_ball" },
     "c": { "item": "minecraft:copper_ingot" },
     "i": { "item": "minecraft:iron_ingot" },
@@ -10,7 +9,7 @@
   },
   "pattern": [
     "ici",
-    "aba",
+    "rbr",
     "iri"
   ],
   "result": {

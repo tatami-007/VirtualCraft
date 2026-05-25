@@ -5,6 +5,7 @@ import dev.tatami.virtualcraft.machine.SideMode;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
 
 /**
  * 18×20 面配置按钮 — <b>v20.7 atlas 搬到 icons.png</b>。
@@ -47,6 +48,8 @@ import net.minecraft.network.chat.Component;
  */
 @SuppressWarnings("this-escape") // setTooltip() in the constructor is the standard vanilla widget pattern.
 public class SideFaceButton extends Button {
+	private static final int CONTENT_Y_OFFSET = -1;
+
 	/** sprite 宽度 — 与 AE2-CS BUTTON sprite 一致 18 px。 */
 	public static final int WIDTH = 18;
 	/** sprite 高度 — 与 AE2-CS BUTTON sprite 一致 20 px（含按下立体阴影边）。 */
@@ -60,18 +63,34 @@ public class SideFaceButton extends Button {
 	private static final int TEX_SIZE = 256;
 
 	private SideMode mode = SideMode.NONE;
+	private final Component faceName;
+	private ItemStack adjacentStack = ItemStack.EMPTY;
 
 	public SideFaceButton(int x, int y, Component tooltipText, OnPress onPress) {
 		super(x, y, WIDTH, HEIGHT, Component.empty(), onPress, DEFAULT_NARRATION);
-		setTooltip(net.minecraft.client.gui.components.Tooltip.create(tooltipText));
+		this.faceName = tooltipText;
+		updateTooltip();
 	}
 
 	public void setMode(SideMode mode) {
+		if (this.mode == mode) {
+			return;
+		}
 		this.mode = mode;
+		updateTooltip();
 	}
 
 	public SideMode getMode() {
 		return mode;
+	}
+
+	public void setAdjacentStack(ItemStack adjacentStack) {
+		ItemStack next = adjacentStack == null ? ItemStack.EMPTY : adjacentStack;
+		if (ItemStack.isSameItemSameComponents(this.adjacentStack, next)) {
+			return;
+		}
+		this.adjacentStack = next;
+		updateTooltip();
 	}
 
 	@Override
@@ -87,6 +106,19 @@ public class SideFaceButton extends Button {
 		// partial blit AE2-CS 真实按压立体 sprite（v20.7：atlas 从 side_config_menu.png 搬到 icons.png）
 		int hoverOffset = isHoveredOrFocused() ? 1 : 0;
 		guiGraphics.blit(MachineAssets.ICONS_TEXTURE, x - 1, y + hoverOffset, u, ATLAS_DARK_V, WIDTH, HEIGHT, TEX_SIZE, TEX_SIZE);
+		if (!adjacentStack.isEmpty()) {
+			int iconX = x - 1 + (WIDTH - 16) / 2;
+			int iconY = y + hoverOffset + (HEIGHT - 16) / 2 + CONTENT_Y_OFFSET;
+			guiGraphics.renderFakeItem(adjacentStack, iconX, iconY);
+		}
+	}
+
+	private void updateTooltip() {
+		Component adjacent = adjacentStack.isEmpty()
+				? Component.translatable("tooltip.virtual_craft.side_config.adjacent.none")
+				: adjacentStack.getHoverName();
+		setTooltip(net.minecraft.client.gui.components.Tooltip.create(
+				Component.translatable("tooltip.virtual_craft.side_config.button", faceName, mode.displayName(), adjacent)));
 	}
 
 	/** mode → atlas 内的 u 偏移（DARK 行内 4 列 normal sprite）。 */

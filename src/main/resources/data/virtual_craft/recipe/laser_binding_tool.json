@@ -1,19 +1,19 @@
 {
   "type": "minecraft:crafting_shaped",
-  "category": "misc",
+  "category": "tools",
   "key": {
     "a": { "item": "minecraft:amethyst_shard" },
     "e": { "item": "virtual_craft:electric_ingot" },
-    "l": { "item": "virtual_craft:link_card" },
+    "i": { "item": "minecraft:iron_ingot" },
     "r": { "item": "minecraft:redstone" }
   },
   "pattern": [
-    "rar",
-    "ele",
-    "rar"
+    " ra",
+    " er",
+    "i  "
   ],
   "result": {
     "count": 1,
-    "id": "virtual_craft:wireless_transfer_upgrade_card"
+    "id": "virtual_craft:laser_binding_tool"
   }
 }

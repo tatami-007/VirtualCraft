@@ -7,9 +7,9 @@
     "r": { "item": "minecraft:redstone" }
   },
   "pattern": [
-    " a ",
+    "rar",
     "rcr",
-    " a "
+    "rar"
   ],
   "result": {
     "count": 1,

@@ -2,14 +2,14 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "key": {
-    "a": { "item": "minecraft:amethyst_shard" },
+    "e": { "item": "virtual_craft:electric_ingot" },
     "i": { "item": "minecraft:iron_ingot" },
     "q": { "item": "minecraft:quartz" },
     "r": { "item": "minecraft:redstone" }
   },
   "pattern": [
     "qrq",
-    "iai",
+    "iei",
     "qrq"
   ],
   "result": {

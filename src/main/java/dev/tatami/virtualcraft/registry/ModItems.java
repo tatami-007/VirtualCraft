@@ -59,14 +59,19 @@ public final class ModItems {
 	public static final DeferredItem<Item> CRYPTO_DOGE = REGISTRY.register(CryptoCurrency.DOGE.itemName(), () -> new Item(new Item.Properties().stacksTo(CryptoCurrency.DOGE.stackLimit())));
 
 	// === "电脑 + 进入虚拟世界" 流程物品（移植自 1.16.5 旧工程） =================
-	// 合成依赖链：iron_button + mouse_wheel → mouse；circuit_board + battery + cpu → computer_mainframe
+	// 合成依赖链：vanilla button + mouse_wheel → mouse；PC parts → computer_mainframe
 	//             computer_mainframe + display + keyboard + mouse → computer
 	// 旧版的 InsulatedElectricWire 在新工程被红石替代（绝缘装备体系已移除）。
-	public static final DeferredItem<Item> IRON_BUTTON = REGISTRY.register("iron_button", () -> new Item(new Item.Properties()));
 	public static final DeferredItem<Item> MOUSE_WHEEL = REGISTRY.register("mouse_wheel", () -> new Item(new Item.Properties()));
+	public static final DeferredItem<Item> COPPER_WIRE = REGISTRY.register("copper_wire", () -> new Item(new Item.Properties()));
+	public static final DeferredItem<Item> SILICON = REGISTRY.register("silicon", () -> new Item(new Item.Properties()));
+	public static final DeferredItem<Item> SILICON_WAFER = REGISTRY.register("silicon_wafer", () -> new Item(new Item.Properties()));
 	public static final DeferredItem<Item> CIRCUIT_BOARD = REGISTRY.register("circuit_board", () -> new Item(new Item.Properties()));
 	public static final DeferredItem<Item> CPU = REGISTRY.register("cpu", () -> new Item(new Item.Properties()));
-	public static final DeferredItem<Item> BATTERY = REGISTRY.register("battery", () -> new Item(new Item.Properties()));
+	public static final DeferredItem<Item> GPU = REGISTRY.register("gpu", () -> new Item(new Item.Properties()));
+	public static final DeferredItem<Item> MEMORY_STICK = REGISTRY.register("memory_stick", () -> new Item(new Item.Properties()));
+	public static final DeferredItem<Item> POWER_SUPPLY = REGISTRY.register("power_supply", () -> new Item(new Item.Properties()));
+	public static final DeferredItem<Item> HARD_DRIVE = REGISTRY.register("hard_drive", () -> new Item(new Item.Properties()));
 	public static final DeferredItem<Item> DISPLAY = REGISTRY.register("display", () -> new Item(new Item.Properties()));
 	public static final DeferredItem<Item> KEYBOARD = REGISTRY.register("keyboard", () -> new Item(new Item.Properties()));
 	public static final DeferredItem<Item> MOUSE = REGISTRY.register("mouse", () -> new Item(new Item.Properties()));

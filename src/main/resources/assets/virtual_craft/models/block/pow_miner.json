@@ -1,6 +1,12 @@
 {
-  "parent": "minecraft:block/cube_all",
+  "parent": "minecraft:block/cube",
   "textures": {
-    "all": "virtual_craft:block/pow_miner"
+    "particle": "virtual_craft:block/pow_miner_side",
+    "down": "virtual_craft:block/pow_miner_top",
+    "up": "virtual_craft:block/pow_miner_top",
+    "north": "virtual_craft:block/pow_miner_front",
+    "south": "virtual_craft:block/pow_miner_side",
+    "west": "virtual_craft:block/pow_miner_side",
+    "east": "virtual_craft:block/pow_miner_side"
   }
 }

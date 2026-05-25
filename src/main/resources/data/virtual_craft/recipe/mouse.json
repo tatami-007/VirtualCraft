@@ -3,14 +3,14 @@
   "category": "misc",
   "key": {
     "i": { "item": "minecraft:iron_ingot" },
-    "b": { "item": "virtual_craft:iron_button" },
+    "b": { "item": "minecraft:stone_button" },
     "w": { "item": "virtual_craft:mouse_wheel" },
-    "x": { "item": "virtual_craft:battery" }
+    "x": { "item": "minecraft:redstone" }
   },
   "pattern": [
-    "bwb",
-    "ixi",
-    " i "
+    " b ",
+    "iwi",
+    "ixi"
   ],
   "result": {
     "count": 1,

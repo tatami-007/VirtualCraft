@@ -5,7 +5,7 @@
     "a": { "item": "minecraft:amethyst_shard" },
     "e": { "item": "virtual_craft:electric_ingot" },
     "g": { "item": "minecraft:glass" },
-    "l": { "item": "virtual_craft:link_card" },
+    "l": { "item": "virtual_craft:laser_binding_tool" },
     "r": { "item": "minecraft:redstone" }
   },
   "pattern": [

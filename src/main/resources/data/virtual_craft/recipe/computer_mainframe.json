@@ -2,15 +2,18 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "key": {
-    "i": { "item": "minecraft:iron_ingot" },
     "c": { "item": "virtual_craft:circuit_board" },
-    "b": { "item": "virtual_craft:battery" },
-    "p": { "item": "virtual_craft:cpu" }
+    "u": { "item": "virtual_craft:cpu" },
+    "g": { "item": "virtual_craft:gpu" },
+    "m": { "item": "virtual_craft:memory_stick" },
+    "p": { "item": "virtual_craft:power_supply" },
+    "h": { "item": "virtual_craft:hard_drive" },
+    "i": { "item": "minecraft:iron_ingot" }
   },
   "pattern": [
-    "ici",
-    "ibi",
-    "ipi"
+    "iui",
+    "mch",
+    "gpi"
   ],
   "result": {
     "count": 1,

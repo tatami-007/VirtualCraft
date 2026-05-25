@@ -3,12 +3,12 @@
   "category": "misc",
   "key": {
     "i": { "item": "minecraft:iron_ingot" },
-    "g": { "tag": "minecraft:stained_glass_panes" },
-    "b": { "item": "virtual_craft:iron_button" }
+    "g": { "item": "minecraft:glass_pane" },
+    "b": { "item": "minecraft:stone_button" }
   },
   "pattern": [
-    "iii",
-    "igi",
+    "ggg",
+    "gig",
     "ibi"
   ],
   "result": {

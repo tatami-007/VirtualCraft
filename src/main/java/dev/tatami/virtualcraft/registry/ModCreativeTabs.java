@@ -42,11 +42,16 @@ public final class ModCreativeTabs {
 				tabData.accept(ModItems.CRYPTO_DOGE.get());
 				// === 电脑 + 虚拟世界（移植自 1.16.5 旧工程） ===
 				// 顺序按合成依赖：原料 → 子部件 → 主机 → 电脑（玩家最常拿，放最后便于热键定位）。
-				tabData.accept(ModItems.IRON_BUTTON.get());
 				tabData.accept(ModItems.MOUSE_WHEEL.get());
+				tabData.accept(ModItems.COPPER_WIRE.get());
+				tabData.accept(ModItems.SILICON.get());
+				tabData.accept(ModItems.SILICON_WAFER.get());
 				tabData.accept(ModItems.CIRCUIT_BOARD.get());
 				tabData.accept(ModItems.CPU.get());
-				tabData.accept(ModItems.BATTERY.get());
+				tabData.accept(ModItems.GPU.get());
+				tabData.accept(ModItems.MEMORY_STICK.get());
+				tabData.accept(ModItems.POWER_SUPPLY.get());
+				tabData.accept(ModItems.HARD_DRIVE.get());
 				tabData.accept(ModItems.DISPLAY.get());
 				tabData.accept(ModItems.KEYBOARD.get());
 				tabData.accept(ModItems.MOUSE.get());

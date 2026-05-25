@@ -14,7 +14,9 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 
+import dev.tatami.virtualcraft.mining.MiningSurveyTarget;
 import dev.tatami.virtualcraft.registry.ModBlocks;
 
 public final class OreClusterFinder {
@@ -37,7 +39,15 @@ public final class OreClusterFinder {
 	}
 
 	public static List<BlockPos> collectConnectedOres(Level level, BlockPos startPos, int maxBlocks) {
-		if (startPos == null || maxBlocks <= 0 || !isElectricOre(level.getBlockState(startPos))) {
+		return collectConnectedOres(level, startPos, maxBlocks, OreClusterFinder::isElectricOre);
+	}
+
+	public static List<BlockPos> collectConnectedOres(Level level, BlockPos startPos, int maxBlocks, MiningSurveyTarget target) {
+		return collectConnectedOres(level, startPos, maxBlocks, target::matches);
+	}
+
+	private static List<BlockPos> collectConnectedOres(Level level, BlockPos startPos, int maxBlocks, Predicate<BlockState> matcher) {
+		if (startPos == null || maxBlocks <= 0 || !matcher.test(level.getBlockState(startPos))) {
 			return List.of();
 		}
 
@@ -51,7 +61,7 @@ public final class OreClusterFinder {
 
 		while (!queue.isEmpty() && connectedOres.size() < maxBlocks) {
 			BlockPos currentPos = queue.removeFirst();
-			if (!isElectricOre(level.getBlockState(currentPos))) {
+			if (!matcher.test(level.getBlockState(currentPos))) {
 				continue;
 			}
 
@@ -68,6 +78,10 @@ public final class OreClusterFinder {
 	}
 
 	public static SurveyResult findSurveyTarget(Level level, BlockPos center, int horizontalRange, int verticalRange, int maxBlocks) {
+		return findSurveyTarget(level, center, horizontalRange, verticalRange, maxBlocks, MiningSurveyTarget.defaultTarget());
+	}
+
+	public static SurveyResult findSurveyTarget(Level level, BlockPos center, int horizontalRange, int verticalRange, int maxBlocks, MiningSurveyTarget target) {
 		Set<BlockPos> visited = new HashSet<>();
 		SurveyResult best = null;
 
@@ -75,11 +89,11 @@ public final class OreClusterFinder {
 			for (int x = center.getX() - horizontalRange; x <= center.getX() + horizontalRange; x++) {
 				for (int z = center.getZ() - horizontalRange; z <= center.getZ() + horizontalRange; z++) {
 					BlockPos pos = new BlockPos(x, y, z);
-					if (visited.contains(pos) || !isElectricOre(level.getBlockState(pos))) {
+					if (visited.contains(pos) || !target.matches(level.getBlockState(pos))) {
 						continue;
 					}
 
-					List<BlockPos> cluster = collectConnectedOres(level, pos, maxBlocks);
+					List<BlockPos> cluster = collectConnectedOres(level, pos, maxBlocks, target);
 					if (cluster.isEmpty()) {
 						continue;
 					}

@@ -2,13 +2,14 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "key": {
+    "b": { "item": "minecraft:stone_button" },
     "i": { "item": "minecraft:iron_ingot" },
-    "b": { "item": "virtual_craft:iron_button" }
+    "r": { "item": "minecraft:redstone" }
   },
   "pattern": [
     "bbb",
     "bbb",
-    "iii"
+    "iri"
   ],
   "result": {
     "count": 1,

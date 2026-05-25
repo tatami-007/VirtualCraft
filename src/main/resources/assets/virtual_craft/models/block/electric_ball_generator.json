@@ -1,6 +1,12 @@
 {
-  "parent": "minecraft:block/cube_all",
+  "parent": "minecraft:block/cube",
   "textures": {
-    "all": "virtual_craft:block/electric_ball_generator"
+    "particle": "virtual_craft:block/electric_ball_generator_side",
+    "down": "virtual_craft:block/electric_ball_generator_top",
+    "up": "virtual_craft:block/electric_ball_generator_top",
+    "north": "virtual_craft:block/electric_ball_generator_front",
+    "south": "virtual_craft:block/electric_ball_generator_side",
+    "west": "virtual_craft:block/electric_ball_generator_side",
+    "east": "virtual_craft:block/electric_ball_generator_side"
   }
 }

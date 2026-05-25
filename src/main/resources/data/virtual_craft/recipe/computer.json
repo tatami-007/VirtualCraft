@@ -1,12 +1,17 @@
 {
-  "type": "minecraft:crafting_shapeless",
+  "type": "minecraft:crafting_shaped",
   "category": "tools",
-  "ingredients": [
-    { "item": "virtual_craft:computer_mainframe" },
-    { "item": "virtual_craft:display" },
-    { "item": "virtual_craft:keyboard" },
-    { "item": "virtual_craft:mouse" },
-    { "item": "minecraft:redstone" }
+  "key": {
+    "d": { "item": "virtual_craft:display" },
+    "f": { "item": "virtual_craft:computer_mainframe" },
+    "k": { "item": "virtual_craft:keyboard" },
+    "m": { "item": "virtual_craft:mouse" },
+    "r": { "item": "minecraft:redstone" }
+  },
+  "pattern": [
+    " d ",
+    "kfr",
+    " m "
   ],
   "result": {
     "count": 1,

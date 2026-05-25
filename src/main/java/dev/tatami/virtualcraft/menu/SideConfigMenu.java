@@ -122,6 +122,18 @@ public class SideConfigMenu extends AbstractContainerMenu {
 		return SideMode.values()[data.get(getDataIndex(direction))];
 	}
 
+	public ItemStack getAdjacentBlockItem(int buttonId) {
+		BlockPos adjacentPos = machineBe.getBlockPos().relative(getDirectionForButton(buttonId));
+		if (!level.isLoaded(adjacentPos)) {
+			return ItemStack.EMPTY;
+		}
+		var state = level.getBlockState(adjacentPos);
+		if (state.isAir()) {
+			return ItemStack.EMPTY;
+		}
+		return new ItemStack(state.getBlock().asItem());
+	}
+
 	public boolean isAutoImportEnabled() {
 		return data.get(6) != 0;
 	}
