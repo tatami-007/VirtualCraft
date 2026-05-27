@@ -29,6 +29,7 @@ import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
  */
 public final class HolographicIconCache {
 	private static final ConcurrentMap<ResourceLocation, Optional<byte[]>> TEXTURE_BYTES = new ConcurrentHashMap<>();
+	private static volatile int currencyPrewarmIndex = CryptoCurrency.values().length;
 
 	private HolographicIconCache() {
 	}
@@ -41,30 +42,50 @@ public final class HolographicIconCache {
 		ResourceLocation texture = ResourceLocation.fromNamespaceAndPath(
 				itemId.getNamespace(),
 				"textures/item/" + itemId.getPath() + ".png");
-		return load(texture, pxSize);
+		ImageDrawable item = load(texture, pxSize);
+		if (item != null) {
+			return item;
+		}
+		String path = itemId.getPath();
+		for (String suffix : new String[] { "", "_side", "_front", "_top" }) {
+			ResourceLocation blockTexture = ResourceLocation.fromNamespaceAndPath(
+					itemId.getNamespace(),
+					"textures/block/" + path + suffix + ".png");
+			ImageDrawable block = load(blockTexture, pxSize);
+			if (block != null) {
+				return block;
+			}
+		}
+		return null;
 	}
 
 	public static void invalidate() {
 		TEXTURE_BYTES.clear();
+		currencyPrewarmIndex = CryptoCurrency.values().length;
 	}
 
 	/**
-	 * Reads (and caches) the PNG bytes for every {@link CryptoCurrency} icon
-	 * without constructing any {@link ImageDrawable}. Calling this once when
-	 * the player joins a world removes the synchronous resource-pack IO that
-	 * would otherwise happen the first time the Holographic Terminal is
-	 * opened, saving a noticeable hitch on the very first frame of the
-	 * window.
+	 * Starts a tiny staggered icon prewarm instead of reading every currency
+	 * PNG during the login event. This keeps world entry responsive while
+	 * still making the terminal cheap to open a few ticks later.
 	 *
 	 * <p>Decoding the PNG into a {@code ImageDrawable} is intentionally left
 	 * to the actual UI build pass: that step requires an OpenGL/render-thread
 	 * context and depends on the dp() of the call site, while the byte array
 	 * is identical regardless of size.</p>
 	 */
-	public static void prewarmCurrencies() {
-		for (CryptoCurrency currency : CryptoCurrency.values()) {
-			TEXTURE_BYTES.computeIfAbsent(currency.iconTexture(), HolographicIconCache::readBytes);
+	public static void scheduleCurrencyPrewarm() {
+		currencyPrewarmIndex = 0;
+	}
+
+	public static void tickCurrencyPrewarm() {
+		CryptoCurrency[] currencies = CryptoCurrency.values();
+		int index = currencyPrewarmIndex;
+		if (index < 0 || index >= currencies.length) {
+			return;
 		}
+		TEXTURE_BYTES.computeIfAbsent(currencies[index].iconTexture(), HolographicIconCache::readBytes);
+		currencyPrewarmIndex = index + 1;
 	}
 
 	@SuppressWarnings("deprecation")

@@ -51,10 +51,12 @@ public class PowMinerScreen extends AbstractContainerScreen<PowMinerMenu> {
 	@Override
 	protected void init() {
 		super.init();
+		MouseTransitionGuard.restoreIfRecent();
 		addRenderableWidget(new IconButton(leftPos + 152, topPos + 4, MachineAssets.ICON_GEAR_U,
 				Component.translatable("screen.virtual_craft.side_config.title"),
 				button -> {
 					if (minecraft != null && minecraft.gameMode != null) {
+						MouseTransitionGuard.capture();
 						minecraft.gameMode.handleInventoryButtonClick(menu.containerId, SIDE_CONFIG_BUTTON_ID);
 					}
 				}));

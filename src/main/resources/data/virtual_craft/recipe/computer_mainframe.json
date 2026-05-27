@@ -8,12 +8,12 @@
     "m": { "item": "virtual_craft:memory_stick" },
     "p": { "item": "virtual_craft:power_supply" },
     "h": { "item": "virtual_craft:hard_drive" },
-    "i": { "item": "minecraft:iron_ingot" }
+    "e": { "item": "virtual_craft:electric_ingot" }
   },
   "pattern": [
-    "iui",
+    "eue",
     "mch",
-    "gpi"
+    "gpe"
   ],
   "result": {
     "count": 1,

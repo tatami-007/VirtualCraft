@@ -17,12 +17,11 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Rarity;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.portal.DimensionTransition;
 import net.minecraft.world.phys.Vec3;
 
 import dev.tatami.virtualcraft.gameplay.VirtualWorldReturnPoint;
+import dev.tatami.virtualcraft.gameplay.VirtualDataRelicManager;
 import dev.tatami.virtualcraft.registry.ModAttachments;
 import dev.tatami.virtualcraft.registry.ModDimensions;
 
@@ -45,15 +44,6 @@ import dev.tatami.virtualcraft.registry.ModDimensions;
  * 旧版的 electrocution 每 tick 掉血机制已按用户要求完全删除。
  */
 public class ComputerItem extends Item {
-	/**
-	 * 全服共享的孤岛坐标。挑 (0, 64, 0) 是因为：
-	 * <ul>
-	 *   <li>x/z 为 0 让玩家容易找回原点；</li>
-	 *   <li>y=64 在维度类型 {@code min_y=0, height=256} 的中段，往上往下都有足够空间，
-	 *       即便玩家失误掉下去也有重力缓冲，方便用电脑再切一次回来。</li>
-	 * </ul>
-	 */
-	private static final BlockPos ISLAND_POS = new BlockPos(0, 64, 0);
 	public ComputerItem() {
 		super(new Item.Properties().stacksTo(1).rarity(Rarity.UNCOMMON));
 	}
@@ -111,13 +101,13 @@ public class ComputerItem extends Item {
 		// NeoForge 的同步/标记脏位，确保关服时落盘。
 		player.setData(ModAttachments.VIRTUAL_WORLD_RETURN_POINT, rp);
 
-		ensureIslandBlock(target);
+		BlockPos landing = VirtualDataRelicManager.ensureSector(player, target);
 
-		// 站在岛屿方块顶面 + 半格中心，避免卡在方块内或半空起跳。
+		// 站在个人 Hub 顶面 + 半格中心，避免卡在方块内或半空起跳。
 		Vec3 landingPos = new Vec3(
-				ISLAND_POS.getX() + 0.5D,
-				ISLAND_POS.getY() + 1.0D,
-				ISLAND_POS.getZ() + 0.5D);
+				landing.getX() + 0.5D,
+				landing.getY(),
+				landing.getZ() + 0.5D);
 		DimensionTransition transition = new DimensionTransition(
 				target,
 				landingPos,
@@ -170,19 +160,6 @@ public class ComputerItem extends Item {
 		// 必然会重新捕获，安全无副作用。
 		rp.clear();
 		player.setData(ModAttachments.VIRTUAL_WORLD_RETURN_POINT, rp);
-	}
-
-	/**
-	 * 单方块空岛的懒生成：第一次有玩家进入虚拟世界时才落子。如果玩家自己破坏了岛，下次再
-	 * 进入会自动补回——这是有意为之，让虚拟世界永远 "至少有一个落脚点"。
-	 */
-	private static void ensureIslandBlock(ServerLevel target) {
-		BlockState existing = target.getBlockState(ISLAND_POS);
-		if (existing.isAir()) {
-			// 选 grass_block 而非 bedrock：草方块顶面贴图友好、玩家可以挖走自由扩建，
-			// 同时旁边的虚空 biome 让它在视觉上仍然像一片孤立岛。
-			target.setBlockAndUpdate(ISLAND_POS, Blocks.GRASS_BLOCK.defaultBlockState());
-		}
 	}
 
 	@Override

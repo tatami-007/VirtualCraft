@@ -59,12 +59,12 @@ public final class VirtualCraftClient {
 	}
 
 	/**
-	 * Pre-warms the Holographic Terminal currency icon cache as soon as the
-	 * client joins a world. This avoids a synchronous resource-pack read on
-	 * the very first frame the terminal is opened.
+	 * Schedules a staggered Holographic Terminal icon prewarm. Reading all PNGs
+	 * during login makes the first world tick feel heavier, so the cache warms
+	 * one small icon per client tick instead.
 	 */
 	public static void onClientLogin(ClientPlayerNetworkEvent.LoggingIn event) {
-		HolographicIconCache.prewarmCurrencies();
+		HolographicIconCache.scheduleCurrencyPrewarm();
 	}
 
 	/**
@@ -86,6 +86,7 @@ public final class VirtualCraftClient {
 	 * cheaply early-outs when no refresh state is active.
 	 */
 	public static void onClientTick(ClientTickEvent.Post event) {
+		HolographicIconCache.tickCurrencyPrewarm();
 		HolographicShopFragment.tickActiveRefreshButton();
 	}
 }

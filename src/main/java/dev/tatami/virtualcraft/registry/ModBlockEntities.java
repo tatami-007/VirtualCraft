@@ -10,6 +10,7 @@ import dev.tatami.virtualcraft.blockentity.ElectricBallGeneratorBlockEntity;
 import dev.tatami.virtualcraft.blockentity.ElectricCondenserBlockEntity;
 import dev.tatami.virtualcraft.blockentity.HolographicShopBlockEntity;
 import dev.tatami.virtualcraft.blockentity.PowMinerBlockEntity;
+import dev.tatami.virtualcraft.blockentity.VirtualDataCoreBlockEntity;
 import dev.tatami.virtualcraft.blockentity.WirelessPowerTowerBlockEntity;
 
 public final class ModBlockEntities {
@@ -26,6 +27,8 @@ public final class ModBlockEntities {
 			() -> BlockEntityType.Builder.of(HolographicShopBlockEntity::new, ModBlocks.HOLOGRAPHIC_SHOP.get()).build(null));
 	public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<PowMinerBlockEntity>> POW_MINER = REGISTRY.register("pow_miner",
 			() -> BlockEntityType.Builder.of(PowMinerBlockEntity::new, ModBlocks.POW_MINER.get()).build(null));
+	public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<VirtualDataCoreBlockEntity>> VIRTUAL_DATA_CORE = REGISTRY.register("virtual_data_core",
+			() -> BlockEntityType.Builder.of(VirtualDataCoreBlockEntity::new, ModBlocks.VIRTUAL_DATA_CORE.get()).build(null));
 	public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<WirelessPowerTowerBlockEntity>> WIRELESS_POWER_TOWER = REGISTRY.register("wireless_power_tower",
 			() -> BlockEntityType.Builder.of(WirelessPowerTowerBlockEntity::new, ModBlocks.WIRELESS_POWER_TOWER.get()).build(null));
 }

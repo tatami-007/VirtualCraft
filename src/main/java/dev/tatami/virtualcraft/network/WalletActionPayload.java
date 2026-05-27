@@ -1,8 +1,12 @@
 package dev.tatami.virtualcraft.network;
 
 import java.math.RoundingMode;
+import java.util.ArrayList;
+import java.util.List;
 
 import dev.tatami.virtualcraft.VirtualCraft;
+import dev.tatami.virtualcraft.contract.DailyContractService;
+import dev.tatami.virtualcraft.contract.DailyContractType;
 import dev.tatami.virtualcraft.currency.CryptoCurrency;
 import dev.tatami.virtualcraft.exchange.CurrencyConversionService;
 import dev.tatami.virtualcraft.exchange.ExchangeRateService;
@@ -20,6 +24,7 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -255,6 +260,8 @@ public record WalletActionPayload(int menuId, Action action, String primaryCurre
 		}
 		WalletService.depositMinorUnits(player, target, convertedMinor);
 		WalletService.record(player, WalletLedgerType.SWAP, source, sourceMinor, target, convertedMinor, "");
+		DailyContractService.recordProgress(player, DailyContractType.CONVERT_CURRENCY,
+				CurrencyConversionService.convert(source, CryptoCurrency.USDT, sourceMinor, snapshot, RoundingMode.DOWN));
 		player.displayClientMessage(Component.translatable("message.virtual_craft.convert.success", source.formatCompact(sourceMinor), source.displayName(), target.formatCompact(convertedMinor), target.displayName()), true);
 	}
 
@@ -307,7 +314,7 @@ public record WalletActionPayload(int menuId, Action action, String primaryCurre
 					WalletService.walletAddress(target),
 					WalletService.recentEntries(target, 32).stream().map(SyncWalletPayload.Entry::fromLedgerEntry).toList()));
 			PacketDistributor.sendToPlayer(target, SyncExchangePayload.fromSnapshot(targetSessionId, snapshot));
-			PacketDistributor.sendToPlayer(target, SyncWalletPreferencesPayload.fromPreferences(targetSessionId, WalletService.getPreferences(target)));
+			PacketDistributor.sendToPlayer(target, SyncWalletPreferencesPayload.fromPreferences(targetSessionId, target));
 		}
 	}
 
@@ -316,29 +323,63 @@ public record WalletActionPayload(int menuId, Action action, String primaryCurre
 			player.displayClientMessage(Component.translatable("message.virtual_craft.mining.none"), true);
 			return;
 		}
-		int removed = removeItem(player.getInventory(), ModItems.HASH_VOUCHER.get(), (int) Math.min(Integer.MAX_VALUE, voucherCount));
-		if (removed <= 0) {
+		VoucherRemoval removal = removeHashVouchers(player.getInventory(), voucherCount);
+		if (removal.count() <= 0) {
 			player.displayClientMessage(Component.translatable("message.virtual_craft.mining.none"), true);
 			return;
 		}
-		long totalBtcMinor = Math.multiplyExact(HashVoucherItem.BTC_PAYOUT_MINOR, removed);
+		long totalBtcMinor = removal.totalBtcMinor();
 		long payoutMinor = CurrencyConversionService.convert(CryptoCurrency.BTC, payoutCurrency, totalBtcMinor, snapshot, RoundingMode.DOWN);
 		if (payoutMinor <= 0) {
-			giveItem(player, new ItemStack(ModItems.HASH_VOUCHER.get()), removed);
+			refundHashVouchers(player, removal.removed());
 			player.displayClientMessage(Component.translatable("message.virtual_craft.convert.too_small"), true);
 			return;
 		}
 		WalletService.depositMinorUnits(player, payoutCurrency, payoutMinor);
-		WalletService.record(player, WalletLedgerType.MINING_SETTLEMENT, payoutCurrency, payoutMinor, CryptoCurrency.BTC, totalBtcMinor, "shares:" + removed);
+		WalletService.record(player, WalletLedgerType.MINING_SETTLEMENT, payoutCurrency, payoutMinor, CryptoCurrency.BTC, totalBtcMinor, "vouchers:" + removal.count());
 		// Aggregate the settlement into the persistent mining stats so the Mining
 		// page can show a lifetime dashboard.
-		WalletService.getPreferences(player).recordMiningSettlement(payoutCurrency, payoutMinor, totalBtcMinor, removed);
+		WalletService.getPreferences(player).recordMiningSettlement(payoutCurrency, payoutMinor, totalBtcMinor, removal.count());
+		DailyContractService.recordProgress(player, DailyContractType.SETTLE_VOUCHERS, removal.count());
 		player.getInventory().setChanged();
 		player.containerMenu.broadcastChanges();
 		player.displayClientMessage(Component.translatable("message.virtual_craft.mining.settled",
-				removed,
+				removal.count(),
 				payoutCurrency.formatCompact(payoutMinor),
 				payoutCurrency.ticker()), true);
+	}
+
+	private record RemovedVoucher(Item item, int count) {
+	}
+
+	private record VoucherRemoval(int count, long totalBtcMinor, List<RemovedVoucher> removed) {
+	}
+
+	private static VoucherRemoval removeHashVouchers(Inventory inventory, long requestedCount) {
+		int remaining = (int) Math.min(Integer.MAX_VALUE, requestedCount);
+		int totalRemoved = 0;
+		long totalBtcMinor = 0L;
+		List<RemovedVoucher> removed = new ArrayList<>();
+		for (Item item : ModItems.hashVoucherItems()) {
+			if (!(item instanceof HashVoucherItem voucher) || remaining <= 0) {
+				continue;
+			}
+			int count = removeItem(inventory, item, remaining);
+			if (count <= 0) {
+				continue;
+			}
+			removed.add(new RemovedVoucher(item, count));
+			totalRemoved += count;
+			remaining -= count;
+			totalBtcMinor = Math.addExact(totalBtcMinor, Math.multiplyExact(voucher.btcPayoutMinor(), count));
+		}
+		return new VoucherRemoval(totalRemoved, totalBtcMinor, removed);
+	}
+
+	private static void refundHashVouchers(ServerPlayer player, List<RemovedVoucher> removed) {
+		for (RemovedVoucher voucher : removed) {
+			giveItem(player, new ItemStack(voucher.item()), voucher.count());
+		}
 	}
 
 	private static int removeCurrencyItems(Inventory inventory, CryptoCurrency currency, int amount) {

@@ -1,6 +1,7 @@
 package dev.tatami.virtualcraft.network;
 
 import dev.tatami.virtualcraft.VirtualCraft;
+import dev.tatami.virtualcraft.contract.DailyContractService;
 import dev.tatami.virtualcraft.gameplay.HolographicTerminalSession;
 import dev.tatami.virtualcraft.wallet.WalletPreferences;
 import dev.tatami.virtualcraft.wallet.WalletService;
@@ -21,7 +22,8 @@ public record WalletPreferencesActionPayload(int menuId, Action action, String p
 		ADD_FAVORITE,
 		REMOVE_FAVORITE,
 		CLEAR_FAVORITES,
-		CLEAR_CONTACTS
+		CLEAR_CONTACTS,
+		CLAIM_CONTRACT
 	}
 
 	public static final Type<WalletPreferencesActionPayload> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath(VirtualCraft.MODID, "wallet_preferences_action"));
@@ -74,9 +76,17 @@ public record WalletPreferencesActionPayload(int menuId, Action action, String p
 					preferences.clearContacts();
 					yield true;
 				}
+				case CLAIM_CONTRACT -> DailyContractService.claim(player, payload.payload());
 			};
 			if (changed) {
-				context.reply(SyncWalletPreferencesPayload.fromPreferences(payload.menuId(), preferences));
+				if (payload.action() == Action.CLAIM_CONTRACT) {
+					context.reply(new SyncWalletPayload(
+							payload.menuId(),
+							WalletService.getWallet(player).snapshot(),
+							WalletService.walletAddress(player),
+							WalletService.recentEntries(player, 32).stream().map(SyncWalletPayload.Entry::fromLedgerEntry).toList()));
+				}
+				context.reply(SyncWalletPreferencesPayload.fromPreferences(payload.menuId(), player));
 			}
 		});
 	}

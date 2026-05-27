@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import dev.tatami.virtualcraft.registry.ModBlocks;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -17,6 +19,9 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
 public record MiningSurveyTarget(String key, Component name, ItemStack defaultIcon, List<TagKey<Block>> tags, List<Block> fallbackBlocks) {
+	private static volatile List<MiningSurveyTarget> cachedAll;
+	private static volatile List<MiningSurveyTarget> cachedAvailable;
+
 	private static final List<MiningSurveyTarget> TARGETS = List.of(
 			new MiningSurveyTarget("all", Component.translatable("survey.virtual_craft.target.all"), new ItemStack(Blocks.DIAMOND_ORE), List.of(cOre("ores")), vanillaOres()),
 			target("electric_ore", Component.translatable("survey.virtual_craft.target.electric_ore"), new ItemStack(ModBlocks.ELECTRIC_ORE.get()), "electric", List.of(ModBlocks.ELECTRIC_ORE.get(), ModBlocks.DEEPSLATE_ELECTRIC_ORE.get())),
@@ -29,6 +34,7 @@ public record MiningSurveyTarget(String key, Component name, ItemStack defaultIc
 			target("diamond", Component.translatable("survey.virtual_craft.target.diamond"), new ItemStack(Blocks.DIAMOND_ORE), "diamond", List.of(Blocks.DIAMOND_ORE, Blocks.DEEPSLATE_DIAMOND_ORE)),
 			target("emerald", Component.translatable("survey.virtual_craft.target.emerald"), new ItemStack(Blocks.EMERALD_ORE), "emerald", List.of(Blocks.EMERALD_ORE, Blocks.DEEPSLATE_EMERALD_ORE)),
 			target("quartz", Component.translatable("survey.virtual_craft.target.quartz"), new ItemStack(Blocks.NETHER_QUARTZ_ORE), "quartz", List.of(Blocks.NETHER_QUARTZ_ORE)),
+			target("ancient_debris", Component.translatable("survey.virtual_craft.target.ancient_debris"), new ItemStack(Blocks.ANCIENT_DEBRIS), "ancient_debris", List.of(Blocks.ANCIENT_DEBRIS)),
 			target("tin", Component.translatable("survey.virtual_craft.target.tin"), ItemStack.EMPTY, "tin", List.of()),
 			target("lead", Component.translatable("survey.virtual_craft.target.lead"), ItemStack.EMPTY, "lead", List.of()),
 			target("silver", Component.translatable("survey.virtual_craft.target.silver"), ItemStack.EMPTY, "silver", List.of()),
@@ -76,11 +82,21 @@ public record MiningSurveyTarget(String key, Component name, ItemStack defaultIc
 	}
 
 	public static List<MiningSurveyTarget> all() {
-		return withDynamicTargets(false);
+		List<MiningSurveyTarget> cached = cachedAll;
+		if (cached == null) {
+			cached = withDynamicTargets(false);
+			cachedAll = cached;
+		}
+		return cached;
 	}
 
 	public static List<MiningSurveyTarget> available() {
-		return withDynamicTargets(true);
+		List<MiningSurveyTarget> cached = cachedAvailable;
+		if (cached == null) {
+			cached = withDynamicTargets(true);
+			cachedAvailable = cached;
+		}
+		return cached;
 	}
 
 	public static MiningSurveyTarget defaultTarget() {
@@ -88,7 +104,7 @@ public record MiningSurveyTarget(String key, Component name, ItemStack defaultIc
 	}
 
 	public static Optional<MiningSurveyTarget> byKey(String key) {
-		return withDynamicTargets(false).stream().filter(target -> target.key.equals(key)).findFirst();
+		return all().stream().filter(target -> target.key.equals(key)).findFirst();
 	}
 
 	private static MiningSurveyTarget target(String key, Component name, ItemStack icon, String oreTag, List<Block> fallbackBlocks) {
@@ -120,7 +136,8 @@ public record MiningSurveyTarget(String key, Component name, ItemStack defaultIc
 				Blocks.DEEPSLATE_DIAMOND_ORE,
 				Blocks.EMERALD_ORE,
 				Blocks.DEEPSLATE_EMERALD_ORE,
-				Blocks.NETHER_QUARTZ_ORE);
+				Blocks.NETHER_QUARTZ_ORE,
+				Blocks.ANCIENT_DEBRIS);
 	}
 
 	private static List<MiningSurveyTarget> withDynamicTargets(boolean onlyAvailable) {
@@ -140,11 +157,14 @@ public record MiningSurveyTarget(String key, Component name, ItemStack defaultIc
 
 	private static List<MiningSurveyTarget> dynamicOreTargets() {
 		Map<TagKey<Block>, Block> taggedOres = new LinkedHashMap<>();
+		Set<TagKey<Block>> builtInTags = TARGETS.stream()
+				.flatMap(target -> target.tags().stream())
+				.collect(Collectors.toUnmodifiableSet());
 		BuiltInRegistries.BLOCK.stream().forEach(block -> block.builtInRegistryHolder().tags()
 				.filter(MiningSurveyTarget::isOreTag)
 				.forEach(tag -> taggedOres.putIfAbsent(tag, block)));
 		return taggedOres.entrySet().stream()
-				.filter(entry -> TARGETS.stream().noneMatch(target -> target.tags().contains(entry.getKey())))
+				.filter(entry -> !builtInTags.contains(entry.getKey()))
 				.map(entry -> dynamicTarget(entry.getKey(), entry.getValue()))
 				.toList();
 	}

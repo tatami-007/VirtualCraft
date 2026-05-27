@@ -1,6 +1,7 @@
 package dev.tatami.virtualcraft.menu;
 
 import dev.tatami.virtualcraft.blockentity.PowMinerBlockEntity;
+import dev.tatami.virtualcraft.item.HashVoucherItem;
 import dev.tatami.virtualcraft.registry.ModBlocks;
 import dev.tatami.virtualcraft.registry.ModItems;
 import dev.tatami.virtualcraft.registry.ModMenuTypes;
@@ -91,7 +92,7 @@ public class PowMinerMenu extends AbstractContainerMenu {
 				return ItemStack.EMPTY;
 			}
 			sourceSlot.onQuickCraft(sourceStack, copy);
-		} else if (sourceStack.is(ModItems.HASH_VOUCHER.get())) {
+		} else if (HashVoucherItem.isHashVoucher(sourceStack)) {
 			if (!moveItemStackTo(sourceStack, OUTPUT_SLOT, OUTPUT_SLOT + 1, false)) {
 				return ItemStack.EMPTY;
 			}

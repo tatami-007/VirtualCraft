@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Map;
 
 import dev.tatami.virtualcraft.VirtualCraft;
+import dev.tatami.virtualcraft.contract.DailyContractService;
+import dev.tatami.virtualcraft.contract.DailyContractSnapshot;
 import dev.tatami.virtualcraft.client.screen.holographic.HolographicShopFragment;
 import dev.tatami.virtualcraft.currency.CryptoCurrency;
 import dev.tatami.virtualcraft.wallet.WalletPreferences;
@@ -13,6 +15,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
@@ -26,7 +29,8 @@ public record SyncWalletPreferencesPayload(
 		int menuId,
 		List<Contact> recentContacts,
 		List<String> favoriteOfferIds,
-		MiningStatsEntry miningStats) implements CustomPacketPayload {
+		MiningStatsEntry miningStats,
+		List<DailyContractSnapshot> contracts) implements CustomPacketPayload {
 
 	public SyncWalletPreferencesPayload {
 		recentContacts = recentContacts == null ? List.of() : List.copyOf(recentContacts);
@@ -34,6 +38,7 @@ public record SyncWalletPreferencesPayload(
 		if (miningStats == null) {
 			miningStats = MiningStatsEntry.EMPTY;
 		}
+		contracts = contracts == null ? List.of() : List.copyOf(contracts);
 	}
 
 	public record Contact(String name, long lastUsedEpochSeconds, long totalSentUsdtMinor, String lastMemo) {
@@ -91,7 +96,15 @@ public record SyncWalletPreferencesPayload(
 		return TYPE;
 	}
 
+	public static SyncWalletPreferencesPayload fromPreferences(int menuId, ServerPlayer player) {
+		return fromPreferences(menuId, player.getUUID(), dev.tatami.virtualcraft.wallet.WalletService.getPreferences(player));
+	}
+
 	public static SyncWalletPreferencesPayload fromPreferences(int menuId, WalletPreferences preferences) {
+		return fromPreferences(menuId, new java.util.UUID(0L, 0L), preferences);
+	}
+
+	public static SyncWalletPreferencesPayload fromPreferences(int menuId, java.util.UUID playerId, WalletPreferences preferences) {
 		List<Contact> contacts = new ArrayList<>(preferences.recentContacts().size());
 		for (WalletPreferences.TransferContact contact : preferences.recentContacts()) {
 			contacts.add(new Contact(contact.name(), contact.lastUsedEpochSeconds(), contact.totalSentUsdtMinor(), contact.lastMemo()));
@@ -116,7 +129,7 @@ public record SyncWalletPreferencesPayload(
 				stats.lastSettleEpochSeconds(),
 				payouts,
 				buckets);
-		return new SyncWalletPreferencesPayload(menuId, contacts, favorites, statsEntry);
+		return new SyncWalletPreferencesPayload(menuId, contacts, favorites, statsEntry, DailyContractService.snapshots(playerId, preferences));
 	}
 
 	private static SyncWalletPreferencesPayload read(FriendlyByteBuf buffer) {
@@ -147,7 +160,23 @@ public record SyncWalletPreferencesPayload(
 			buckets.add(new DailyBucket(buffer.readVarLong(), buffer.readVarLong(), buffer.readVarInt()));
 		}
 		MiningStatsEntry stats = new MiningStatsEntry(totalSettlements, totalVouchers, totalBtcMinor, firstSettle, lastSettle, payouts, buckets);
-		return new SyncWalletPreferencesPayload(menuId, contacts, favorites, stats);
+		int contractCount = buffer.readVarInt();
+		List<DailyContractSnapshot> contracts = new ArrayList<>(contractCount);
+		for (int i = 0; i < contractCount; i++) {
+			contracts.add(new DailyContractSnapshot(
+					buffer.readUtf(96),
+					buffer.readUtf(32),
+					buffer.readUtf(128),
+					buffer.readUtf(128),
+					buffer.readUtf(48),
+					buffer.readVarLong(),
+					buffer.readVarLong(),
+					buffer.readBoolean(),
+					buffer.readUtf(48),
+					buffer.readUtf(48),
+					buffer.readUtf(96)));
+		}
+		return new SyncWalletPreferencesPayload(menuId, contacts, favorites, stats, contracts);
 	}
 
 	private static void write(FriendlyByteBuf buffer, SyncWalletPreferencesPayload payload) {
@@ -179,6 +208,20 @@ public record SyncWalletPreferencesPayload(
 			buffer.writeVarLong(bucket.dayStartEpochSeconds());
 			buffer.writeVarLong(bucket.btcMinor());
 			buffer.writeVarInt(bucket.voucherCount());
+		}
+		buffer.writeVarInt(payload.contracts.size());
+		for (DailyContractSnapshot contract : payload.contracts) {
+			buffer.writeUtf(contract.id(), 96);
+			buffer.writeUtf(contract.typeId(), 32);
+			buffer.writeUtf(contract.titleKey(), 128);
+			buffer.writeUtf(contract.goalKey(), 128);
+			buffer.writeUtf(contract.targetText(), 48);
+			buffer.writeVarLong(contract.target());
+			buffer.writeVarLong(contract.progress());
+			buffer.writeBoolean(contract.claimed());
+			buffer.writeUtf(contract.rewardKind(), 48);
+			buffer.writeUtf(contract.rewardText(), 48);
+			buffer.writeUtf(contract.iconItemId(), 96);
 		}
 	}
 

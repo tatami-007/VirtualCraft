@@ -68,6 +68,7 @@ public class SideConfigScreen extends AbstractContainerScreen<SideConfigMenu> {
 	@Override
 	protected void init() {
 		super.init();
+		MouseTransitionGuard.restoreIfRecent();
 		sideButtons.clear();
 
 		// === 6 面按钮 cube unfold（严格按 AE2-CS json 真坐标） ===
@@ -106,6 +107,9 @@ public class SideConfigScreen extends AbstractContainerScreen<SideConfigMenu> {
 
 	private void sendButton(int id) {
 		if (minecraft != null && minecraft.gameMode != null) {
+			if (id == SideConfigMenu.BACK_TO_MAIN_BUTTON) {
+				MouseTransitionGuard.capture();
+			}
 			minecraft.gameMode.handleInventoryButtonClick(menu.containerId, id);
 		}
 	}

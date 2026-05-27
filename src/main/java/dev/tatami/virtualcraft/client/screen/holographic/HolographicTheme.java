@@ -57,9 +57,11 @@ public final class HolographicTheme {
 	// SMALL=20 (接近 2x)，LARGE=32 (精准 2x，但视觉比原 28 更舒服)。
 	public static final int ICON_SMALL_DP = 20;
 	public static final int ICON_LARGE_DP = 32;
-	// v24: bumped from 74 → 92 to fit “同步成功” (4 CJK chars at 13sp)
-	// without ellipsis; “刷新” / “同步中” still look balanced inside.
-	public static final int HEADER_REFRESH_WIDTH_DP = 92;
+	// v25 icon-only refresh: ↻ (idle) / ⟳ (syncing) / ✓ (success). The 92dp
+	// width that used to hold "同步成功" is now wasted whitespace, so shrink to
+	// 40dp — the glyph itself reads the state, the full description lives in
+	// the hover tooltip via setTooltipText.
+	public static final int HEADER_REFRESH_WIDTH_DP = 40;
 	public static final int MAX_ACTIVITY_ROWS = 4;
 	// 12sp 字体 + dp(6)*2 padding 至少需要 dp(30) 才能完整显示；
 	// 原值 26 低于行高导致 quickAmount 按钮文字被裁成空白椭圆。

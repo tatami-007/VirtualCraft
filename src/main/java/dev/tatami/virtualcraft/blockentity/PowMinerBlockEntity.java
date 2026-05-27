@@ -42,6 +42,7 @@ public class PowMinerBlockEntity extends BlockEntity implements MenuProvider, IC
 	private static final int MAX_RECEIVE = 4_000;
 	private static final int ENERGY_PER_TICK = 240;
 	private static final int TRANSFER_PER_SIDE = 16;
+	private static final float ENCRYPTED_BONUS_CHANCE = 0.08F;
 	private final ItemStackHandler inventory = new ItemStackHandler(1) {
 		@Override
 		protected void onContentsChanged(int slot) {
@@ -116,7 +117,7 @@ public class PowMinerBlockEntity extends BlockEntity implements MenuProvider, IC
 		blockEntity.setChanged();
 		if (blockEntity.progress >= MAX_PROGRESS) {
 			blockEntity.progress = 0;
-			blockEntity.finishMining();
+			blockEntity.finishMining(level, pos);
 		}
 	}
 
@@ -261,15 +262,31 @@ public class PowMinerBlockEntity extends BlockEntity implements MenuProvider, IC
 		return output.is(ModItems.HASH_VOUCHER.get()) && output.getCount() < output.getMaxStackSize();
 	}
 
-	private void finishMining() {
+	private void finishMining(Level level, BlockPos pos) {
+		if (!addBasicVoucher()) {
+			return;
+		}
+		if (level.random.nextFloat() < ENCRYPTED_BONUS_CHANCE) {
+			dropVoucher(level, pos, new ItemStack(ModItems.ENCRYPTED_HASH_VOUCHER.get()));
+		}
+	}
+
+	private boolean addBasicVoucher() {
 		ItemStack voucher = new ItemStack(ModItems.HASH_VOUCHER.get());
 		ItemStack output = inventory.getStackInSlot(OUTPUT_SLOT);
 		if (output.isEmpty()) {
 			inventory.setStackInSlot(OUTPUT_SLOT, voucher);
+			return true;
 		} else if (output.is(ModItems.HASH_VOUCHER.get())) {
 			output.grow(1);
 			inventory.setStackInSlot(OUTPUT_SLOT, output);
+			return true;
 		}
+		return false;
+	}
+
+	private void dropVoucher(Level level, BlockPos pos, ItemStack voucher) {
+		Containers.dropItemStack(level, pos.getX() + 0.5D, pos.getY() + 1.0D, pos.getZ() + 0.5D, voucher);
 	}
 
 	private final class MinerEnergyStorage extends EnergyStorage {

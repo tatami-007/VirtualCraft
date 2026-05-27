@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:generic",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "virtual_craft:genesis_hash_voucher",
+          "weight": 1
+        },
+        {
+          "type": "minecraft:empty",
+          "weight": 249
+        }
+      ]
+    }
+  ],
+  "random_sequence": "virtual_craft:inject/hash_voucher_genesis"
+}

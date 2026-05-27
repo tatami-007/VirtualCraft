@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "g": { "item": "virtual_craft:gpu" },
+    "i": { "item": "virtual_craft:electric_ingot" },
+    "q": { "item": "virtual_craft:encrypted_hash_voucher" },
+    "s": { "item": "virtual_craft:speed_upgrade_card" },
+    "u": { "item": "virtual_craft:cpu" }
+  },
+  "pattern": [
+    "qgq",
+    "usu",
+    "iqi"
+  ],
+  "result": {
+    "count": 1,
+    "id": "virtual_craft:quantum_hash_voucher"
+  }
+}

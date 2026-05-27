@@ -1,5 +1,7 @@
 package dev.tatami.virtualcraft.registry;
 
+import java.util.List;
+
 import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredHolder;
@@ -39,7 +41,15 @@ public final class ModItems {
 	public static final DeferredItem<Item> ELECTRIC_BALL = REGISTRY.register("electric_ball", ElectricBallItem::new);
 	public static final DeferredItem<Item> ELECTRIC_INGOT = REGISTRY.register("electric_ingot", () -> new Item(new Item.Properties()));
 	public static final DeferredItem<Item> ELECTRIC_ABSORBER = REGISTRY.register("electric_absorber", ElectricAbsorberItem::new);
-	public static final DeferredItem<Item> HASH_VOUCHER = REGISTRY.register("hash_voucher", HashVoucherItem::new);
+	public static final DeferredItem<Item> HASH_VOUCHER = REGISTRY.register("hash_voucher", () -> new HashVoucherItem());
+	public static final DeferredItem<Item> EXPLORER_HASH_VOUCHER = REGISTRY.register("explorer_hash_voucher",
+			() -> new HashVoucherItem(HashVoucherItem.EXPLORER_BTC_PAYOUT_MINOR));
+	public static final DeferredItem<Item> ENCRYPTED_HASH_VOUCHER = REGISTRY.register("encrypted_hash_voucher",
+			() -> new HashVoucherItem(HashVoucherItem.ENCRYPTED_BTC_PAYOUT_MINOR));
+	public static final DeferredItem<Item> QUANTUM_HASH_VOUCHER = REGISTRY.register("quantum_hash_voucher",
+			() -> new HashVoucherItem(HashVoucherItem.QUANTUM_BTC_PAYOUT_MINOR));
+	public static final DeferredItem<Item> GENESIS_HASH_VOUCHER = REGISTRY.register("genesis_hash_voucher",
+			() -> new HashVoucherItem(HashVoucherItem.GENESIS_BTC_PAYOUT_MINOR));
 	public static final DeferredItem<Item> MINING_SURVEYOR = REGISTRY.register("mining_surveyor", MiningSurveyorItem::new);
 	public static final DeferredItem<Item> SPEED_UPGRADE_CARD = REGISTRY.register("speed_upgrade_card", SpeedUpgradeCardItem::new);
 	/**
@@ -51,6 +61,9 @@ public final class ModItems {
 	public static final DeferredItem<Item> HOLOGRAPHIC_SHOP = REGISTRY.register("holographic_shop", HolographicTerminalItem::new);
 	public static final DeferredItem<Item> POW_MINER = block(ModBlocks.POW_MINER);
 	public static final DeferredItem<Item> WIRELESS_POWER_TOWER = block(ModBlocks.WIRELESS_POWER_TOWER);
+	public static final DeferredItem<Item> VIRTUAL_DATA_CORE = block(ModBlocks.VIRTUAL_DATA_CORE);
+	public static final DeferredItem<Item> VIRTUAL_DATA_ANCHOR = block(ModBlocks.VIRTUAL_DATA_ANCHOR);
+	public static final DeferredItem<Item> DATA_FRAGMENT = REGISTRY.register("data_fragment", () -> new Item(new Item.Properties()));
 	public static final DeferredItem<Item> CRYPTO_BTC = REGISTRY.register(CryptoCurrency.BTC.itemName(), () -> new Item(new Item.Properties().stacksTo(CryptoCurrency.BTC.stackLimit())));
 	public static final DeferredItem<Item> CRYPTO_ETH = REGISTRY.register(CryptoCurrency.ETH.itemName(), () -> new Item(new Item.Properties().stacksTo(CryptoCurrency.ETH.stackLimit())));
 	public static final DeferredItem<Item> CRYPTO_USDT = REGISTRY.register(CryptoCurrency.USDT.itemName(), () -> new Item(new Item.Properties().stacksTo(CryptoCurrency.USDT.stackLimit())));
@@ -78,6 +91,15 @@ public final class ModItems {
 	public static final DeferredItem<Item> COMPUTER_MAINFRAME = REGISTRY.register("computer_mainframe", () -> new Item(new Item.Properties()));
 	/** 电脑：右键空气在主世界 ↔ 虚拟世界之间切换。 */
 	public static final DeferredItem<Item> COMPUTER = REGISTRY.register("computer", ComputerItem::new);
+
+	public static List<Item> hashVoucherItems() {
+		return List.of(
+				HASH_VOUCHER.get(),
+				EXPLORER_HASH_VOUCHER.get(),
+				ENCRYPTED_HASH_VOUCHER.get(),
+				QUANTUM_HASH_VOUCHER.get(),
+				GENESIS_HASH_VOUCHER.get());
+	}
 
 	private static DeferredItem<Item> block(DeferredHolder<Block, Block> block) {
 		return block(block, new Item.Properties());

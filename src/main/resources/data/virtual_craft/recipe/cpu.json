@@ -2,7 +2,9 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "key": {
+    "d": { "item": "minecraft:diamond" },
     "g": { "item": "minecraft:gold_ingot" },
+    "r": { "item": "minecraft:redstone_block" },
     "w": { "item": "virtual_craft:copper_wire" },
     "c": { "item": "virtual_craft:circuit_board" },
     "s": { "item": "virtual_craft:silicon_wafer" }
@@ -10,7 +12,7 @@
   "pattern": [
     "wgw",
     "scs",
-    "wgw"
+    "rdr"
   ],
   "result": {
     "count": 1,

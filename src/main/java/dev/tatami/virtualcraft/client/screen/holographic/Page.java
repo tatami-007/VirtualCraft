@@ -5,5 +5,6 @@ enum Page {
 	CONVERT,
 	SHOP,
 	TRANSFER,
-	MINING
+	MINING,
+	CONTRACTS
 }

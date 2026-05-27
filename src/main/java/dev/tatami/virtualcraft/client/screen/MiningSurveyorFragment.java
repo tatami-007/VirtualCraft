@@ -26,6 +26,7 @@ import dev.tatami.virtualcraft.mining.MiningSurveyTargetData;
 import dev.tatami.virtualcraft.network.MiningSurveyorActionPayload;
 import icyllis.modernui.fragment.Fragment;
 import icyllis.modernui.graphics.drawable.ImageDrawable;
+import icyllis.modernui.mc.MuiScreen;
 import icyllis.modernui.mc.ScreenCallback;
 import icyllis.modernui.text.Editable;
 import icyllis.modernui.text.TextUtils;
@@ -33,6 +34,7 @@ import icyllis.modernui.text.TextWatcher;
 import icyllis.modernui.view.Gravity;
 import icyllis.modernui.view.KeyEvent;
 import icyllis.modernui.view.LayoutInflater;
+import icyllis.modernui.view.MotionEvent;
 import icyllis.modernui.view.View;
 import icyllis.modernui.view.ViewGroup;
 import icyllis.modernui.widget.Button;
@@ -58,7 +60,8 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 	private FrameLayout root;
 	private LinearLayout targetCard;
 	private LinearLayout resultList;
-	private TextView resultCount;
+	private LinearLayout filterRowContainer;
+	private Button searchClearButton;
 	private EditText searchInput;
 	private MiningSurveyTarget selectedTarget;
 	private SourceFilter sourceFilter = SourceFilter.ALL;
@@ -78,6 +81,8 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 		selectedTarget = resolveInitialTarget();
 
 		root = new FrameLayout(requireContext());
+		root.setFocusable(true);
+		root.setFocusableInTouchMode(true);
 		root.setBackground(HolographicTheme.rounded(0x40081422, 0, 0f, 0));
 		root.setPadding(dp(18), dp(18), dp(18), dp(18));
 
@@ -106,19 +111,18 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 		LinearLayout.LayoutParams mainParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
 		body.addView(main, mainParams);
 
+		// Search → grouped filters → result list. Keep permanent controls compact;
+		// advanced syntax lives in the tooltip instead of occupying layout width.
 		main.addView(buildSearchBar());
-		main.addView(spacer(dp(10)));
+		main.addView(spacer(dp(8)));
 		main.addView(buildFilterRow());
-		main.addView(spacer(dp(10)));
+		main.addView(spacer(dp(8)));
 
 		ScrollView scroll = new HoloScrollView(requireContext());
 		resultList = vertical();
 		resultList.setPadding(dp(2), dp(2), dp(8), dp(2));
 		scroll.addView(resultList, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 		main.addView(scroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
-		main.addView(spacer(dp(8)));
-		resultCount = hintText("");
-		main.addView(resultCount);
 
 		LinearLayout action = vertical();
 		action.setPadding(dp(14), dp(14), dp(14), dp(14));
@@ -131,10 +135,6 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 		targetCard.setPadding(dp(14), dp(14), dp(14), dp(14));
 		action.addView(targetCard, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 		action.addView(spacer(dp(12)));
-		TextView flowHint = hintText(t("screen.virtual_craft.mining_surveyor.flow_hint"));
-		flowHint.setMaxLines(2);
-		action.addView(flowHint);
-		action.addView(spacer(dp(12)));
 		action.addView(actionButton(t("screen.virtual_craft.mining_surveyor.scan"), CYAN, this::scan), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(40)));
 		action.addView(spacer(dp(8)));
 		action.addView(actionButton(t("screen.virtual_craft.mining_surveyor.clear"), 0xFF8AA0B4, this::clearLock), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(36)));
@@ -143,7 +143,10 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 
 		refreshSelectedCard();
 		refreshResults();
-		root.post(() -> searchInput.requestFocus());
+		root.post(() -> {
+			searchInput.clearFocus();
+			root.requestFocus();
+		});
 		return root;
 	}
 
@@ -153,16 +156,33 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 		header.setGravity(Gravity.CENTER_VERTICAL);
 		TextView title = titleText(t("screen.virtual_craft.mining_surveyor.title"));
 		header.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-		TextView hotkey = chip("E / Esc");
-		header.addView(hotkey, new LinearLayout.LayoutParams(dp(82), dp(28)));
 		return header;
 	}
 
 	private View buildSearchBar() {
-		LinearLayout row = new LinearLayout(requireContext());
-		row.setOrientation(LinearLayout.HORIZONTAL);
-		row.setGravity(Gravity.CENTER_VERTICAL);
+		// Search bar layout: [input flex=1] [✕ clear]. Result counts were removed
+		// from this row because they clipped the right edge at GUI scale 3/4.
+		LinearLayout bar = new LinearLayout(requireContext());
+		bar.setOrientation(LinearLayout.HORIZONTAL);
+		bar.setGravity(Gravity.CENTER_VERTICAL);
+
 		searchInput = input(searchText, t("screen.virtual_craft.mining_surveyor.search_hint"));
+		searchInput.setTextSize(14f);
+		searchInput.setPadding(dp(14), dp(7), dp(14), dp(7));
+		// Hover-only syntax hint: @mod / #tag / space=AND / right-click clear.
+		// Keeps the UI free of permanent prose while remaining discoverable.
+		searchInput.setTooltipText(t("screen.virtual_craft.mining_surveyor.search_tooltip"));
+		searchInput.setOnTouchListener((view, event) -> {
+			if (event.getActionButton() == MotionEvent.BUTTON_SECONDARY
+					|| event.isButtonPressed(MotionEvent.BUTTON_SECONDARY)) {
+				if (event.getAction() == MotionEvent.ACTION_UP) {
+					clearSearch();
+				}
+				return true;
+			}
+			return false;
+		});
+		searchInput.setOnContextClickListener(view -> true);
 		searchInput.addTextChangedListener(new TextWatcher() {
 			@Override
 			public void beforeTextChanged(CharSequence s, int start, int count, int after) {
@@ -178,78 +198,128 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 			public void afterTextChanged(Editable s) {
 			}
 		});
-		row.addView(searchInput, new LinearLayout.LayoutParams(0, dp(36), 1f));
-		LinearLayout.LayoutParams clearParams = new LinearLayout.LayoutParams(dp(70), dp(36));
-		clearParams.setMargins(dp(8), 0, 0, 0);
-		row.addView(compactButton(t("screen.virtual_craft.mining_surveyor.clear_search"), () -> {
-			searchText = "";
-			searchInput.setText("");
-			searchInput.requestFocus();
-		}), clearParams);
-		return row;
+		// v25 Enter-to-scan: if exactly one result remains visible, hitting Enter
+		// selects+scans without forcing the user back to the mouse for the scan
+		// button. Most common path is "type 'diamo' → Enter".
+		searchInput.setOnKeyListener((v, keyCode, event) -> {
+			if (event.getAction() != KeyEvent.ACTION_DOWN) {
+				return false;
+			}
+			if (keyCode != KeyEvent.KEY_ENTER && keyCode != KeyEvent.KEY_KP_ENTER) {
+				return false;
+			}
+			attemptQuickScan();
+			return true;
+		});
+		LinearLayout.LayoutParams searchParams = new LinearLayout.LayoutParams(0, dp(32), 1f);
+		bar.addView(searchInput, searchParams);
+
+		searchClearButton = compactButton("\u2715", this::clearSearch);
+		searchClearButton.setTextSize(13f);
+		searchClearButton.setPadding(0, 0, 0, 0);
+		LinearLayout.LayoutParams clearParams = new LinearLayout.LayoutParams(dp(30), dp(32));
+		clearParams.setMargins(dp(6), 0, 0, 0);
+		bar.addView(searchClearButton, clearParams);
+
+		return bar;
 	}
 
+	private void attemptQuickScan() {
+		List<MiningSurveyTarget> visible = visibleTargets();
+		if (visible.size() == 1) {
+			// Disambiguated by the current search/filter — fire the one match.
+			selectedTarget = visible.get(0);
+			scan();
+		} else if (selectedTarget != null && visible.contains(selectedTarget)) {
+			// Multiple visible but the active selection is among them — honor it.
+			scan();
+		}
+		// Else ambiguous; do nothing so the player picks one explicitly.
+	}
+
+	private void refreshSearchAffordances() {
+		if (searchClearButton != null) {
+			boolean hasText = !searchText.isEmpty();
+			searchClearButton.setEnabled(hasText);
+			searchClearButton.setAlpha(hasText ? 1f : 0.35f);
+		}
+	}
+
+	private void clearSearch() {
+		searchText = "";
+		searchInput.setText("");
+		searchInput.requestFocus();
+	}
+
+	/**
+	 * v25 filter row: a single horizontal row, no segment labels.
+	 *
+	 * <pre>
+	 * [全部] [原版] [模组]  │  [★] [A→Z] [@]
+	 *  ──source──            ───sort───
+	 * </pre>
+	 *
+	 * <p>Layout principle: chip text alone carries meaning. Source chips use
+	 * minimal nouns ("全部" / "原版" / "模组") and sort chips use pure symbols
+	 * (★ recommended, A→Z alphabetical, @ namespace) so the row reads as
+	 * pure visual primitives — no leading "来源:" or "排序:" prose. A 1-px
+	 * vertical divider separates the two semantic groups.</p>
+	 */
 	private View buildFilterRow() {
-		LinearLayout block = vertical();
-		LinearLayout row = new LinearLayout(requireContext());
-		row.setOrientation(LinearLayout.HORIZONTAL);
-		for (SourceFilter filter : SourceFilter.values()) {
-			LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dp(64), dp(32));
-			if (filter.ordinal() > 0) {
-				params.setMargins(dp(6), 0, 0, 0);
-			}
-			row.addView(toggleButton(filter.label(), sourceFilter == filter, () -> {
-				sourceFilter = filter;
-				refreshFilterRow(block);
-				refreshResults();
-			}), params);
-		}
-		LinearLayout.LayoutParams modParams = new LinearLayout.LayoutParams(dp(76), dp(32));
-		modParams.setMargins(dp(10), 0, 0, 0);
-		row.addView(compactButton("@mod", () -> {
-			searchInput.setText(appendToken(searchInput.getText().toString(), "@"));
-			searchInput.requestFocus();
-		}), modParams);
-		LinearLayout.LayoutParams tagParams = new LinearLayout.LayoutParams(dp(76), dp(32));
-		tagParams.setMargins(dp(6), 0, 0, 0);
-		row.addView(compactButton("#标签", () -> {
-			searchInput.setText(appendToken(searchInput.getText().toString(), "#ores/"));
-			searchInput.requestFocus();
-		}), tagParams);
-		block.addView(row);
-
-		LinearLayout sortRow = new LinearLayout(requireContext());
-		sortRow.setOrientation(LinearLayout.HORIZONTAL);
-		for (SortMode mode : SortMode.values()) {
-			LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dp(92), dp(30));
-			if (mode.ordinal() > 0) {
-				params.setMargins(dp(6), 0, 0, 0);
-			}
-			sortRow.addView(toggleButton(mode.label(), sortMode == mode, () -> {
-				sortMode = mode;
-				refreshFilterRow(block);
-				refreshResults();
-			}), params);
-		}
-		block.addView(spacer(dp(6)));
-		block.addView(sortRow);
-		TextView help = hintText(t("screen.virtual_craft.mining_surveyor.search_help"));
-		help.setSingleLine(true);
-		help.setEllipsize(TextUtils.TruncateAt.END);
-		block.addView(spacer(dp(6)));
-		block.addView(help);
-		return block;
+		filterRowContainer = new LinearLayout(requireContext());
+		filterRowContainer.setOrientation(LinearLayout.HORIZONTAL);
+		filterRowContainer.setGravity(Gravity.CENTER_VERTICAL);
+		populateFilterRow();
+		return filterRowContainer;
 	}
 
-	private void refreshFilterRow(LinearLayout oldBlock) {
-		if (oldBlock == null || oldBlock.getParent() == null) {
+	private void populateFilterRow() {
+		if (filterRowContainer == null) {
 			return;
 		}
-		ViewGroup parent = (ViewGroup) oldBlock.getParent();
-		int index = parent.indexOfChild(oldBlock);
-		parent.removeView(oldBlock);
-		parent.addView(buildFilterRow(), index);
-		searchInput.requestFocus();
+		filterRowContainer.removeAllViews();
+
+		LinearLayout sourceGroup = new LinearLayout(requireContext());
+		sourceGroup.setOrientation(LinearLayout.HORIZONTAL);
+		sourceGroup.setGravity(Gravity.CENTER_VERTICAL);
+		LinearLayout.LayoutParams sourceGroupParams = new LinearLayout.LayoutParams(0, dp(26), 1.35f);
+		filterRowContainer.addView(sourceGroup, sourceGroupParams);
+
+		for (SourceFilter filter : SourceFilter.values()) {
+			LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, dp(26), 1f);
+			if (filter.ordinal() > 0) {
+				params.setMargins(dp(3), 0, 0, 0);
+			}
+			sourceGroup.addView(toggleButton(filter.label(), sourceFilter == filter, () -> {
+				sourceFilter = filter;
+				populateFilterRow();
+				refreshResults();
+			}), params);
+		}
+
+		View divider = new View(requireContext());
+		divider.setBackground(HolographicTheme.rounded(WINDOW_STROKE, 0, 0f, 0));
+		LinearLayout.LayoutParams dividerParams = new LinearLayout.LayoutParams(dp(1), dp(16));
+		dividerParams.setMargins(dp(8), 0, dp(8), 0);
+		filterRowContainer.addView(divider, dividerParams);
+
+		LinearLayout sortGroup = new LinearLayout(requireContext());
+		sortGroup.setOrientation(LinearLayout.HORIZONTAL);
+		sortGroup.setGravity(Gravity.CENTER_VERTICAL);
+		LinearLayout.LayoutParams sortGroupParams = new LinearLayout.LayoutParams(0, dp(26), 1f);
+		filterRowContainer.addView(sortGroup, sortGroupParams);
+
+		for (SortMode mode : SortMode.values()) {
+			LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, dp(26), 1f);
+			if (mode.ordinal() > 0) {
+				params.setMargins(dp(3), 0, 0, 0);
+			}
+			sortGroup.addView(toggleButton(mode.label(), sortMode == mode, () -> {
+				sortMode = mode;
+				populateFilterRow();
+				refreshResults();
+			}), params);
+		}
 	}
 
 	private void refreshResults() {
@@ -259,40 +329,53 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 		resultList.removeAllViews();
 		List<MiningSurveyTarget> visible = visibleTargets();
 		for (MiningSurveyTarget target : visible) {
-			resultList.addView(targetRow(target), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(52)));
-			resultList.addView(spacer(dp(8)));
+			resultList.addView(targetRow(target), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(48)));
+			resultList.addView(spacer(dp(6)));
 		}
 		if (visible.isEmpty()) {
 			resultList.addView(emptyState(t("screen.virtual_craft.mining_surveyor.empty"), t("screen.virtual_craft.mining_surveyor.empty_hint")));
 		}
-		if (resultCount != null) {
-			resultCount.setText(t("screen.virtual_craft.mining_surveyor.count", visible.size()));
-		}
+		refreshSearchAffordances();
 	}
 
 	private View targetRow(MiningSurveyTarget target) {
 		boolean selected = selectedTarget != null && selectedTarget.key().equals(target.key());
-		LinearLayout row = card(selected ? PANEL_ACTIVE : PANEL_ROW, selected ? CYAN : WINDOW_STROKE, 10f);
-		row.setOrientation(LinearLayout.HORIZONTAL);
-		row.setGravity(Gravity.CENTER_VERTICAL);
-		row.setPadding(dp(10), dp(8), dp(10), dp(8));
-		row.addView(itemIconView(target.icon(), 28), new LinearLayout.LayoutParams(dp(28), dp(28)));
+		// v25 selected-row visual: a 3dp cyan left stripe plus a tinted background
+		// reads instantly across the list, even at a glance. Previously only the
+		// border color changed — invisible against the dim panel background.
+		LinearLayout container = new LinearLayout(requireContext());
+		container.setOrientation(LinearLayout.HORIZONTAL);
+		container.setGravity(Gravity.CENTER_VERTICAL);
+		container.setBackground(HolographicTheme.acrylic(
+				selected ? PANEL_ACTIVE : PANEL_ROW,
+				selected ? CYAN : WINDOW_STROKE, 10f));
+
+		if (selected) {
+			View stripe = new View(requireContext());
+			stripe.setBackground(HolographicTheme.rounded(CYAN, 0, 0f, 0));
+			LinearLayout.LayoutParams stripeParams = new LinearLayout.LayoutParams(dp(3), ViewGroup.LayoutParams.MATCH_PARENT);
+			stripeParams.setMargins(dp(2), dp(6), dp(8), dp(6));
+			container.addView(stripe, stripeParams);
+		} else {
+			// Transparent placeholder so selected/unselected rows align horizontally.
+			container.addView(spacer(dp(13)), new LinearLayout.LayoutParams(dp(13), ViewGroup.LayoutParams.MATCH_PARENT));
+		}
+
+		container.addView(itemIconView(target.icon(), 26), new LinearLayout.LayoutParams(dp(26), dp(26)));
 		LinearLayout text = vertical();
 		LinearLayout.LayoutParams textParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-		textParams.setMargins(dp(10), 0, dp(8), 0);
+		textParams.setMargins(dp(10), 0, dp(10), 0);
 		TextView name = bodyText(target.name().getString());
 		name.setTextColor(selected ? CYAN : TEXT);
 		text.addView(name);
 		text.addView(hintText(namespaceLabel(target) + "  " + tagSummary(target)));
-		row.addView(text, textParams);
-		TextView action = chip(selected ? t("screen.virtual_craft.mining_surveyor.selected") : t("screen.virtual_craft.mining_surveyor.pick"));
-		row.addView(action, new LinearLayout.LayoutParams(dp(74), dp(28)));
-		row.setOnClickListener(view -> {
+		container.addView(text, textParams);
+		container.setOnClickListener(view -> {
 			selectedTarget = target;
 			refreshSelectedCard();
 			refreshResults();
 		});
-		return row;
+		return container;
 	}
 
 	private void refreshSelectedCard() {
@@ -378,7 +461,14 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 	}
 
 	private void close() {
-		Minecraft.getInstance().setScreen(null);
+		Minecraft minecraft = Minecraft.getInstance();
+		minecraft.execute(() -> {
+			if (minecraft.screen instanceof MuiScreen mui && mui.getFragment() == this) {
+				mui.self().onClose();
+			} else {
+				minecraft.setScreen(null);
+			}
+		});
 	}
 
 	@Override
@@ -416,11 +506,13 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 			if (drawable != null) {
 				ImageView image = new ImageView(requireContext());
 				image.setImageDrawable(drawable);
+				image.setLayoutParams(new LinearLayout.LayoutParams(dp(sizeDp), dp(sizeDp)));
 				return image;
 			}
 		}
 		TextView fallback = chip("?");
 		fallback.setTextSize(14f);
+		fallback.setLayoutParams(new LinearLayout.LayoutParams(dp(sizeDp), dp(sizeDp)));
 		return fallback;
 	}
 
@@ -455,11 +547,6 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 			}
 		}
 		return "unknown";
-	}
-
-	private String appendToken(String current, String token) {
-		String trimmed = current == null ? "" : current.trim();
-		return trimmed.isEmpty() ? token : trimmed + " " + token;
 	}
 
 	private LinearLayout card(int fill, int stroke, float radiusDp) {

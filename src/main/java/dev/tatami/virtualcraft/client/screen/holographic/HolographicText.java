@@ -30,6 +30,7 @@ final class HolographicText {
 			case "premium_sell" -> translate.apply("screen.virtual_craft.holographic_shop.ledger.sell");
 			case "power_link" -> translate.apply("screen.virtual_craft.holographic_shop.ledger.link");
 			case "mining_settlement" -> translate.apply("screen.virtual_craft.holographic_shop.ledger.mine");
+			case "contract_reward" -> translate.apply("screen.virtual_craft.holographic_shop.ledger.contract");
 			default -> entry.typeId();
 		};
 	}
@@ -42,8 +43,14 @@ final class HolographicText {
 			case "premium_buy", "premium_sell" -> friendlyOfferName(entry.detail(), offers, translate) + " · " + amount(entry.primaryCurrencyId(), entry.primaryAmountMinor());
 			case "power_link" -> safePowerLinkDetail(entry.detail(), translate);
 			case "mining_settlement" -> amount(entry.primaryCurrencyId(), entry.primaryAmountMinor());
+			case "contract_reward" -> contractDetail(entry, translate);
 			default -> entry.detail().isBlank() ? amount(entry.primaryCurrencyId(), entry.primaryAmountMinor()) : safeLedgerName(entry.detail(), translate);
 		};
+	}
+
+	static String contractDetail(SyncWalletPayload.Entry entry, Function<String, String> translate) {
+		String amount = entry.primaryAmountMinor() > 0L ? amount(entry.primaryCurrencyId(), entry.primaryAmountMinor()) : translate.apply("screen.virtual_craft.holographic_shop.ledger.contract_item");
+		return amount + " · " + translate.apply("screen.virtual_craft.holographic_shop.ledger.contract");
 	}
 
 	static String safePowerLinkDetail(String detail, Function<String, String> translate) {
@@ -61,7 +68,7 @@ final class HolographicText {
 		if (detail == null || detail.isBlank()) {
 			return "-";
 		}
-		if (detail.startsWith("shares:")) {
+		if (detail.startsWith("shares:") || detail.startsWith("vouchers:")) {
 			return translate.apply("screen.virtual_craft.holographic_shop.ledger.mine");
 		}
 		return detail;

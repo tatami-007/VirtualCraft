@@ -51,6 +51,7 @@ public class ElectricCondenserScreen extends AbstractContainerScreen<ElectricCon
 	@Override
 	protected void init() {
 		super.init();
+		MouseTransitionGuard.restoreIfRecent();
 		// v20.2 齿轮侧面配置按钮 @ (152, 4) 18×18 IconButton
 		// 位置选择：UPGRADE 列从 137 → 152（往外偏），齿轮同步右移跟随 UPGRADE 列。
 		// 与 UPGRADE 在 X 完全重叠、Y 不重（4-22 vs 24-78），视觉上齿轮是 UPGRADE 列的“帽”。
@@ -58,6 +59,7 @@ public class ElectricCondenserScreen extends AbstractContainerScreen<ElectricCon
 				Component.translatable("screen.virtual_craft.side_config.title"),
 				button -> {
 					if (minecraft != null && minecraft.gameMode != null) {
+						MouseTransitionGuard.capture();
 						minecraft.gameMode.handleInventoryButtonClick(menu.containerId, SIDE_CONFIG_BUTTON_ID);
 					}
 				}));

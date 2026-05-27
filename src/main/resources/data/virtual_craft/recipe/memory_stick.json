@@ -2,7 +2,7 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "key": {
-    "r": { "item": "minecraft:redstone" },
+    "r": { "item": "minecraft:redstone_block" },
     "g": { "item": "minecraft:gold_ingot" },
     "q": { "item": "virtual_craft:silicon_wafer" },
     "c": { "item": "virtual_craft:circuit_board" }

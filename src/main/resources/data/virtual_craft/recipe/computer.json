@@ -3,15 +3,16 @@
   "category": "tools",
   "key": {
     "d": { "item": "virtual_craft:display" },
+    "e": { "item": "virtual_craft:electric_ingot" },
     "f": { "item": "virtual_craft:computer_mainframe" },
     "k": { "item": "virtual_craft:keyboard" },
     "m": { "item": "virtual_craft:mouse" },
-    "r": { "item": "minecraft:redstone" }
+    "r": { "item": "minecraft:redstone_block" }
   },
   "pattern": [
-    " d ",
-    "kfr",
-    " m "
+    "ede",
+    "kfm",
+    "ere"
   ],
   "result": {
     "count": 1,

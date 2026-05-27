@@ -4,12 +4,13 @@
   "key": {
     "i": { "item": "minecraft:iron_ingot" },
     "g": { "item": "minecraft:glass_pane" },
-    "b": { "item": "minecraft:stone_button" }
+    "r": { "item": "minecraft:redstone_block" },
+    "s": { "item": "virtual_craft:silicon_wafer" }
   },
   "pattern": [
     "ggg",
     "gig",
-    "ibi"
+    "srs"
   ],
   "result": {
     "count": 1,

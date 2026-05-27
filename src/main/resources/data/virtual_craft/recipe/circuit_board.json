@@ -4,12 +4,14 @@
   "key": {
     "w": { "item": "virtual_craft:copper_wire" },
     "r": { "item": "minecraft:redstone" },
+    "b": { "item": "minecraft:redstone_block" },
+    "g": { "item": "minecraft:gold_nugget" },
     "s": { "item": "virtual_craft:silicon_wafer" }
   },
   "pattern": [
     "wrw",
-    "rsr",
-    "wrw"
+    "bsb",
+    "wgw"
   ],
   "result": {
     "count": 1,

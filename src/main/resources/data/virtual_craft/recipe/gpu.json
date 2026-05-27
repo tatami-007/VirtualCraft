@@ -2,14 +2,15 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "key": {
-    "r": { "item": "minecraft:redstone" },
+    "d": { "item": "minecraft:diamond" },
+    "r": { "item": "minecraft:redstone_block" },
     "g": { "item": "minecraft:gold_ingot" },
     "c": { "item": "virtual_craft:circuit_board" },
     "w": { "item": "virtual_craft:copper_wire" }
   },
   "pattern": [
     "wrw",
-    "gcg",
+    "dcg",
     "wrw"
   ],
   "result": {

@@ -9,6 +9,10 @@ base.archivesName = 'virtual_craft'
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
+def verboseRunLogging = providers.gradleProperty('vcDebugRegistries')
+        .map { it.toBoolean() }
+        .orElse(false)
+
 repositories {
     maven { url = 'https://maven.izzel.io/releases/' }
 }
@@ -19,14 +23,22 @@ neoForge {
     runs {
         client {
             client()
+            programArgument '--quickPlaySingleplayer'
+            programArgument 'Test'
+            jvmArgument '-Xms512m'
+            jvmArgument '-Xmx3G'
         }
         server {
             server()
         }
 
         configureEach {
-            systemProperty 'forge.logging.markers', 'REGISTRIES'
-            logLevel = org.slf4j.event.Level.DEBUG
+            if (verboseRunLogging.get()) {
+                systemProperty 'forge.logging.markers', 'REGISTRIES'
+                logLevel = org.slf4j.event.Level.DEBUG
+            } else {
+                logLevel = org.slf4j.event.Level.INFO
+            }
         }
     }
 

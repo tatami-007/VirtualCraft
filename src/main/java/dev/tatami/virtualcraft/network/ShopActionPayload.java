@@ -4,6 +4,8 @@ import java.math.RoundingMode;
 import java.util.List;
 
 import dev.tatami.virtualcraft.VirtualCraft;
+import dev.tatami.virtualcraft.contract.DailyContractService;
+import dev.tatami.virtualcraft.contract.DailyContractType;
 import dev.tatami.virtualcraft.currency.CryptoCurrency;
 import dev.tatami.virtualcraft.exchange.CurrencyConversionService;
 import dev.tatami.virtualcraft.exchange.ExchangeRateService;
@@ -65,7 +67,7 @@ public record ShopActionPayload(int menuId, Action action, int offerIndex, int q
 						WalletService.recentEntries(player, 32).stream().map(SyncWalletPayload.Entry::fromLedgerEntry).toList()));
 				context.reply(new SyncShopCatalogPayload(payload.menuId(), offers.stream().map(SyncShopCatalogPayload.Entry::fromOffer).toList()));
 				context.reply(SyncExchangePayload.fromSnapshot(payload.menuId(), snapshot));
-				context.reply(SyncWalletPreferencesPayload.fromPreferences(payload.menuId(), WalletService.getPreferences(player)));
+				context.reply(SyncWalletPreferencesPayload.fromPreferences(payload.menuId(), player));
 				return;
 			}
 			if (payload.offerIndex < 0 || payload.offerIndex >= offers.size()) {
@@ -87,7 +89,7 @@ public record ShopActionPayload(int menuId, Action action, int offerIndex, int q
 					WalletService.walletAddress(player),
 					WalletService.recentEntries(player, 32).stream().map(SyncWalletPayload.Entry::fromLedgerEntry).toList()));
 			context.reply(SyncExchangePayload.fromSnapshot(payload.menuId(), snapshot));
-			context.reply(SyncWalletPreferencesPayload.fromPreferences(payload.menuId(), WalletService.getPreferences(player)));
+			context.reply(SyncWalletPreferencesPayload.fromPreferences(payload.menuId(), player));
 		});
 	}
 
@@ -111,6 +113,7 @@ public record ShopActionPayload(int menuId, Action action, int offerIndex, int q
 		player.getInventory().setChanged();
 		player.containerMenu.broadcastChanges();
 		WalletService.record(player, WalletLedgerType.PREMIUM_BUY, settlementCurrency, settlementCostMinor, null, 0L, offer.id());
+		DailyContractService.recordProgress(player, DailyContractType.SHOP_TRADE, totalUsdtMinor);
 		player.displayClientMessage(Component.translatable("message.virtual_craft.shop.buy", offer.displayName(), settlementCurrency.formatCompact(settlementCostMinor), settlementCurrency.displayName()), true);
 	}
 
@@ -161,6 +164,7 @@ public record ShopActionPayload(int menuId, Action action, int offerIndex, int q
 		long payoutMinor = CurrencyConversionService.convertUsdtMinorTo(settlementCurrency, offer.sellUsdtMinor() * quantity, snapshot, RoundingMode.DOWN);
 		WalletService.depositMinorUnits(player, settlementCurrency, payoutMinor);
 		WalletService.record(player, WalletLedgerType.PREMIUM_SELL, settlementCurrency, payoutMinor, null, 0L, offer.id());
+		DailyContractService.recordProgress(player, DailyContractType.SHOP_TRADE, offer.sellUsdtMinor() * quantity);
 		player.getInventory().setChanged();
 		player.containerMenu.broadcastChanges();
 		player.displayClientMessage(Component.translatable("message.virtual_craft.shop.sell", requiredCount, offer.displayName(), settlementCurrency.formatCompact(payoutMinor), settlementCurrency.displayName()), true);

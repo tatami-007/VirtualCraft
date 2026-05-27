@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -35,6 +36,8 @@ public final class WalletPreferences implements INBTSerializable<CompoundTag> {
 	private final List<TransferContact> recentContacts = new ArrayList<>();
 	private final LinkedHashSet<String> favoriteOfferIds = new LinkedHashSet<>();
 	private final MiningStats miningStats = new MiningStats();
+	private long contractDayStartEpochSeconds;
+	private final Map<String, ContractProgress> contractProgress = new HashMap<>();
 
 	public int version() {
 		return version;
@@ -50,6 +53,44 @@ public final class WalletPreferences implements INBTSerializable<CompoundTag> {
 
 	public MiningStats miningStats() {
 		return miningStats;
+	}
+
+	public long contractDayStartEpochSeconds() {
+		return contractDayStartEpochSeconds;
+	}
+
+	public void resetContracts(long dayStartEpochSeconds) {
+		contractDayStartEpochSeconds = Math.max(0L, dayStartEpochSeconds);
+		contractProgress.clear();
+	}
+
+	public long contractProgress(String contractId) {
+		ContractProgress progress = contractProgress.get(contractId);
+		return progress == null ? 0L : progress.progress();
+	}
+
+	public boolean isContractClaimed(String contractId) {
+		ContractProgress progress = contractProgress.get(contractId);
+		return progress != null && progress.claimed();
+	}
+
+	public long addContractProgress(String contractId, long amount, long maxProgress) {
+		if (contractId == null || contractId.isBlank() || amount <= 0L) {
+			return contractProgress(contractId);
+		}
+		ContractProgress current = contractProgress.getOrDefault(contractId, ContractProgress.EMPTY);
+		long next = Math.min(Math.max(0L, maxProgress), current.progress() + amount);
+		contractProgress.put(contractId, new ContractProgress(next, current.claimed()));
+		return next;
+	}
+
+	public boolean claimContract(String contractId) {
+		ContractProgress current = contractProgress.getOrDefault(contractId, ContractProgress.EMPTY);
+		if (current.claimed()) {
+			return false;
+		}
+		contractProgress.put(contractId, new ContractProgress(current.progress(), true));
+		return true;
 	}
 
 	public boolean isFavorite(String offerId) {
@@ -125,6 +166,9 @@ public final class WalletPreferences implements INBTSerializable<CompoundTag> {
 		favoriteOfferIds.clear();
 		favoriteOfferIds.addAll(other.favoriteOfferIds);
 		miningStats.copyFrom(other.miningStats);
+		contractDayStartEpochSeconds = other.contractDayStartEpochSeconds;
+		contractProgress.clear();
+		contractProgress.putAll(other.contractProgress);
 	}
 
 	@Override
@@ -142,6 +186,19 @@ public final class WalletPreferences implements INBTSerializable<CompoundTag> {
 		}
 		tag.put("favorite_offers", favoritesList);
 		tag.put("mining_stats", miningStats.serialize());
+		tag.putLong("contract_day", contractDayStartEpochSeconds);
+		ListTag contractsList = new ListTag();
+		for (Map.Entry<String, ContractProgress> entry : contractProgress.entrySet()) {
+			if (entry.getKey() == null || entry.getKey().isBlank()) {
+				continue;
+			}
+			CompoundTag contractTag = new CompoundTag();
+			contractTag.putString("id", entry.getKey());
+			contractTag.putLong("progress", Math.max(0L, entry.getValue().progress()));
+			contractTag.putBoolean("claimed", entry.getValue().claimed());
+			contractsList.add(contractTag);
+		}
+		tag.put("contracts", contractsList);
 		return tag;
 	}
 
@@ -172,6 +229,23 @@ public final class WalletPreferences implements INBTSerializable<CompoundTag> {
 		if (nbt.contains("mining_stats", Tag.TAG_COMPOUND)) {
 			miningStats.deserialize(nbt.getCompound("mining_stats"));
 		}
+		contractDayStartEpochSeconds = nbt.getLong("contract_day");
+		contractProgress.clear();
+		ListTag contractsList = nbt.getList("contracts", Tag.TAG_COMPOUND);
+		for (Tag entry : contractsList) {
+			if (entry instanceof CompoundTag compound) {
+				String id = compound.getString("id");
+				if (id != null && !id.isBlank()) {
+					contractProgress.put(id, new ContractProgress(
+							Math.max(0L, compound.getLong("progress")),
+							compound.getBoolean("claimed")));
+				}
+			}
+		}
+	}
+
+	public record ContractProgress(long progress, boolean claimed) {
+		static final ContractProgress EMPTY = new ContractProgress(0L, false);
 	}
 
 	/** A player the owner has recently transferred funds to. */

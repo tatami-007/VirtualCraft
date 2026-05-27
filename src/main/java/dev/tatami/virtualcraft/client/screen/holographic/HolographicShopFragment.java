@@ -36,6 +36,7 @@ import dev.tatami.virtualcraft.client.screen.holographic.HoloScrollView;
 import dev.tatami.virtualcraft.client.screen.holographic.HoloSeekBar;
 import dev.tatami.virtualcraft.client.screen.holographic.HolographicIconCache;
 import dev.tatami.virtualcraft.client.screen.holographic.HolographicTheme;
+import dev.tatami.virtualcraft.contract.DailyContractSnapshot;
 import dev.tatami.virtualcraft.currency.CryptoCurrency;
 import dev.tatami.virtualcraft.exchange.CurrencyConversionService;
 import dev.tatami.virtualcraft.exchange.ExchangeRateSnapshot;
@@ -71,10 +72,17 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.Item;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 public class HolographicShopFragment extends Fragment implements ScreenCallback {
 	private static final int AMOUNT_SLIDER_STEPS = 1000;
+
+	private record VoucherTierCount(Item item, int count, long btcMinor) {
+	}
+
+	private record VoucherSummary(List<VoucherTierCount> tiers, int totalCount, long totalBtcMinor) {
+	}
 
 	/**
 	 * 服务端 {@code HolographicTerminalSession} 分配的会话 ID。所有出站 ActionPayload 的
@@ -91,6 +99,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	private final List<ShopOffer> offers = new ArrayList<>();
 	private final List<SyncWalletPayload.Entry> recentEntries = new ArrayList<>();
 	private final List<String> suggestedPlayers = new ArrayList<>();
+	private final List<DailyContractSnapshot> contractCache = new ArrayList<>();
 
 	// --- Ledger browser cache (populated by SyncWalletLedgerPagePayload) ---
 	private static final int LEDGER_PAGE_SIZE = 10;
@@ -216,6 +225,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			this.recentContacts.addAll(cachedPrefs.recentContacts());
 			this.favoriteOfferIds.addAll(cachedPrefs.favoriteOfferIds());
 			this.miningStatsCache = cachedPrefs.miningStats();
+			this.contractCache.addAll(cachedPrefs.contracts());
 		}
 	}
 
@@ -465,8 +475,10 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		favoriteOfferIds.clear();
 		favoriteOfferIds.addAll(payload.favoriteOfferIds());
 		miningStatsCache = payload.miningStats();
+		contractCache.clear();
+		contractCache.addAll(payload.contracts());
 		HolographicShopClientCache.storePreferences(payload);
-		if (currentPage == Page.SHOP || currentPage == Page.TRANSFER || currentPage == Page.MINING) {
+		if (currentPage == Page.SHOP || currentPage == Page.TRANSFER || currentPage == Page.MINING || currentPage == Page.CONTRACTS) {
 			requestRefresh(false, captureFocusTarget());
 		}
 	}
@@ -504,7 +516,8 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			refreshKey = "screen.virtual_craft.holographic_shop.refresh";
 			refreshAccent = CYAN;
 		}
-		Button refreshButton = actionButton(t(refreshKey), refreshAccent, this::requestExchangeRefresh);
+		Button refreshButton = headerIconButton(t(refreshKey), refreshAccent, this::requestExchangeRefresh);
+		refreshButton.setTooltipText(t("screen.virtual_craft.holographic_shop.refresh_tooltip"));
 		headerRefreshButton = refreshButton;
 		var refreshParams = new LinearLayout.LayoutParams(dp(HEADER_REFRESH_WIDTH_DP), dp(30));
 		refreshParams.setMargins(0, 0, dp(10), 0);
@@ -696,15 +709,30 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 
 	private void refreshNav() {
 		navColumn.removeAllViews();
-		navColumn.addView(navButton(t("screen.virtual_craft.holographic_shop.page.wallet"), Page.WALLET), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
+		// v25 each nav tab carries a 16dp MC item icon as a visual anchor:
+		//   wallet  -> emerald            (gem = stored value)
+		//   convert -> ender pearl        (warp / swap motion)
+		//   shop    -> gold ingot         (universal commerce token)
+		//   transfer-> paper              (signed note / cheque)
+		//   mining  -> encrypted hash     (mod's own settlement voucher)
+		ResourceLocation walletIcon = ResourceLocation.fromNamespaceAndPath("minecraft", "emerald");
+		ResourceLocation convertIcon = ResourceLocation.fromNamespaceAndPath("minecraft", "ender_pearl");
+		ResourceLocation shopIcon = ResourceLocation.fromNamespaceAndPath("minecraft", "gold_ingot");
+		ResourceLocation transferIcon = ResourceLocation.fromNamespaceAndPath("minecraft", "paper");
+		ResourceLocation miningIcon = ResourceLocation.fromNamespaceAndPath("virtual_craft", "encrypted_hash_voucher");
+		ResourceLocation contractsIcon = ResourceLocation.fromNamespaceAndPath("minecraft", "writable_book");
+		LinearLayout.LayoutParams navParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32));
+		navColumn.addView(navIconButton(walletIcon, t("screen.virtual_craft.holographic_shop.page.wallet"), Page.WALLET), navParams);
 		navColumn.addView(spacer(dp(6)));
-		navColumn.addView(navButton(t("screen.virtual_craft.holographic_shop.page.convert"), Page.CONVERT), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
+		navColumn.addView(navIconButton(convertIcon, t("screen.virtual_craft.holographic_shop.page.convert"), Page.CONVERT), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
 		navColumn.addView(spacer(dp(6)));
-		navColumn.addView(navButton(t("screen.virtual_craft.holographic_shop.page.shop"), Page.SHOP), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
+		navColumn.addView(navIconButton(shopIcon, t("screen.virtual_craft.holographic_shop.page.shop"), Page.SHOP), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
 		navColumn.addView(spacer(dp(6)));
-		navColumn.addView(navButton(t("screen.virtual_craft.holographic_shop.page.transfer"), Page.TRANSFER), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
+		navColumn.addView(navIconButton(transferIcon, t("screen.virtual_craft.holographic_shop.page.transfer"), Page.TRANSFER), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
 		navColumn.addView(spacer(dp(6)));
-		navColumn.addView(navButton(t("screen.virtual_craft.holographic_shop.page.mining"), Page.MINING), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
+		navColumn.addView(navIconButton(miningIcon, t("screen.virtual_craft.holographic_shop.page.mining"), Page.MINING), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
+		navColumn.addView(spacer(dp(6)));
+		navColumn.addView(navIconButton(contractsIcon, t("screen.virtual_craft.holographic_shop.page.contracts"), Page.CONTRACTS), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
 		navColumn.addView(spacer(dp(14)));
 		navColumn.addView(sectionHeader(t("screen.virtual_craft.holographic_shop.sidebar.portfolio"), null));
 
@@ -766,6 +794,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			case SHOP -> buildShopContent();
 			case TRANSFER -> buildTransferContent();
 			case MINING -> buildMiningContent();
+			case CONTRACTS -> buildContractsContent();
 		}
 	}
 
@@ -780,6 +809,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			case SHOP -> buildShopActions();
 			case TRANSFER -> buildTransferActions();
 			case MINING -> buildMiningActions();
+			case CONTRACTS -> buildContractsActions();
 		}
 	}
 
@@ -969,7 +999,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	}
 
 	private void cycleLedgerTypeFilter() {
-		String[] order = {"", "deposit", "withdraw", "swap", "transfer", "premium_buy", "premium_sell", "mining_settlement", "power_link"};
+		String[] order = {"", "deposit", "withdraw", "swap", "transfer", "premium_buy", "premium_sell", "mining_settlement", "contract_reward", "power_link"};
 		int idx = 0;
 		for (int i = 0; i < order.length; i++) {
 			if (order[i].equals(ledgerTypeFilterId)) {
@@ -1307,12 +1337,14 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			shopSortMode = modes[(shopSortMode.ordinal() + 1) % modes.length];
 			requestRefresh(false, FocusTarget.SHOP_SEARCH);
 		});
-		// 防御 wrap 被裁：compactActionButton 不调 setSingleLine，长文本会换行。固定 dp(30) 高度
-		// 时 wrap 出来的第 2 行就会被父 LinearLayout 切掉（用户报告的"按钮被切开"根因）。
-		// 现在 lang 已缩短到最多 5 字符（"名称 A→Z"），dp(132) 宽下单行可装；万一字体异常 wrap，
-		// LayoutParams 高度用 WRAP_CONTENT + minHeight 兜底，让按钮整体长高而不是裁文字。
+		// v25 ultra-compact sort cycler: labels are now pure-symbol (↕ / 买↑ / 卖↓ /
+		// A→Z), at most 3 chars wide, so dp(132) was 2.4x too wide. Shrink to dp(56)
+		// to free toolbar space for a wider search input. Hover tooltip lists the
+		// cyclable modes so the symbol meaning stays discoverable.
+		sortButton.setTextSize(13f);
 		sortButton.setMinimumHeight(dp(34));
-		var sortParams = new LinearLayout.LayoutParams(dp(132), dp(34));
+		sortButton.setTooltipText(t("screen.virtual_craft.holographic_shop.shop.sort_tooltip"));
+		var sortParams = new LinearLayout.LayoutParams(dp(56), dp(34));
 		sortParams.setMargins(dp(6), 0, 0, 0);
 		toolbar.addView(sortButton, sortParams);
 		Button favButton = compactActionButton(
@@ -1323,9 +1355,14 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 					shopFavoritesOnly = !shopFavoritesOnly;
 					requestRefresh(false, FocusTarget.SHOP_SEARCH);
 				});
-		// favButton 同样套 WRAP_CONTENT + minHeight 防 wrap 被裁。dp(84) 宽对"★ 仅看"4 字符够用。
+		// v25 favorites toggle is now a pure star glyph (★ filled = only favorites,
+		// ☆ outline = all). dp(40) is just enough for a single 14sp glyph centered
+		// in the toggle background. Hover tooltip carries the full description.
+		favButton.setTextSize(14f);
+		favButton.setTextColor(shopFavoritesOnly ? AMBER : TEXT_DIM);
 		favButton.setMinimumHeight(dp(34));
-		var favParams = new LinearLayout.LayoutParams(dp(88), dp(34));
+		favButton.setTooltipText(t("screen.virtual_craft.holographic_shop.shop.favorites_tooltip"));
+		var favParams = new LinearLayout.LayoutParams(dp(40), dp(34));
 		favParams.setMargins(dp(6), 0, 0, 0);
 		toolbar.addView(favButton, favParams);
 		contentColumn.addView(toolbar, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(40)));
@@ -1529,7 +1566,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		contentColumn.addView(sectionHeader(t("screen.virtual_craft.holographic_shop.mining.vouchers"), t("screen.virtual_craft.holographic_shop.mining.preview")));
 		contentColumn.addView(spacer(dp(10)));
 
-		int vouchers = countHashVouchers();
+		VoucherSummary vouchers = hashVoucherSummary();
 		long payoutMinor = miningPayoutMinor();
 
 		LinearLayout top = new LinearLayout(requireContext());
@@ -1540,13 +1577,54 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		// then lets the shorter card stretch to the taller one’s measured height.
 		top.setMeasureWithLargestChildEnabled(true);
 		var voucherParams = weighted(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
-		top.addView(infoCard(t("item.virtual_craft.hash_voucher"), t("screen.virtual_craft.holographic_shop.mining.available", vouchers), t("screen.virtual_craft.holographic_shop.mining.base", CryptoCurrency.BTC.formatCompact(HashVoucherItem.BTC_PAYOUT_MINOR), CryptoCurrency.BTC.ticker()), CYAN), voucherParams);
+		top.addView(infoCard(
+				t("screen.virtual_craft.holographic_shop.mining.vouchers"),
+				t("screen.virtual_craft.holographic_shop.mining.available", vouchers.totalCount()),
+				t("screen.virtual_craft.holographic_shop.mining.total_value", CryptoCurrency.BTC.formatCompact(vouchers.totalBtcMinor()), CryptoCurrency.BTC.ticker()),
+				CYAN), voucherParams);
 		var previewParams = weighted(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
 		previewParams.setMargins(dp(10), 0, 0, 0);
 		top.addView(infoCard(t("screen.virtual_craft.holographic_shop.mining.preview"), miningSettlementCurrency.displayName().getString(), formatTickerAmount(miningSettlementCurrency, payoutMinor), GREEN), previewParams);
 		contentColumn.addView(top, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 		contentColumn.addView(spacer(dp(10)));
+		contentColumn.addView(virtualRelicHintCard(), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+		contentColumn.addView(spacer(dp(10)));
+		contentColumn.addView(miningVoucherBreakdown(vouchers), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+		contentColumn.addView(spacer(dp(10)));
 		contentColumn.addView(miningStatsDashboard(), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+	}
+
+	private View virtualRelicHintCard() {
+		LinearLayout card = card(PANEL_SOFT, CYAN, 10f);
+		card.setPadding(dp(14), dp(10), dp(14), dp(10));
+		card.addView(hintText(t("screen.virtual_craft.holographic_shop.mining.relics")));
+		card.addView(bodyText(t("screen.virtual_craft.holographic_shop.mining.relics_hint")));
+		card.addView(spacer(dp(6)));
+		card.addView(keyValueRow(
+				t("screen.virtual_craft.holographic_shop.mining.fragments"),
+				Integer.toString(countDataFragments()),
+				CYAN));
+		return card;
+	}
+
+	private View miningVoucherBreakdown(VoucherSummary summary) {
+		LinearLayout card = card(PANEL_ROW, WINDOW_STROKE, 10f);
+		card.setPadding(dp(14), dp(12), dp(14), dp(12));
+		card.addView(hintText(t("screen.virtual_craft.holographic_shop.mining.breakdown")));
+		if (summary.totalCount() <= 0) {
+			card.addView(bodyText(t("screen.virtual_craft.holographic_shop.mining.none")));
+			return card;
+		}
+		for (VoucherTierCount tier : summary.tiers()) {
+			if (tier.count() <= 0) {
+				continue;
+			}
+			card.addView(keyValueRow(
+					new net.minecraft.world.item.ItemStack(tier.item()).getHoverName().getString(),
+					t("screen.virtual_craft.holographic_shop.mining.tier_count", tier.count(), CryptoCurrency.BTC.formatCompact(safeMultiply(tier.btcMinor(), tier.count())), CryptoCurrency.BTC.ticker()),
+					TEXT));
+		}
+		return card;
 	}
 
 	/**
@@ -1648,7 +1726,12 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		}), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(28)));
 		actionColumn.addView(spacer(dp(6)));
 		actionColumn.addView(quantitySlider(t("item.virtual_craft.hash_voucher"), 0, sliderMax, requested, value -> {
-			miningAmountText = Integer.toString(value);
+			String text = Integer.toString(value);
+			miningAmountText = text;
+			pendingInputOverrides.put(FocusTarget.MINING_AMOUNT, text);
+			if (miningAmountInput != null && !miningAmountInput.getText().toString().equals(text)) {
+				miningAmountInput.setText(text);
+			}
 		}), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 		actionColumn.addView(spacer(dp(10)));
 		actionColumn.addView(statusCard(miningSummaryLine(miningCount), problem, problem.isBlank() ? GREEN : AMBER));
@@ -1656,6 +1739,110 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 
 		Button settle = actionButton(t("screen.virtual_craft.holographic_shop.mining.settle"), GREEN, this::sendMiningAction);
 		actionColumn.addView(settle, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(30)));
+	}
+
+	private void buildContractsContent() {
+		contentColumn.addView(sectionHeader(t("screen.virtual_craft.holographic_shop.contracts.title"), t("screen.virtual_craft.holographic_shop.contracts.subtitle")));
+		contentColumn.addView(spacer(dp(10)));
+
+		if (contractCache.isEmpty()) {
+			contentColumn.addView(emptyState(
+					t("screen.virtual_craft.holographic_shop.contracts.empty"),
+					t("screen.virtual_craft.holographic_shop.contracts.empty_hint")));
+			return;
+		}
+
+		ScrollView scroll = scrollShell();
+		LinearLayout list = vertical();
+		list.setPadding(dp(10), dp(10), dp(10), dp(10));
+		for (int index = 0; index < contractCache.size(); index++) {
+			list.addView(contractCard(contractCache.get(index)));
+			if (index + 1 < contractCache.size()) {
+				list.addView(spacer(dp(8)));
+			}
+		}
+		scroll.addView(list, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+		contentColumn.addView(scroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+	}
+
+	private View contractCard(DailyContractSnapshot contract) {
+		boolean complete = contract.progress() >= contract.target();
+		int accent = contract.claimed() ? WINDOW_STROKE : complete ? GREEN : CYAN;
+		LinearLayout card = card(complete && !contract.claimed() ? PANEL_ACTIVE : PANEL_ROW, accent, 10f);
+		card.setPadding(dp(12), dp(12), dp(12), dp(12));
+
+		LinearLayout row = new LinearLayout(requireContext());
+		row.setOrientation(LinearLayout.HORIZONTAL);
+		row.setGravity(Gravity.CENTER_VERTICAL);
+		ResourceLocation iconId = ResourceLocation.tryParse(contract.iconItemId());
+		row.addView(itemIconView(iconId == null ? ResourceLocation.fromNamespaceAndPath("minecraft", "paper") : iconId, "*", ICON_LARGE_DP));
+
+		LinearLayout text = vertical();
+		var textParams = weighted(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+		textParams.setMargins(dp(10), 0, dp(8), 0);
+		text.addView(bodyText(t(contract.titleKey())));
+		TextView goal = hintText(t(contract.goalKey(), contract.targetText()));
+		goal.setMaxLines(1);
+		goal.setEllipsize(TextUtils.TruncateAt.END);
+		text.addView(goal);
+		row.addView(text, textParams);
+
+		TextView reward = bodyText(contract.rewardText());
+		reward.setTextColor(complete ? GREEN : CYAN);
+		reward.setGravity(Gravity.END);
+		row.addView(reward);
+		card.addView(row);
+		card.addView(spacer(dp(8)));
+		card.addView(contractProgressBar(contract, accent), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(8)));
+		card.addView(spacer(dp(6)));
+		card.addView(keyValueRow(
+				t("screen.virtual_craft.holographic_shop.contracts.progress"),
+				Math.min(contract.progress(), contract.target()) + " / " + contract.target(),
+				complete ? GREEN : CYAN));
+		return card;
+	}
+
+	private View contractProgressBar(DailyContractSnapshot contract, int accent) {
+		FrameLayout frame = new FrameLayout(requireContext());
+		frame.setBackground(rounded(PANEL_SOFT, WINDOW_STROKE, 999f, 1));
+		View fill = new View(requireContext());
+		fill.setBackground(rounded(accent, 0, 999f, 0));
+		float ratio = contract.target() <= 0L ? 0f : Math.min(1f, (float) contract.progress() / (float) contract.target());
+		frame.post(() -> {
+			int width = Math.max(1, Math.round(frame.getWidth() * ratio));
+			FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(width, ViewGroup.LayoutParams.MATCH_PARENT);
+			fill.setLayoutParams(params);
+		});
+		frame.addView(fill, new FrameLayout.LayoutParams(1, ViewGroup.LayoutParams.MATCH_PARENT));
+		return frame;
+	}
+
+	private void buildContractsActions() {
+		actionColumn.addView(infoCard(
+				t("screen.virtual_craft.holographic_shop.contracts.today"),
+				t("screen.virtual_craft.holographic_shop.contracts.count", completedContracts(), contractCache.size()),
+				t("screen.virtual_craft.holographic_shop.contracts.reset_daily"),
+				CYAN));
+		actionColumn.addView(spacer(dp(10)));
+		for (DailyContractSnapshot contract : contractCache) {
+			boolean complete = contract.progress() >= contract.target();
+			Button claim = actionButton(contract.claimed()
+					? t("screen.virtual_craft.holographic_shop.contracts.claimed")
+					: t("screen.virtual_craft.holographic_shop.contracts.claim"), complete ? GREEN : CYAN, () -> sendContractClaim(contract.id()));
+			claim.setEnabled(complete && !contract.claimed());
+			actionColumn.addView(claim, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(30)));
+			actionColumn.addView(spacer(dp(6)));
+		}
+	}
+
+	private int completedContracts() {
+		int count = 0;
+		for (DailyContractSnapshot contract : contractCache) {
+			if (contract.progress() >= contract.target()) {
+				count++;
+			}
+		}
+		return count;
 	}
 
 	/** Horizontal chip row of the player's most recent transfer recipients. */
@@ -2531,6 +2718,29 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		return button;
 	}
 
+	/**
+	 * v25 nav tab with an MC item icon prefix. Each tab now reads as a tactile
+	 * "page badge" because the 16dp item sprite (emerald / ender pearl / gold
+	 * ingot / paper / hash voucher) is instantly recognizable — it drops the
+	 * cognitive load of parsing 2 CJK characters at every glance. The textual
+	 * label stays alongside so locale fallbacks and players unfamiliar with
+	 * the iconography don't lose orientation.
+	 *
+	 * <p>Implementation note: piggybacks on {@link #navButton} so the selected
+	 * vs. unselected styling (background, stroke color, text dim) flows through
+	 * unchanged. We only add the compound drawable + padding on top — the same
+	 * pattern proven by {@link #currencyActionButton}.</p>
+	 */
+	private Button navIconButton(ResourceLocation iconId, String text, Page page) {
+		Button button = navButton(text, page);
+		ImageDrawable icon = itemIcon(iconId, 16);
+		if (icon != null) {
+			button.setCompoundDrawablesRelative(icon, null, null, null);
+			button.setCompoundDrawablePadding(dp(8));
+		}
+		return button;
+	}
+
 	private void navigateTo(Page page) {
 		currentPage = page;
 		pickerTarget = PickerTarget.NONE;
@@ -2545,6 +2755,21 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	private Button actionButton(String text, int accentColor, Runnable action) {
 		Button button = navButton(text, null);
 		button.setGravity(Gravity.CENTER);
+		button.setBackground(rounded(PANEL_BUTTON, accentColor, 9f, 1));
+		button.setOnClickListener(v -> action.run());
+		return button;
+	}
+
+	private Button headerIconButton(String glyph, int accentColor, Runnable action) {
+		Button button = new Button(requireContext());
+		button.setText(glyph);
+		button.setTextSize(17f);
+		button.setSingleLine();
+		button.setGravity(Gravity.CENTER);
+		button.setTextColor(TEXT);
+		button.setMinimumWidth(0);
+		button.setMinimumHeight(0);
+		button.setPadding(0, 0, 0, 0);
 		button.setBackground(rounded(PANEL_BUTTON, accentColor, 9f, 1));
 		button.setOnClickListener(v -> action.run());
 		return button;
@@ -2951,6 +3176,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			case SHOP -> shopSettlementCurrency;
 			case TRANSFER -> transferCurrency;
 			case MINING -> miningSettlementCurrency;
+			case CONTRACTS -> CryptoCurrency.USDT;
 			case WALLET -> selectedWalletCurrency;
 		};
 	}
@@ -2962,6 +3188,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			case SHOP -> t("screen.virtual_craft.holographic_shop.shop.actions");
 			case TRANSFER -> t("screen.virtual_craft.holographic_shop.transfer.actions");
 			case MINING -> t("screen.virtual_craft.holographic_shop.mining.actions");
+			case CONTRACTS -> t("screen.virtual_craft.holographic_shop.contracts.actions");
 		};
 	}
 
@@ -2975,6 +3202,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			}
 			case TRANSFER -> transferCurrency.ticker();
 			case MINING -> miningSettlementCurrency.ticker();
+			case CONTRACTS -> t("screen.virtual_craft.holographic_shop.contracts.subtitle_short");
 		};
 	}
 
@@ -3192,7 +3420,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	}
 
 	private long miningPayoutMinor(long count) {
-		long btcMinor = safeMultiply(HashVoucherItem.BTC_PAYOUT_MINOR, Math.max(0L, count));
+		long btcMinor = miningBtcMinor(count);
 		return CurrencyConversionService.convert(CryptoCurrency.BTC, miningSettlementCurrency, btcMinor, exchangeSnapshot, RoundingMode.DOWN);
 	}
 
@@ -3335,17 +3563,67 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	}
 
 	private int countHashVouchers() {
+		return hashVoucherSummary().totalCount();
+	}
+
+	private int countDataFragments() {
 		var player = Minecraft.getInstance().player;
 		if (player == null) {
 			return 0;
 		}
 		int total = 0;
 		for (var stack : player.getInventory().items) {
-			if (stack.is(ModItems.HASH_VOUCHER.get())) {
+			if (stack.is(ModItems.DATA_FRAGMENT.get())) {
 				total += stack.getCount();
 			}
 		}
 		return total;
+	}
+
+	private long miningBtcMinor(long count) {
+		long remaining = Math.max(0L, count);
+		long totalBtcMinor = 0L;
+		for (VoucherTierCount tier : hashVoucherSummary().tiers()) {
+			if (remaining <= 0L) {
+				break;
+			}
+			long used = Math.min(remaining, tier.count());
+			totalBtcMinor = safeAdd(totalBtcMinor, safeMultiply(tier.btcMinor(), used));
+			remaining -= used;
+		}
+		return totalBtcMinor;
+	}
+
+	private VoucherSummary hashVoucherSummary() {
+		var player = Minecraft.getInstance().player;
+		if (player == null) {
+			return new VoucherSummary(List.of(), 0, 0L);
+		}
+		List<Item> voucherItems = ModItems.hashVoucherItems();
+		int[] counts = new int[voucherItems.size()];
+		for (var stack : player.getInventory().items) {
+			if (!HashVoucherItem.isHashVoucher(stack)) {
+				continue;
+			}
+			for (int index = 0; index < voucherItems.size(); index++) {
+				if (stack.is(voucherItems.get(index))) {
+					counts[index] += stack.getCount();
+					break;
+				}
+			}
+		}
+		List<VoucherTierCount> tiers = new ArrayList<>();
+		int totalCount = 0;
+		long totalBtcMinor = 0L;
+		for (int index = 0; index < voucherItems.size(); index++) {
+			Item item = voucherItems.get(index);
+			int count = counts[index];
+			long value = item instanceof HashVoucherItem voucher ? voucher.btcPayoutMinor() : 0L;
+			tiers.add(new VoucherTierCount(item, count, value));
+			totalCount += count;
+			totalBtcMinor = safeAdd(totalBtcMinor, safeMultiply(value, count));
+		}
+		return new VoucherSummary(tiers, totalCount, totalBtcMinor);
 	}
 
 	private void sendShopAction(ShopActionPayload.Action action) {
@@ -3430,6 +3708,13 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 				""));
 	}
 
+	private void sendContractClaim(String contractId) {
+		PacketDistributor.sendToServer(new dev.tatami.virtualcraft.network.WalletPreferencesActionPayload(
+				sessionId,
+				dev.tatami.virtualcraft.network.WalletPreferencesActionPayload.Action.CLAIM_CONTRACT,
+				contractId));
+	}
+
 	private long inventoryWholeItemCount(CryptoCurrency currency) {
 		var player = Minecraft.getInstance().player;
 		if (player == null) {
@@ -3511,6 +3796,14 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	private long safeMultiply(long a, long b) {
 		try {
 			return Math.multiplyExact(a, b);
+		} catch (ArithmeticException ignored) {
+			return Long.MAX_VALUE;
+		}
+	}
+
+	private long safeAdd(long a, long b) {
+		try {
+			return Math.addExact(a, b);
 		} catch (ArithmeticException ignored) {
 			return Long.MAX_VALUE;
 		}

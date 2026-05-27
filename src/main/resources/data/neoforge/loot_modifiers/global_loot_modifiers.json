@@ -1,0 +1,23 @@
+{
+  "replace": false,
+  "entries": [
+    "virtual_craft:hash_voucher_abandoned_mineshaft",
+    "virtual_craft:hash_voucher_ancient_city",
+    "virtual_craft:hash_voucher_bastion_treasure",
+    "virtual_craft:hash_voucher_buried_treasure",
+    "virtual_craft:hash_voucher_desert_pyramid",
+    "virtual_craft:hash_voucher_end_city_treasure",
+    "virtual_craft:hash_voucher_quantum_ancient_city",
+    "virtual_craft:hash_voucher_quantum_bastion_treasure",
+    "virtual_craft:hash_voucher_quantum_end_city_treasure",
+    "virtual_craft:hash_voucher_genesis_ancient_city",
+    "virtual_craft:hash_voucher_genesis_bastion_treasure",
+    "virtual_craft:hash_voucher_genesis_end_city_treasure",
+    "virtual_craft:hash_voucher_jungle_temple",
+    "virtual_craft:hash_voucher_nether_bridge",
+    "virtual_craft:hash_voucher_simple_dungeon",
+    "virtual_craft:hash_voucher_stronghold_corridor",
+    "virtual_craft:hash_voucher_stronghold_library",
+    "virtual_craft:hash_voucher_woodland_mansion"
+  ]
+}

@@ -8,7 +8,8 @@ public enum WalletLedgerType {
 	PREMIUM_BUY("premium_buy"),
 	PREMIUM_SELL("premium_sell"),
 	POWER_LINK("power_link"),
-	MINING_SETTLEMENT("mining_settlement");
+	MINING_SETTLEMENT("mining_settlement"),
+	CONTRACT_REWARD("contract_reward");
 
 	private final String id;
 

@@ -1,18 +1,20 @@
 package dev.tatami.virtualcraft.client.highlight;
 
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalDouble;
 
-import org.joml.Matrix4f;
-
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.BufferBuilder;
+import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.MeshData;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.Tesselator;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import org.joml.Matrix4f;
 
 import dev.tatami.virtualcraft.mining.MiningSurveyTarget;
 import dev.tatami.virtualcraft.mining.MiningSurveyTargetData;
@@ -22,6 +24,8 @@ import dev.tatami.virtualcraft.util.ShapeMerger;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderStateShard;
 import net.minecraft.client.renderer.RenderType;
@@ -31,9 +35,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.phys.shapes.BooleanOp;
-import net.minecraft.world.phys.shapes.Shapes;
-import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.neoforge.client.event.RenderGuiLayerEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 
@@ -42,14 +43,31 @@ public final class MiningSurveyorHighlighter {
 	private static final double WORLD_HIGHLIGHT_MAX_DISTANCE = 160.0D;
 	private static final double EDGE_ARROW_MIN_DOT = 0.35D;
 	private static final int ARROW_MARGIN = 18;
+
+	// v25 refined aesthetic. Old style (#02C7FF wireframe + center axis cross +
+	// alpha pulse) read as debug rendering: too saturated, too busy, the pulse
+	// drew the eye away from the world. New style follows the project's existing
+	// in-world highlight language (see BoundMachineHighlighter): a low-alpha
+	// CYAN-tinted shell so the cluster reads as "a glowing volume in the rock",
+	// plus a clean 1-px outline on top so the silhouette stays crisp. No pulse,
+	// no axis crosses — players keep their attention on the terrain.
+	private static final float FILL_R = 0.30f;
+	private static final float FILL_G = 0.78f;
+	private static final float FILL_B = 0.96f;
+	private static final float FILL_A = 0.20f;
+	private static final float OUTLINE_R = 0.36f;
+	private static final float OUTLINE_G = 0.86f;
+	private static final float OUTLINE_B = 1.00f;
+	private static final float OUTLINE_A = 0.95f;
+
 	private static final RenderType SURVEY_LINES = RenderType.create(
-			"virtual_craft_survey_no_depth_lines",
+			"virtual_craft_survey_box_lines",
 			DefaultVertexFormat.POSITION_COLOR_NORMAL,
 			VertexFormat.Mode.LINES,
 			1536,
 			RenderType.CompositeState.builder()
 					.setShaderState(RenderStateShard.RENDERTYPE_LINES_SHADER)
-					.setLineState(new RenderStateShard.LineStateShard(OptionalDouble.of(2.5D)))
+					.setLineState(new RenderStateShard.LineStateShard(OptionalDouble.of(3.0D)))
 					.setDepthTestState(RenderStateShard.NO_DEPTH_TEST)
 					.setLayeringState(RenderStateShard.VIEW_OFFSET_Z_LAYERING)
 					.setTransparencyState(RenderStateShard.TRANSLUCENT_TRANSPARENCY)
@@ -60,6 +78,7 @@ public final class MiningSurveyorHighlighter {
 	private BlockPos cachedOrigin;
 	private MiningSurveyTarget cachedTarget;
 	private List<BlockPos> cachedCluster = List.of();
+	private List<AABB> cachedBoxes = List.of();
 	private List<CachedEdge> cachedEdges = List.of();
 
 	public void renderInGame(PoseStack poseStack) {
@@ -72,12 +91,9 @@ public final class MiningSurveyorHighlighter {
 		}
 
 		ItemStack stack = resolveSurveyor(player);
-		if (stack.isEmpty()) {
-			clearCache();
-			return;
-		}
-
-		Optional<BlockPos> targetPos = MiningSurveyTargetData.target(stack).or(MiningSurveyorClientState::targetPos);
+		Optional<BlockPos> targetPos = MiningSurveyorClientState.targetPos().or(() -> stack.isEmpty()
+				? Optional.empty()
+				: MiningSurveyTargetData.target(stack));
 		if (targetPos.isEmpty()) {
 			clearCache();
 			return;
@@ -88,29 +104,24 @@ public final class MiningSurveyorHighlighter {
 			return;
 		}
 
-		MiningSurveyTarget target = MiningSurveyorClientState.target().orElse(MiningSurveyTargetData.lockedTarget(stack));
+		MiningSurveyTarget target = MiningSurveyorClientState.target().orElseGet(() -> stack.isEmpty()
+				? MiningSurveyTarget.defaultTarget()
+				: MiningSurveyTargetData.lockedTarget(stack));
 		if (!origin.equals(cachedOrigin) || !target.equals(cachedTarget)) {
 			cachedOrigin = origin.immutable();
 			cachedTarget = target;
 			cachedCluster = OreClusterFinder.collectConnectedOres(level, cachedOrigin, MAX_RENDERED_ORES, target);
-			cachedEdges = buildEdges(cachedCluster);
+			rebuildGeometry(cachedCluster.isEmpty() ? List.of(cachedOrigin) : cachedCluster);
+		}
+		if (cachedBoxes.isEmpty()) {
+			return;
 		}
 		Vec3 cameraPos = minecraft.gameRenderer.getMainCamera().getPosition();
-		MultiBufferSource.BufferSource bufferSource = minecraft.renderBuffers().bufferSource();
-
-		VertexConsumer lineBuffer = bufferSource.getBuffer(SURVEY_LINES);
-		poseStack.pushPose();
-		poseStack.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
-		Matrix4f matrix = poseStack.last().pose();
-		if (!cachedEdges.isEmpty()) {
-			for (CachedEdge edge : cachedEdges) {
-				lineBuffer.addVertex(matrix, edge.x1(), edge.y1(), edge.z1()).setColor(0.96f, 0.82f, 0.35f, 1.0f).setNormal(edge.xn(), edge.yn(), edge.zn());
-				lineBuffer.addVertex(matrix, edge.x2(), edge.y2(), edge.z2()).setColor(0.96f, 0.82f, 0.35f, 1.0f).setNormal(edge.xn(), edge.yn(), edge.zn());
-			}
-		}
-		renderTargetMarker(lineBuffer, matrix, player, origin);
-		poseStack.popPose();
-		bufferSource.endBatch(SURVEY_LINES);
+		// Two-pass render: filled translucent shell first (depth-tested off so it
+		// shows through stone), then crisp outline on top so the silhouette stays
+		// readable even when the fill blends with bright terrain.
+		renderFilledShell(poseStack, cameraPos, cachedBoxes);
+		renderOutline(poseStack, cameraPos, cachedEdges);
 	}
 
 	public void renderGui(RenderGuiLayerEvent.Post event) {
@@ -124,10 +135,9 @@ public final class MiningSurveyorHighlighter {
 		}
 
 		ItemStack stack = resolveSurveyor(player);
-		if (stack.isEmpty()) {
-			return;
-		}
-		Optional<BlockPos> targetPos = MiningSurveyTargetData.target(stack).or(MiningSurveyorClientState::targetPos);
+		Optional<BlockPos> targetPos = MiningSurveyorClientState.targetPos().or(() -> stack.isEmpty()
+				? Optional.empty()
+				: MiningSurveyTargetData.target(stack));
 		if (targetPos.isEmpty() || shouldHideEdgeArrow(player, targetPos.get())) {
 			return;
 		}
@@ -206,49 +216,119 @@ public final class MiningSurveyorHighlighter {
 		return dy >= 0 ? "v" : "^";
 	}
 
-	private List<CachedEdge> buildEdges(List<BlockPos> positions) {
+	private void rebuildGeometry(List<BlockPos> positions) {
 		if (positions.isEmpty()) {
-			return List.of();
+			cachedBoxes = List.of();
+			cachedEdges = List.of();
+			return;
 		}
-
-		Collection<VoxelShape> shapes = new HashSet<>();
+		List<AABB> boxes = new ArrayList<>();
 		for (AABB box : ShapeMerger.merge(positions, BlockPos.ZERO)) {
-			shapes.add(Shapes.create(box.inflate(0.002D)));
+			// Inflate a hair so adjacent boxes don't z-fight at their shared face.
+			boxes.add(box.inflate(0.006D));
 		}
-
-		VoxelShape combinedShape = Shapes.empty();
-		for (VoxelShape shape : shapes) {
-			combinedShape = Shapes.joinUnoptimized(combinedShape, shape, BooleanOp.OR);
+		List<CachedEdge> edges = new ArrayList<>(boxes.size() * 12);
+		for (AABB box : boxes) {
+			addBoxEdges(edges, box);
 		}
-
-		List<CachedEdge> edges = new ArrayList<>();
-		combinedShape.forAllEdges((x1, y1, z1, x2, y2, z2) -> edges.add(CachedEdge.fromDoubles(x1, y1, z1, x2, y2, z2)));
-		return edges;
+		cachedBoxes = List.copyOf(boxes);
+		cachedEdges = List.copyOf(edges);
 	}
 
-	private void renderTargetMarker(VertexConsumer lineBuffer, Matrix4f matrix, LocalPlayer player, BlockPos target) {
-		Vec3 center = Vec3.atCenterOf(target);
-		double distance = player.getEyePosition().distanceTo(center);
-		float radius = (float) Math.max(0.65D, Math.min(2.5D, distance / 24.0D));
-		float x = (float) center.x;
-		float y = (float) center.y;
-		float z = (float) center.z;
-		emitLine(lineBuffer, matrix, x - radius, y, z, x + radius, y, z);
-		emitLine(lineBuffer, matrix, x, y - radius, z, x, y + radius, z);
-		emitLine(lineBuffer, matrix, x, y, z - radius, x, y, z + radius);
-		emitLine(lineBuffer, matrix, x - radius, y, z - radius, x + radius, y, z + radius);
-		emitLine(lineBuffer, matrix, x - radius, y, z + radius, x + radius, y, z - radius);
+	private void addBoxEdges(List<CachedEdge> edges, AABB box) {
+		// 12 box edges only — no axis cross through the center any more.
+		// The translucent shell already conveys "this is a volume", so the
+		// cross is redundant clutter that made the highlight feel like debug.
+		edges.add(CachedEdge.fromDoubles(box.minX, box.minY, box.minZ, box.maxX, box.minY, box.minZ));
+		edges.add(CachedEdge.fromDoubles(box.minX, box.maxY, box.minZ, box.maxX, box.maxY, box.minZ));
+		edges.add(CachedEdge.fromDoubles(box.minX, box.minY, box.maxZ, box.maxX, box.minY, box.maxZ));
+		edges.add(CachedEdge.fromDoubles(box.minX, box.maxY, box.maxZ, box.maxX, box.maxY, box.maxZ));
+		edges.add(CachedEdge.fromDoubles(box.minX, box.minY, box.minZ, box.minX, box.maxY, box.minZ));
+		edges.add(CachedEdge.fromDoubles(box.maxX, box.minY, box.minZ, box.maxX, box.maxY, box.minZ));
+		edges.add(CachedEdge.fromDoubles(box.minX, box.minY, box.maxZ, box.minX, box.maxY, box.maxZ));
+		edges.add(CachedEdge.fromDoubles(box.maxX, box.minY, box.maxZ, box.maxX, box.maxY, box.maxZ));
+		edges.add(CachedEdge.fromDoubles(box.minX, box.minY, box.minZ, box.minX, box.minY, box.maxZ));
+		edges.add(CachedEdge.fromDoubles(box.maxX, box.minY, box.minZ, box.maxX, box.minY, box.maxZ));
+		edges.add(CachedEdge.fromDoubles(box.minX, box.maxY, box.minZ, box.minX, box.maxY, box.maxZ));
+		edges.add(CachedEdge.fromDoubles(box.maxX, box.maxY, box.minZ, box.maxX, box.maxY, box.maxZ));
 	}
 
-	private static void emitLine(VertexConsumer lineBuffer, Matrix4f matrix, float x1, float y1, float z1, float x2, float y2, float z2) {
-		lineBuffer.addVertex(matrix, x1, y1, z1).setColor(0.15f, 0.78f, 1.0f, 1.0f).setNormal(0.0f, 1.0f, 0.0f);
-		lineBuffer.addVertex(matrix, x2, y2, z2).setColor(0.15f, 0.78f, 1.0f, 1.0f).setNormal(0.0f, 1.0f, 0.0f);
+	/**
+	 * Renders translucent filled boxes behind the outline so the cluster reads
+	 * as a glowing volume even when it's occluded by stone or terrain. Uses
+	 * vanilla's immediate-mode tesselator path (same as {@code BoundMachineHighlighter})
+	 * rather than a custom {@link RenderType} because we need full control over
+	 * depth-test / blend state without leaking it into the surrounding
+	 * {@code AFTER_TRANSLUCENT_BLOCKS} stage pipeline.
+	 */
+	private void renderFilledShell(PoseStack poseStack, Vec3 cameraPos, List<AABB> boxes) {
+		poseStack.pushPose();
+		poseStack.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
+
+		RenderSystem.disableDepthTest();
+		RenderSystem.enableBlend();
+		RenderSystem.defaultBlendFunc();
+		RenderSystem.disableCull();
+		RenderSystem.setShader(GameRenderer::getPositionColorShader);
+
+		Tesselator tesselator = Tesselator.getInstance();
+		BufferBuilder buffer = tesselator.begin(VertexFormat.Mode.TRIANGLE_STRIP, DefaultVertexFormat.POSITION_COLOR);
+		boolean wroteAny = false;
+		for (AABB box : boxes) {
+			LevelRenderer.addChainedFilledBoxVertices(poseStack, buffer,
+					box.minX, box.minY, box.minZ,
+					box.maxX, box.maxY, box.maxZ,
+					FILL_R, FILL_G, FILL_B, FILL_A);
+			wroteAny = true;
+		}
+		MeshData mesh = buffer.build();
+		if (mesh != null) {
+			if (wroteAny) {
+				BufferUploader.drawWithShader(mesh);
+			} else {
+				mesh.close();
+			}
+		}
+
+		// Restore — leaking these would corrupt vanilla's subsequent passes
+		// (sky, UI, the outline pass below).
+		RenderSystem.enableCull();
+		RenderSystem.disableBlend();
+		RenderSystem.enableDepthTest();
+
+		poseStack.popPose();
+	}
+
+	private void renderOutline(PoseStack poseStack, Vec3 cameraPos, List<CachedEdge> edges) {
+		if (edges.isEmpty()) {
+			return;
+		}
+		Minecraft minecraft = Minecraft.getInstance();
+		MultiBufferSource.BufferSource bufferSource = minecraft.renderBuffers().bufferSource();
+		VertexConsumer lineBuffer = bufferSource.getBuffer(SURVEY_LINES);
+
+		poseStack.pushPose();
+		poseStack.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
+		Matrix4f matrix = poseStack.last().pose();
+
+		for (CachedEdge edge : edges) {
+			lineBuffer.addVertex(matrix, edge.x1(), edge.y1(), edge.z1())
+					.setColor(OUTLINE_R, OUTLINE_G, OUTLINE_B, OUTLINE_A)
+					.setNormal(edge.xn(), edge.yn(), edge.zn());
+			lineBuffer.addVertex(matrix, edge.x2(), edge.y2(), edge.z2())
+					.setColor(OUTLINE_R, OUTLINE_G, OUTLINE_B, OUTLINE_A)
+					.setNormal(edge.xn(), edge.yn(), edge.zn());
+		}
+		bufferSource.endBatch(SURVEY_LINES);
+
+		poseStack.popPose();
 	}
 
 	private void clearCache() {
 		cachedOrigin = null;
 		cachedTarget = null;
 		cachedCluster = List.of();
+		cachedBoxes = List.of();
 		cachedEdges = List.of();
 	}
 }

@@ -61,6 +61,6 @@ public final class HolographicShopSyncDispatcher {
 				menuId,
 				offers.stream().map(SyncShopCatalogPayload.Entry::fromOffer).toList()));
 		PacketDistributor.sendToPlayer(player, SyncExchangePayload.fromSnapshot(menuId, snapshot));
-		PacketDistributor.sendToPlayer(player, SyncWalletPreferencesPayload.fromPreferences(menuId, WalletService.getPreferences(player)));
+		PacketDistributor.sendToPlayer(player, SyncWalletPreferencesPayload.fromPreferences(menuId, player));
 	}
 }

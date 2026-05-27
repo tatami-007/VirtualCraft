@@ -2,13 +2,15 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "key": {
+    "e": { "item": "virtual_craft:electric_ingot" },
     "i": { "item": "minecraft:iron_ingot" },
     "r": { "item": "minecraft:redstone" },
+    "w": { "item": "virtual_craft:copper_wire" },
     "b": { "item": "minecraft:redstone_block" }
   },
   "pattern": [
     "iri",
-    "rbr",
+    "wbe",
     "iri"
   ],
   "result": {
