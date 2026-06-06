@@ -1742,7 +1742,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	}
 
 	private void buildContractsContent() {
-		contentColumn.addView(sectionHeader(t("screen.virtual_craft.holographic_shop.contracts.title"), t("screen.virtual_craft.holographic_shop.contracts.subtitle")));
+		contentColumn.addView(sectionHeader(t("screen.virtual_craft.holographic_shop.contracts.title"), null));
 		contentColumn.addView(spacer(dp(10)));
 
 		if (contractCache.isEmpty()) {
@@ -1769,36 +1769,46 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		boolean complete = contract.progress() >= contract.target();
 		int accent = contract.claimed() ? WINDOW_STROKE : complete ? GREEN : CYAN;
 		LinearLayout card = card(complete && !contract.claimed() ? PANEL_ACTIVE : PANEL_ROW, accent, 10f);
-		card.setPadding(dp(12), dp(12), dp(12), dp(12));
+		card.setPadding(dp(12), dp(10), dp(12), dp(10));
 
 		LinearLayout row = new LinearLayout(requireContext());
 		row.setOrientation(LinearLayout.HORIZONTAL);
 		row.setGravity(Gravity.CENTER_VERTICAL);
 		ResourceLocation iconId = ResourceLocation.tryParse(contract.iconItemId());
-		row.addView(itemIconView(iconId == null ? ResourceLocation.fromNamespaceAndPath("minecraft", "paper") : iconId, "*", ICON_LARGE_DP));
+		row.addView(itemIconView(iconId == null ? ResourceLocation.fromNamespaceAndPath("minecraft", "paper") : iconId, "*", ICON_SMALL_DP));
 
 		LinearLayout text = vertical();
 		var textParams = weighted(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
 		textParams.setMargins(dp(10), 0, dp(8), 0);
 		text.addView(bodyText(t(contract.titleKey())));
-		TextView goal = hintText(t(contract.goalKey(), contract.targetText()));
-		goal.setMaxLines(1);
-		goal.setEllipsize(TextUtils.TruncateAt.END);
-		text.addView(goal);
+		TextView reward = hintText(t("screen.virtual_craft.holographic_shop.contracts.reward", contract.rewardText()));
+		reward.setMaxLines(1);
+		reward.setEllipsize(TextUtils.TruncateAt.END);
+		text.addView(reward);
 		row.addView(text, textParams);
 
-		TextView reward = bodyText(contract.rewardText());
-		reward.setTextColor(complete ? GREEN : CYAN);
-		reward.setGravity(Gravity.END);
-		row.addView(reward);
+		TextView progress = bodyText(contractProgressText(contract));
+		progress.setTextColor(complete ? GREEN : CYAN);
+		progress.setGravity(Gravity.END);
+		row.addView(progress);
 		card.addView(row);
 		card.addView(spacer(dp(8)));
 		card.addView(contractProgressBar(contract, accent), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(8)));
 		card.addView(spacer(dp(6)));
-		card.addView(keyValueRow(
-				t("screen.virtual_craft.holographic_shop.contracts.progress"),
-				Math.min(contract.progress(), contract.target()) + " / " + contract.target(),
-				complete ? GREEN : CYAN));
+		LinearLayout actionRow = new LinearLayout(requireContext());
+		actionRow.setOrientation(LinearLayout.HORIZONTAL);
+		actionRow.setGravity(Gravity.CENTER_VERTICAL);
+		TextView goal = hintText(t(contract.goalKey(), contract.targetText()));
+		goal.setMaxLines(1);
+		goal.setEllipsize(TextUtils.TruncateAt.END);
+		actionRow.addView(goal, weighted(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+		Button claim = compactActionButton(contract.claimed()
+				? t("screen.virtual_craft.holographic_shop.contracts.claimed")
+				: t("screen.virtual_craft.holographic_shop.contracts.claim"), () -> sendContractClaim(contract.id()));
+		claim.setEnabled(complete && !contract.claimed());
+		claim.setTextColor(complete && !contract.claimed() ? GREEN : TEXT_DIM);
+		actionRow.addView(claim, new LinearLayout.LayoutParams(dp(76), dp(30)));
+		card.addView(actionRow);
 		return card;
 	}
 
@@ -1821,18 +1831,8 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		actionColumn.addView(infoCard(
 				t("screen.virtual_craft.holographic_shop.contracts.today"),
 				t("screen.virtual_craft.holographic_shop.contracts.count", completedContracts(), contractCache.size()),
-				t("screen.virtual_craft.holographic_shop.contracts.reset_daily"),
+				t("screen.virtual_craft.holographic_shop.contracts.claimable", claimableContracts()),
 				CYAN));
-		actionColumn.addView(spacer(dp(10)));
-		for (DailyContractSnapshot contract : contractCache) {
-			boolean complete = contract.progress() >= contract.target();
-			Button claim = actionButton(contract.claimed()
-					? t("screen.virtual_craft.holographic_shop.contracts.claimed")
-					: t("screen.virtual_craft.holographic_shop.contracts.claim"), complete ? GREEN : CYAN, () -> sendContractClaim(contract.id()));
-			claim.setEnabled(complete && !contract.claimed());
-			actionColumn.addView(claim, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(30)));
-			actionColumn.addView(spacer(dp(6)));
-		}
 	}
 
 	private int completedContracts() {
@@ -1843,6 +1843,21 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			}
 		}
 		return count;
+	}
+
+	private int claimableContracts() {
+		int count = 0;
+		for (DailyContractSnapshot contract : contractCache) {
+			if (!contract.claimed() && contract.progress() >= contract.target()) {
+				count++;
+			}
+		}
+		return count;
+	}
+
+	private String contractProgressText(DailyContractSnapshot contract) {
+		long progress = Math.min(contract.progress(), contract.target());
+		return progress + "/" + contract.target();
 	}
 
 	/** Horizontal chip row of the player's most recent transfer recipients. */
@@ -2763,13 +2778,13 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	private Button headerIconButton(String glyph, int accentColor, Runnable action) {
 		Button button = new Button(requireContext());
 		button.setText(glyph);
-		button.setTextSize(17f);
+		button.setTextSize(19f);
 		button.setSingleLine();
 		button.setGravity(Gravity.CENTER);
 		button.setTextColor(TEXT);
 		button.setMinimumWidth(0);
 		button.setMinimumHeight(0);
-		button.setPadding(0, 0, 0, 0);
+		button.setPadding(0, 0, dp(1), dp(1));
 		button.setBackground(rounded(PANEL_BUTTON, accentColor, 9f, 1));
 		button.setOnClickListener(v -> action.run());
 		return button;

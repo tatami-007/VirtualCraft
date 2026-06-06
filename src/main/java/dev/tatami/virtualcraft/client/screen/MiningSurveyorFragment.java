@@ -120,7 +120,7 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 
 		ScrollView scroll = new HoloScrollView(requireContext());
 		resultList = vertical();
-		resultList.setPadding(dp(2), dp(2), dp(8), dp(2));
+		resultList.setPadding(dp(2), dp(2), dp(8), dp(18));
 		scroll.addView(resultList, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 		main.addView(scroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 
@@ -132,14 +132,12 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 		body.addView(action, actionParams);
 
 		targetCard = vertical();
-		targetCard.setPadding(dp(14), dp(14), dp(14), dp(14));
+		targetCard.setPadding(dp(14), dp(12), dp(14), dp(12));
 		action.addView(targetCard, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-		action.addView(spacer(dp(12)));
-		action.addView(actionButton(t("screen.virtual_craft.mining_surveyor.scan"), CYAN, this::scan), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(40)));
+		action.addView(spacer(dp(10)));
+		action.addView(actionButton(t("screen.virtual_craft.mining_surveyor.scan"), CYAN, this::scan), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(36)));
 		action.addView(spacer(dp(8)));
-		action.addView(actionButton(t("screen.virtual_craft.mining_surveyor.clear"), 0xFF8AA0B4, this::clearLock), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(36)));
-		action.addView(spacer(dp(8)));
-		action.addView(actionButton(t("gui.done"), 0xFF8AA0B4, this::close), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(36)));
+		action.addView(buildUtilityActions(), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(34)));
 
 		refreshSelectedCard();
 		refreshResults();
@@ -407,6 +405,25 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 		targetCard.addView(tags);
 	}
 
+	private View buildUtilityActions() {
+		LinearLayout row = new LinearLayout(requireContext());
+		row.setOrientation(LinearLayout.HORIZONTAL);
+		row.setGravity(Gravity.CENTER_VERTICAL);
+		row.addView(secondaryActionButton(t("screen.virtual_craft.mining_surveyor.clear"), this::clearLock),
+				new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
+		LinearLayout.LayoutParams doneParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
+		doneParams.setMargins(dp(8), 0, 0, 0);
+		row.addView(secondaryActionButton(t("gui.done"), this::close), doneParams);
+		return row;
+	}
+
+	private Button secondaryActionButton(String text, Runnable action) {
+		Button button = compactButton(text, action);
+		button.setTextColor(TEXT_DIM);
+		button.setBackground(HolographicTheme.rounded(PANEL_ROW, WINDOW_STROKE, 9f, 1));
+		return button;
+	}
+
 	private List<MiningSurveyTarget> visibleTargets() {
 		List<SearchToken> tokens = SearchToken.parse(searchText);
 		Comparator<MiningSurveyTarget> comparator = switch (sortMode) {
@@ -558,7 +575,8 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 	private Button actionButton(String text, int accentColor, Runnable action) {
 		Button button = compactButton(text, action);
 		button.setTextColor(TEXT);
-		button.setBackground(HolographicTheme.rounded(PANEL_BUTTON, accentColor, 9f, 1));
+		button.setTextSize(13f);
+		button.setBackground(HolographicTheme.rounded(PANEL_ACTIVE, accentColor, 9f, 1));
 		return button;
 	}
 
@@ -570,7 +588,7 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 		button.setGravity(Gravity.CENTER);
 		button.setMinimumWidth(0);
 		button.setMinimumHeight(0);
-		button.setPadding(dp(8), dp(6), dp(8), dp(6));
+		button.setPadding(dp(8), dp(5), dp(8), dp(5));
 		button.setBackground(HolographicTheme.rounded(PANEL_BUTTON, WINDOW_STROKE, 9f, 1));
 		button.setOnClickListener(v -> action.run());
 		return button;

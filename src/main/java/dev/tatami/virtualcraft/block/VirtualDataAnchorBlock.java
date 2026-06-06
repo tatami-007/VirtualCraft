@@ -4,7 +4,6 @@ import com.mojang.serialization.MapCodec;
 
 import dev.tatami.virtualcraft.blockentity.VirtualDataCoreBlockEntity;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.ItemInteractionResult;
@@ -57,7 +56,7 @@ public class VirtualDataAnchorBlock extends Block {
 		if (!level.isClientSide) {
 			VirtualDataCoreBlockEntity core = findCore(level, pos);
 			if (core != null) {
-				core.handleAnchorInput(player, anchorDirection(core.getBlockPos(), pos));
+				core.handleAnchorInput(player, VirtualDataCoreBlockEntity.nearestNodeIndex(core.getBlockPos(), pos));
 			}
 		}
 		return InteractionResult.sidedSuccess(level.isClientSide);
@@ -78,12 +77,4 @@ public class VirtualDataAnchorBlock extends Block {
 		return nearest;
 	}
 
-	private static Direction anchorDirection(BlockPos corePos, BlockPos anchorPos) {
-		int dx = anchorPos.getX() - corePos.getX();
-		int dz = anchorPos.getZ() - corePos.getZ();
-		if (Math.abs(dx) >= Math.abs(dz)) {
-			return dx >= 0 ? Direction.EAST : Direction.WEST;
-		}
-		return dz >= 0 ? Direction.SOUTH : Direction.NORTH;
-	}
 }

@@ -86,8 +86,20 @@ public final class VirtualDataRelicManager {
 			core.initialize(owner, siteIndex);
 		}
 		for (Direction direction : RELIC_DIRECTIONS) {
-			placeDataBlock(level, corePos.relative(direction, 3), ModBlocks.VIRTUAL_DATA_ANCHOR.get().defaultBlockState());
+			placeIfAir(level, corePos.relative(direction), Blocks.CYAN_STAINED_GLASS.defaultBlockState());
 		}
+		for (int node = 0; node < VirtualDataIntrusionPattern.NODE_COUNT; node++) {
+			BlockPos anchorPos = VirtualDataCoreBlockEntity.anchorPos(corePos, node);
+			placeDataBlock(level, anchorPos, ModBlocks.VIRTUAL_DATA_ANCHOR.get().defaultBlockState());
+			placeIfAir(level, midPoint(corePos, anchorPos), Blocks.LIGHT_BLUE_STAINED_GLASS.defaultBlockState());
+		}
+	}
+
+	private static BlockPos midPoint(BlockPos first, BlockPos second) {
+		return new BlockPos(
+				(first.getX() + second.getX()) / 2,
+				Math.min(first.getY(), second.getY()),
+				(first.getZ() + second.getZ()) / 2);
 	}
 
 	private static void placeIfAir(ServerLevel level, BlockPos pos, BlockState state) {
