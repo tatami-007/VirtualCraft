@@ -5,6 +5,7 @@ import java.util.EnumMap;
 import dev.tatami.virtualcraft.block.PowMinerBlock;
 import dev.tatami.virtualcraft.machine.IConfigurableSidedMachine;
 import dev.tatami.virtualcraft.machine.MachineSideConfig;
+import dev.tatami.virtualcraft.machine.PowMinerOutputRules;
 import dev.tatami.virtualcraft.machine.SideMode;
 import dev.tatami.virtualcraft.menu.PowMinerMenu;
 import dev.tatami.virtualcraft.registry.ModBlockEntities;
@@ -36,14 +37,16 @@ import net.neoforged.neoforge.items.ItemHandlerHelper;
 import net.neoforged.neoforge.items.ItemStackHandler;
 
 public class PowMinerBlockEntity extends BlockEntity implements MenuProvider, IConfigurableSidedMachine {
-	public static final int OUTPUT_SLOT = 0;
+	public static final int BASIC_OUTPUT_SLOT = PowMinerOutputRules.BASIC_OUTPUT_SLOT;
+	public static final int RARE_OUTPUT_SLOT = PowMinerOutputRules.RARE_OUTPUT_SLOT;
+	private static final int OUTPUT_SLOTS = PowMinerOutputRules.OUTPUT_SLOTS;
 	private static final int MAX_PROGRESS = 600;
 	private static final int MAX_ENERGY = 200_000;
 	private static final int MAX_RECEIVE = 4_000;
 	private static final int ENERGY_PER_TICK = 240;
 	private static final int TRANSFER_PER_SIDE = 16;
 	private static final float ENCRYPTED_BONUS_CHANCE = 0.08F;
-	private final ItemStackHandler inventory = new ItemStackHandler(1) {
+	private final ItemStackHandler inventory = new ItemStackHandler(OUTPUT_SLOTS) {
 		@Override
 		protected void onContentsChanged(int slot) {
 			setChanged();
@@ -216,12 +219,22 @@ public class PowMinerBlockEntity extends BlockEntity implements MenuProvider, IC
 	@Override
 	protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
 		super.loadAdditional(tag, registries);
-		inventory.deserializeNBT(registries, tag.getCompound("inventory"));
+		loadInventory(tag.getCompound("inventory"), registries);
 		energyStorage.deserializeNBT(registries, tag.get("energy"));
 		progress = tag.getInt("progress");
 		autoImport = tag.getBoolean("auto_import");
 		autoExport = tag.getBoolean("auto_export");
 		MachineSideConfig.load(tag, sideModes);
+	}
+
+	private void loadInventory(CompoundTag tag, HolderLookup.Provider registries) {
+		inventory.deserializeNBT(registries, normalizeInventoryTag(tag));
+	}
+
+	static CompoundTag normalizeInventoryTag(CompoundTag tag) {
+		CompoundTag normalized = tag.copy();
+		normalized.putInt("Size", PowMinerOutputRules.normalizedSlotCount(tag.getInt("Size")));
+		return normalized;
 	}
 
 	private void tickAutomation(Level level, BlockPos pos) {
@@ -236,30 +249,28 @@ public class PowMinerBlockEntity extends BlockEntity implements MenuProvider, IC
 	}
 
 	private void pushOutputTo(Level level, BlockPos pos, Direction direction) {
-		ItemStack output = inventory.getStackInSlot(OUTPUT_SLOT);
-		if (output.isEmpty()) {
-			return;
-		}
 		IItemHandler target = level.getCapability(Capabilities.ItemHandler.BLOCK, pos.relative(direction), direction.getOpposite());
 		if (target == null) {
 			return;
 		}
-		ItemStack toMove = output.copy();
-		toMove.setCount(Math.min(output.getCount(), TRANSFER_PER_SIDE));
-		ItemStack remainder = ItemHandlerHelper.insertItem(target, toMove, false);
-		int moved = toMove.getCount() - remainder.getCount();
-		if (moved > 0) {
-			inventory.extractItem(OUTPUT_SLOT, moved, false);
-			setChanged();
+		for (int slot = 0; slot < inventory.getSlots(); slot++) {
+			ItemStack output = inventory.getStackInSlot(slot);
+			if (output.isEmpty()) {
+				continue;
+			}
+			ItemStack toMove = output.copy();
+			toMove.setCount(Math.min(output.getCount(), TRANSFER_PER_SIDE));
+			ItemStack remainder = ItemHandlerHelper.insertItem(target, toMove, false);
+			int moved = toMove.getCount() - remainder.getCount();
+			if (moved > 0) {
+				inventory.extractItem(slot, moved, false);
+				setChanged();
+			}
 		}
 	}
 
 	private boolean canMine() {
-		ItemStack output = inventory.getStackInSlot(OUTPUT_SLOT);
-		if (output.isEmpty()) {
-			return true;
-		}
-		return output.is(ModItems.HASH_VOUCHER.get()) && output.getCount() < output.getMaxStackSize();
+		return canAddVoucher(BASIC_OUTPUT_SLOT, new ItemStack(ModItems.HASH_VOUCHER.get()));
 	}
 
 	private void finishMining(Level level, BlockPos pos) {
@@ -267,26 +278,35 @@ public class PowMinerBlockEntity extends BlockEntity implements MenuProvider, IC
 			return;
 		}
 		if (level.random.nextFloat() < ENCRYPTED_BONUS_CHANCE) {
-			dropVoucher(level, pos, new ItemStack(ModItems.ENCRYPTED_HASH_VOUCHER.get()));
+			addVoucher(RARE_OUTPUT_SLOT, new ItemStack(ModItems.ENCRYPTED_HASH_VOUCHER.get()));
 		}
 	}
 
 	private boolean addBasicVoucher() {
-		ItemStack voucher = new ItemStack(ModItems.HASH_VOUCHER.get());
-		ItemStack output = inventory.getStackInSlot(OUTPUT_SLOT);
-		if (output.isEmpty()) {
-			inventory.setStackInSlot(OUTPUT_SLOT, voucher);
-			return true;
-		} else if (output.is(ModItems.HASH_VOUCHER.get())) {
-			output.grow(1);
-			inventory.setStackInSlot(OUTPUT_SLOT, output);
-			return true;
-		}
-		return false;
+		return addVoucher(BASIC_OUTPUT_SLOT, new ItemStack(ModItems.HASH_VOUCHER.get()));
 	}
 
-	private void dropVoucher(Level level, BlockPos pos, ItemStack voucher) {
-		Containers.dropItemStack(level, pos.getX() + 0.5D, pos.getY() + 1.0D, pos.getZ() + 0.5D, voucher);
+	private boolean addVoucher(int slot, ItemStack voucher) {
+		if (!canAddVoucher(slot, voucher)) {
+			return false;
+		}
+		ItemStack output = inventory.getStackInSlot(slot);
+		if (output.isEmpty()) {
+			inventory.setStackInSlot(slot, voucher);
+			return true;
+		}
+		output.grow(voucher.getCount());
+		inventory.setStackInSlot(slot, output);
+		return true;
+	}
+
+	private boolean canAddVoucher(int slot, ItemStack voucher) {
+		ItemStack output = inventory.getStackInSlot(slot);
+		if (output.isEmpty()) {
+			return true;
+		}
+		return ItemStack.isSameItemSameComponents(output, voucher)
+				&& output.getCount() + voucher.getCount() <= output.getMaxStackSize();
 	}
 
 	private final class MinerEnergyStorage extends EnergyStorage {
@@ -332,7 +352,7 @@ public class PowMinerBlockEntity extends BlockEntity implements MenuProvider, IC
 
 		@Override
 		public ItemStack extractItem(int slot, int amount, boolean simulate) {
-			if (!sideModes.get(direction).allowsExtract() || slot != OUTPUT_SLOT) {
+			if (!sideModes.get(direction).allowsExtract() || slot < 0 || slot >= OUTPUT_SLOTS) {
 				return ItemStack.EMPTY;
 			}
 			return inventory.extractItem(slot, amount, simulate);

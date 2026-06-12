@@ -16,6 +16,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.client.renderer.item.ItemProperties;
+import net.neoforged.neoforge.common.DeferredSpawnEggItem;
 
 import dev.tatami.virtualcraft.VirtualCraft;
 import dev.tatami.virtualcraft.currency.CryptoCurrency;
@@ -63,7 +64,13 @@ public final class ModItems {
 	public static final DeferredItem<Item> WIRELESS_POWER_TOWER = block(ModBlocks.WIRELESS_POWER_TOWER);
 	public static final DeferredItem<Item> VIRTUAL_DATA_CORE = block(ModBlocks.VIRTUAL_DATA_CORE);
 	public static final DeferredItem<Item> VIRTUAL_DATA_ANCHOR = block(ModBlocks.VIRTUAL_DATA_ANCHOR);
+	public static final DeferredItem<Item> VIRTUAL_DATA_RELAY = block(ModBlocks.VIRTUAL_DATA_RELAY);
+	public static final DeferredItem<Item> CORRUPTED_DATA_NODE = block(ModBlocks.CORRUPTED_DATA_NODE);
+	public static final DeferredItem<Item> VIRTUAL_DATA_CACHE = block(ModBlocks.VIRTUAL_DATA_CACHE);
+	public static final DeferredItem<Item> VIRTUAL_DATA_GATE = block(ModBlocks.VIRTUAL_DATA_GATE);
 	public static final DeferredItem<Item> DATA_FRAGMENT = REGISTRY.register("data_fragment", () -> new Item(new Item.Properties()));
+	public static final DeferredItem<Item> VIRTUAL_SHEEP_SPAWN_EGG = REGISTRY.register("virtual_sheep_spawn_egg",
+			() -> new DeferredSpawnEggItem(ModEntityTypes.VIRTUAL_SHEEP, 0xE9FCFF, 0x36C9FF, new Item.Properties()));
 	public static final DeferredItem<Item> CRYPTO_BTC = REGISTRY.register(CryptoCurrency.BTC.itemName(), () -> new Item(new Item.Properties().stacksTo(CryptoCurrency.BTC.stackLimit())));
 	public static final DeferredItem<Item> CRYPTO_ETH = REGISTRY.register(CryptoCurrency.ETH.itemName(), () -> new Item(new Item.Properties().stacksTo(CryptoCurrency.ETH.stackLimit())));
 	public static final DeferredItem<Item> CRYPTO_USDT = REGISTRY.register(CryptoCurrency.USDT.itemName(), () -> new Item(new Item.Properties().stacksTo(CryptoCurrency.USDT.stackLimit())));

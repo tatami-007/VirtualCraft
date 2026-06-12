@@ -69,7 +69,7 @@ public class PowMinerScreen extends AbstractContainerScreen<PowMinerMenu> {
 		MachineDraw.drawBackground(guiGraphics, left, top, imageWidth, imageHeight, BG);
 		// 算力进度条动态填充（v15：sprite 从公用 sheet 移到本机器主背景 (180, 0) 36×8 区域）
 		MachineDraw.drawHorizontalBar(guiGraphics, left + ARROW_X, top + ARROW_Y, ARROW_W, ARROW_H,
-				menu.getScaledProgress() / 44.0D, BG, 180, 0);
+				menu.getScaledProgress() / (double) ARROW_W, BG, 180, 0);
 		// 能量条动态填充 (FE 红色 fill 自底向上)
 		double energyFraction = menu.getMaxEnergyStored() == 0 ? 0.0D : (double) menu.getEnergyStored() / (double) menu.getMaxEnergyStored();
 		MachineDraw.drawVerticalBar(guiGraphics, left + ENERGY_X, top + ENERGY_Y, ENERGY_W, ENERGY_H, energyFraction, MachinePalette.RED, MachinePalette.RED);

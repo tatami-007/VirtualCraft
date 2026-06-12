@@ -30,6 +30,7 @@ import dev.tatami.virtualcraft.registry.ModBlockEntities;
 import dev.tatami.virtualcraft.registry.ModAttachments;
 import dev.tatami.virtualcraft.registry.ModBlocks;
 import dev.tatami.virtualcraft.registry.ModCapabilities;
+import dev.tatami.virtualcraft.registry.ModEntityTypes;
 import dev.tatami.virtualcraft.registry.ModItems;
 import dev.tatami.virtualcraft.registry.ModMenuTypes;
 import dev.tatami.virtualcraft.server.ServerWorkQueue;
@@ -46,6 +47,7 @@ public class VirtualCraft {
 		NetworkMessageRegistry.registerDefaults();
 		modEventBus.addListener(NetworkMessageRegistry::registerPayloadHandlers);
 		modEventBus.addListener(ModCapabilities::register);
+		modEventBus.addListener(ModEntityTypes::registerAttributes);
 		if (FMLEnvironment.dist.isClient()) {
 			AbsorberOreHighlighter highlighter = new AbsorberOreHighlighter();
 			MiningSurveyorHighlighter surveyorHighlighter = new MiningSurveyorHighlighter();
@@ -84,6 +86,7 @@ public class VirtualCraft {
 		ModBlocks.REGISTRY.register(modEventBus);
 		ModBlockEntities.REGISTRY.register(modEventBus);
 		ModAttachments.REGISTRY.register(modEventBus);
+		ModEntityTypes.REGISTRY.register(modEventBus);
 
 		ModItems.REGISTRY.register(modEventBus);
 		ModMenuTypes.REGISTRY.register(modEventBus);

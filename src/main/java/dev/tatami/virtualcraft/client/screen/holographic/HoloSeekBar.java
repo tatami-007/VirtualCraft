@@ -38,6 +38,7 @@ public class HoloSeekBar extends SeekBar {
 	/** 默认关，按需 {@link #setDebug(boolean)} 开启诊断日志。 */
 	private static volatile boolean DEBUG_SCROLL = false;
 	private long lastDispatchLogNanos;
+	private boolean syntheticUserChange;
 
 	public HoloSeekBar(Context context) {
 		// 与 ModernUI PreferencesFragment#addSliderToLayout 完全一致的构造签名。
@@ -52,6 +53,10 @@ public class HoloSeekBar extends SeekBar {
 
 	public static void setDebug(boolean enabled) {
 		DEBUG_SCROLL = enabled;
+	}
+
+	public boolean isSyntheticUserChange() {
+		return syntheticUserChange;
 	}
 
 	@Override
@@ -89,7 +94,12 @@ public class HoloSeekBar extends SeekBar {
 							"[HoloSeekBar] SCROLL handled delta={} {} -> {}",
 							delta, getProgress(), next);
 				}
-				setProgress(next);
+				syntheticUserChange = true;
+				try {
+					setProgress(next);
+				} finally {
+					syntheticUserChange = false;
+				}
 				return true;
 			}
 		}

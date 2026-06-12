@@ -1,7 +1,6 @@
 package dev.tatami.virtualcraft.menu;
 
 import dev.tatami.virtualcraft.blockentity.PowMinerBlockEntity;
-import dev.tatami.virtualcraft.item.HashVoucherItem;
 import dev.tatami.virtualcraft.registry.ModBlocks;
 import dev.tatami.virtualcraft.registry.ModItems;
 import dev.tatami.virtualcraft.registry.ModMenuTypes;
@@ -21,8 +20,10 @@ import net.neoforged.neoforge.items.SlotItemHandler;
 
 @SuppressWarnings("this-escape") // addSlot() in the constructor is the required AbstractContainerMenu pattern.
 public class PowMinerMenu extends AbstractContainerMenu {
-	private static final int OUTPUT_SLOT = 0;
-	private static final int PLAYER_INV_START = 1;
+	private static final int BASIC_OUTPUT_SLOT = PowMinerBlockEntity.BASIC_OUTPUT_SLOT;
+	private static final int RARE_OUTPUT_SLOT = PowMinerBlockEntity.RARE_OUTPUT_SLOT;
+	private static final int OUTPUT_SLOT_COUNT = 2;
+	private static final int PLAYER_INV_START = OUTPUT_SLOT_COUNT;
 	private static final int PLAYER_INV_END = PLAYER_INV_START + 27;
 	private static final int HOTBAR_START = PLAYER_INV_END;
 	private static final int HOTBAR_END = HOTBAR_START + 9;
@@ -41,24 +42,28 @@ public class PowMinerMenu extends AbstractContainerMenu {
 		this.level = playerInventory.player.level();
 		this.data = data;
 
-		// v20.13 OUTPUT 槽 Y 25→32 — widget 整体 +7 让 ENERGY 在 widget 区域 Y 15..82 居中
-		// 现 OUTPUT 占 Y 32..50，ENERGY 占 Y 22..74，ARROW (62, 56)..64：ENERGY 上下边缘各 10px 对称
-		addSlot(new SlotItemHandler(blockEntity.getInventory(), OUTPUT_SLOT, 79, 32) {
-			@Override
-			public boolean mayPlace(ItemStack stack) {
-				return false;
-			}
-		});
+		// 双输出：基础凭证保留原槽位；稀有凭证进入右侧槽，避免稀有产物掉地导致自动化链断开。
+		addOutputSlot(BASIC_OUTPUT_SLOT, 79, 32);
+		addOutputSlot(RARE_OUTPUT_SLOT, 97, 32);
 		addPlayerInventory(playerInventory);
 		addPlayerHotbar(playerInventory);
 		addDataSlots(data);
 	}
 
-	/** 进度返回 [0..36]：贴图横向算力进度条宽 36 像素。 */
+	private void addOutputSlot(int slot, int x, int y) {
+		addSlot(new SlotItemHandler(blockEntity.getInventory(), slot, x, y) {
+			@Override
+			public boolean mayPlace(ItemStack stack) {
+				return false;
+			}
+		});
+	}
+
+	/** 进度返回 [0..52]：贴图横向算力进度条宽 52 像素。 */
 	public int getScaledProgress() {
 		int progress = data.get(0);
 		int maxProgress = data.get(1);
-		return progress != 0 && maxProgress != 0 ? progress * 36 / maxProgress : 0;
+		return progress != 0 && maxProgress != 0 ? progress * 52 / maxProgress : 0;
 	}
 
 	public int getEnergyStored() {
@@ -87,15 +92,11 @@ public class PowMinerMenu extends AbstractContainerMenu {
 		ItemStack sourceStack = sourceSlot.getItem();
 		ItemStack copy = sourceStack.copy();
 
-		if (index == OUTPUT_SLOT) {
+		if (index >= 0 && index < OUTPUT_SLOT_COUNT) {
 			if (!moveItemStackTo(sourceStack, PLAYER_INV_START, HOTBAR_END, true)) {
 				return ItemStack.EMPTY;
 			}
 			sourceSlot.onQuickCraft(sourceStack, copy);
-		} else if (HashVoucherItem.isHashVoucher(sourceStack)) {
-			if (!moveItemStackTo(sourceStack, OUTPUT_SLOT, OUTPUT_SLOT + 1, false)) {
-				return ItemStack.EMPTY;
-			}
 		} else if (index < PLAYER_INV_END) {
 			if (!moveItemStackTo(sourceStack, HOTBAR_START, HOTBAR_END, false)) {
 				return ItemStack.EMPTY;

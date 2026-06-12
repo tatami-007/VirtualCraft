@@ -64,6 +64,11 @@ public final class ModCreativeTabs {
 				tabData.accept(ModItems.COMPUTER.get());
 				tabData.accept(ModBlocks.VIRTUAL_DATA_CORE.get().asItem());
 				tabData.accept(ModBlocks.VIRTUAL_DATA_ANCHOR.get().asItem());
+				tabData.accept(ModBlocks.VIRTUAL_DATA_RELAY.get().asItem());
+				tabData.accept(ModBlocks.CORRUPTED_DATA_NODE.get().asItem());
+				tabData.accept(ModBlocks.VIRTUAL_DATA_CACHE.get().asItem());
+				tabData.accept(ModBlocks.VIRTUAL_DATA_GATE.get().asItem());
+				tabData.accept(ModItems.VIRTUAL_SHEEP_SPAWN_EGG.get());
 			}).build());
 }
 
