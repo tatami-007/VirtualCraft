@@ -145,7 +145,11 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 
 	private String walletAddress = "VC-UNKNOWN";
 	private ExchangeRateSnapshot exchangeSnapshot = ExchangeRateSnapshot.defaultSnapshot();
-	private Page currentPage = Page.WALLET;
+	// Remembers the last tab across terminal re-opens within a session, so the
+	// player returns to where they were (e.g. Mining/Contracts) instead of being
+	// bounced back to Wallet every time they reopen the terminal.
+	private static Page lastOpenedPage = Page.WALLET;
+	private Page currentPage = lastOpenedPage;
 	private int selectedOfferIndex;
 	private CryptoCurrency selectedWalletCurrency = CryptoCurrency.USDT;
 	private CryptoCurrency convertSourceCurrency = CryptoCurrency.USDT;
@@ -390,6 +394,9 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		actionShell.addView(actionScroll, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
 		refreshHeader();
+		if (currentPage == Page.TRANSFER) {
+			refreshPlayerSuggestions();
+		}
 		refreshPage(FocusTarget.NONE);
 		// Note: the server pushes the initial wallet/exchange/preferences/catalog
 		// snapshot itself right after openMenu (see HolographicShopSyncDispatcher),
@@ -3093,6 +3100,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 
 	private void navigateTo(Page page) {
 		currentPage = page;
+		lastOpenedPage = page;
 		pickerTarget = PickerTarget.NONE;
 		// Explicit page switches start at the top; only in-page rebuilds preserve scroll.
 		savedScrollY.clear();

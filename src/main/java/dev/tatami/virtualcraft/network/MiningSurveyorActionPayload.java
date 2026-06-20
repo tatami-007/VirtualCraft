@@ -14,6 +14,8 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
@@ -77,6 +79,7 @@ public record MiningSurveyorActionPayload(String targetKey, boolean clear) imple
 				player.containerMenu.broadcastChanges();
 				PacketDistributor.sendToPlayer(player, SyncMiningSurveyorPayload.clear(target.key()));
 				player.displayClientMessage(Component.translatable("message.virtual_craft.mining_surveyor.none", target.name()), true);
+				player.playNotifySound(SoundEvents.NOTE_BLOCK_BASS.value(), SoundSource.PLAYERS, 0.6F, 0.7F);
 				return;
 			}
 
@@ -85,6 +88,7 @@ public record MiningSurveyorActionPayload(String targetKey, boolean clear) imple
 			player.containerMenu.broadcastChanges();
 			PacketDistributor.sendToPlayer(player, SyncMiningSurveyorPayload.lock(target, result.anchor(), result.clusterSize()));
 			DailyContractService.recordProgress(player, DailyContractType.SURVEY_VEIN, 1L);
+			player.playNotifySound(SoundEvents.EXPERIENCE_ORB_PICKUP, SoundSource.PLAYERS, 0.7F, 1.5F);
 			BlockPos pos = result.anchor();
 			player.displayClientMessage(Component.translatable("message.virtual_craft.mining_surveyor.found", target.name(), result.clusterSize(), pos.getX(), pos.getY(), pos.getZ()), true);
 		});

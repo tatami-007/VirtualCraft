@@ -138,11 +138,45 @@ public final class MiningSurveyorHighlighter {
 		Optional<BlockPos> targetPos = MiningSurveyorClientState.targetPos().or(() -> stack.isEmpty()
 				? Optional.empty()
 				: MiningSurveyTargetData.target(stack));
-		if (targetPos.isEmpty() || shouldHideEdgeArrow(player, targetPos.get())) {
+		if (targetPos.isEmpty()) {
 			return;
 		}
 
-		drawEdgeArrow(event.getGuiGraphics(), player, targetPos.get());
+		BlockPos pos = targetPos.get();
+		MiningSurveyTarget surveyTarget = MiningSurveyorClientState.target().orElseGet(() -> stack.isEmpty()
+				? MiningSurveyTarget.defaultTarget()
+				: MiningSurveyTargetData.lockedTarget(stack));
+		int cluster = MiningSurveyorClientState.clusterSize();
+		if (cluster <= 0 && !stack.isEmpty()) {
+			cluster = MiningSurveyTargetData.clusterSize(stack);
+		}
+		// Always-on locator chip (name · cluster · distance · vertical hint) so the
+		// player keeps the lock-on readout even when staring straight at the vein
+		// through stone; the edge arrow only kicks in once it leaves the view cone.
+		drawLocatorChip(event.getGuiGraphics(), player, pos, surveyTarget, cluster);
+		if (!shouldHideEdgeArrow(player, pos)) {
+			drawEdgeArrow(event.getGuiGraphics(), player, pos);
+		}
+	}
+
+	private void drawLocatorChip(GuiGraphics guiGraphics, LocalPlayer player, BlockPos pos, MiningSurveyTarget surveyTarget, int cluster) {
+		double distance = Vec3.atCenterOf(pos).subtract(player.getEyePosition()).length();
+		int meters = (int) Math.round(distance);
+		int dy = pos.getY() - Mth.floor(player.getY());
+		StringBuilder sb = new StringBuilder(surveyTarget.name().getString());
+		if (cluster > 0) {
+			sb.append("  \u00d7").append(cluster);
+		}
+		sb.append("  \u00b7  ").append(meters).append('m');
+		if (dy > 2) {
+			sb.append("  \u2191").append(dy);
+		} else if (dy < -2) {
+			sb.append("  \u2193").append(-dy);
+		}
+		String text = sb.toString();
+		int centerX = guiGraphics.guiWidth() / 2;
+		guiGraphics.drawCenteredString(Minecraft.getInstance().font, text, centerX + 1, 5, 0xAA000000);
+		guiGraphics.drawCenteredString(Minecraft.getInstance().font, text, centerX, 4, 0xFF8FEAFF);
 	}
 
 	private ItemStack resolveSurveyor(LocalPlayer player) {

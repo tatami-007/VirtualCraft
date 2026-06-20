@@ -411,6 +411,8 @@
   "survey.virtual_craft.target.apatite": "磷灰石",
   "survey.virtual_craft.target.sulfur": "硫磺",
   "tooltip.virtual_craft.mining_surveyor.use": "右键选择并扫描矿物",
+  "tooltip.virtual_craft.mining_surveyor.rescan": "右键：就地重扫当前选中矿种",
+  "tooltip.virtual_craft.mining_surveyor.open": "潜行+右键：打开矿种选择界面",
   "tooltip.virtual_craft.mining_surveyor.selected": "目标：%s",
   "tooltip.virtual_craft.mining_surveyor.clear": "潜行右键清除当前勘探锁定",
   "tooltip.virtual_craft.mining_surveyor.target": "目标：%s，%s，%s",

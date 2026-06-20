@@ -22,16 +22,15 @@ public class MiningSurveyorItem extends Item {
 	@Override
 	public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand usedHand) {
 		ItemStack stack = player.getItemInHand(usedHand);
-		if (player.isShiftKeyDown()) {
-			if (!level.isClientSide) {
-				MiningSurveyTargetData.clearLock(stack);
-				player.displayClientMessage(Component.translatable("message.virtual_craft.mining_surveyor.clear"), true);
-			}
-			return InteractionResultHolder.sidedSuccess(stack, level.isClientSide);
-		}
+		// Practicality-first interaction: a bare right-click is the high-frequency
+		// action while prospecting, so it re-scans the currently selected ore in
+		// place (no GUI). Sneak+right-click opens the picker to switch ore / clear.
 		if (level.isClientSide) {
-			ClientHooks.openSurveyorScreen(stack);
-			return InteractionResultHolder.success(stack);
+			if (player.isShiftKeyDown()) {
+				ClientHooks.openSurveyorScreen(stack);
+			} else {
+				ClientHooks.requestRescan(stack);
+			}
 		}
 		return InteractionResultHolder.success(stack);
 	}
@@ -39,9 +38,9 @@ public class MiningSurveyorItem extends Item {
 	@Override
 	public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltipComponents, TooltipFlag tooltipFlag) {
 		MiningSurveyTarget selected = MiningSurveyTargetData.selectedTarget(stack);
-		tooltipComponents.add(Component.translatable("tooltip.virtual_craft.mining_surveyor.use"));
+		tooltipComponents.add(Component.translatable("tooltip.virtual_craft.mining_surveyor.rescan"));
+		tooltipComponents.add(Component.translatable("tooltip.virtual_craft.mining_surveyor.open"));
 		tooltipComponents.add(Component.translatable("tooltip.virtual_craft.mining_surveyor.selected", selected.name()));
-		tooltipComponents.add(Component.translatable("tooltip.virtual_craft.mining_surveyor.clear"));
 		MiningSurveyTargetData.target(stack).ifPresent(target -> {
 			tooltipComponents.add(Component.translatable("tooltip.virtual_craft.mining_surveyor.target", target.getX(), target.getY(), target.getZ()));
 			tooltipComponents.add(Component.translatable("tooltip.virtual_craft.mining_surveyor.cluster", MiningSurveyTargetData.clusterSize(stack)));
@@ -52,6 +51,12 @@ public class MiningSurveyorItem extends Item {
 	private static final class ClientHooks {
 		private static void openSurveyorScreen(ItemStack stack) {
 			icyllis.modernui.mc.MuiModApi.openScreen(new dev.tatami.virtualcraft.client.screen.MiningSurveyorFragment(stack));
+		}
+
+		private static void requestRescan(ItemStack stack) {
+			String key = MiningSurveyTargetData.selectedTarget(stack).key();
+			net.neoforged.neoforge.network.PacketDistributor.sendToServer(
+					new dev.tatami.virtualcraft.network.MiningSurveyorActionPayload(key, false));
 		}
 	}
 }

@@ -411,6 +411,8 @@
   "survey.virtual_craft.target.apatite": "Apatite",
   "survey.virtual_craft.target.sulfur": "Sulfur",
   "tooltip.virtual_craft.mining_surveyor.use": "Right-click to pick and scan an ore",
+  "tooltip.virtual_craft.mining_surveyor.rescan": "Right-click: re-scan the selected ore here",
+  "tooltip.virtual_craft.mining_surveyor.open": "Sneak + right-click: open the ore picker",
   "tooltip.virtual_craft.mining_surveyor.selected": "Target: %s",
   "tooltip.virtual_craft.mining_surveyor.clear": "Sneak Right-click to clear the current survey lock",
   "tooltip.virtual_craft.mining_surveyor.target": "Target: %s, %s, %s",

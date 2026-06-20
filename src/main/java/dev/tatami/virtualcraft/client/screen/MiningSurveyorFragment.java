@@ -64,6 +64,8 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 	private Button searchClearButton;
 	private EditText searchInput;
 	private MiningSurveyTarget selectedTarget;
+	private String lastClickedKey;
+	private long lastClickTime;
 	private SourceFilter sourceFilter = SourceFilter.ALL;
 	private SortMode sortMode = SortMode.RELEVANCE;
 	private String searchText = "";
@@ -368,10 +370,21 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 		text.addView(name);
 		text.addView(hintText(namespaceLabel(target) + "  " + tagSummary(target)));
 		container.addView(text, textParams);
+		// Single click selects (so the player can inspect the side card); a quick
+		// second click on the same row commits the scan — one gesture, no detour to
+		// the Scan button. The 350ms window mirrors a standard double-click.
 		container.setOnClickListener(view -> {
+			long now = System.currentTimeMillis();
+			boolean doubleClick = target.key().equals(lastClickedKey) && (now - lastClickTime) < 350L;
+			lastClickedKey = target.key();
+			lastClickTime = now;
 			selectedTarget = target;
-			refreshSelectedCard();
-			refreshResults();
+			if (doubleClick) {
+				scan();
+			} else {
+				refreshSelectedCard();
+				refreshResults();
+			}
 		});
 		return container;
 	}
