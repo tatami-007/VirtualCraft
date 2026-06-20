@@ -79,6 +79,13 @@ import net.neoforged.neoforge.network.PacketDistributor;
 public class HolographicShopFragment extends Fragment implements ScreenCallback {
 	private static final int AMOUNT_SLIDER_STEPS = 1000;
 
+	/**
+	 * Distinct, rarity-flavoured palette for the voucher mix bar — indexed by
+	 * tier position so each tier keeps a stable colour: cyan -> indigo ->
+	 * violet -> gold (common to legendary).
+	 */
+	private static final int[] VOUCHER_TIER_COLORS = {0xFF0EA5E9, 0xFF6366F1, 0xFF8B5CF6, 0xFFF59E0B};
+
 	private record VoucherTierCount(Item item, int count, long btcMinor) {
 	}
 
@@ -1687,6 +1694,9 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			card.addView(bodyText(t("screen.virtual_craft.holographic_shop.mining.none")));
 			return card;
 		}
+		card.addView(spacer(dp(8)));
+		card.addView(voucherRarityBar(summary), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(8)));
+		card.addView(spacer(dp(10)));
 		for (VoucherTierCount tier : summary.tiers()) {
 			if (tier.count() <= 0) {
 				continue;
@@ -1696,7 +1706,40 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 					t("screen.virtual_craft.holographic_shop.mining.tier_count", tier.count(), CryptoCurrency.BTC.formatCompact(safeMultiply(tier.btcMinor(), tier.count())), CryptoCurrency.BTC.ticker()),
 					TEXT));
 		}
+		long usdtMinor = CurrencyConversionService.convert(CryptoCurrency.BTC, CryptoCurrency.USDT, summary.totalBtcMinor(), exchangeSnapshot, RoundingMode.DOWN);
+		card.addView(spacer(dp(6)));
+		card.addView(keyValueRow(
+				CryptoCurrency.BTC.formatCompact(summary.totalBtcMinor()) + " " + CryptoCurrency.BTC.ticker(),
+				t("screen.virtual_craft.holographic_shop.mining.value_usdt", CryptoCurrency.USDT.formatCompact(usdtMinor)),
+				GREEN));
 		return card;
+	}
+
+	/**
+	 * Horizontal stacked bar visualising the proportion of each voucher tier by
+	 * count. Each tier keeps a stable colour (indexed by tier position) so the
+	 * segments do not reshuffle colours as counts change.
+	 */
+	private View voucherRarityBar(VoucherSummary summary) {
+		LinearLayout bar = new LinearLayout(requireContext());
+		bar.setOrientation(LinearLayout.HORIZONTAL);
+		List<VoucherTierCount> tiers = summary.tiers();
+		boolean first = true;
+		for (int index = 0; index < tiers.size(); index++) {
+			VoucherTierCount tier = tiers.get(index);
+			if (tier.count() <= 0) {
+				continue;
+			}
+			View segment = new View(requireContext());
+			segment.setBackground(rounded(VOUCHER_TIER_COLORS[index % VOUCHER_TIER_COLORS.length], 0, 3f, 0));
+			LinearLayout.LayoutParams params = weighted(0, ViewGroup.LayoutParams.MATCH_PARENT, tier.count());
+			if (!first) {
+				params.setMargins(dp(2), 0, 0, 0);
+			}
+			first = false;
+			bar.addView(segment, params);
+		}
+		return bar;
 	}
 
 	/**
@@ -1736,7 +1779,50 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		card.addView(hintText(t("screen.virtual_craft.holographic_shop.mining.stats.last_7_days")));
 		card.addView(spacer(dp(6)));
 		card.addView(miningSevenDayChart(), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(46)));
+		card.addView(spacer(dp(10)));
+		card.addView(miningWeekSummary(), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(64)));
+		long avgMinor = miningStatsCache.totalSettlements() > 0
+				? miningStatsCache.totalBtcMinor() / miningStatsCache.totalSettlements()
+				: 0L;
+		card.addView(spacer(dp(8)));
+		card.addView(keyValueRow(
+				t("screen.virtual_craft.holographic_shop.mining.stats.avg_payout"),
+				CryptoCurrency.BTC.formatCompact(avgMinor) + " " + CryptoCurrency.BTC.ticker(),
+				CYAN));
 		return card;
+	}
+
+	/** Three-up summary of the last 7 days of BTC production: total / daily avg / best day. */
+	private View miningWeekSummary() {
+		long[] btcByDay = sevenDayBtc();
+		long total = 0L;
+		long best = 0L;
+		for (long value : btcByDay) {
+			total += value;
+			if (value > best) {
+				best = value;
+			}
+		}
+		long avg = total / btcByDay.length;
+		LinearLayout row = new LinearLayout(requireContext());
+		row.setOrientation(LinearLayout.HORIZONTAL);
+		row.addView(metricCard(
+				t("screen.virtual_craft.holographic_shop.mining.stats.week_total"),
+				CryptoCurrency.BTC.formatCompact(total),
+				CYAN), weighted(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
+		var avgParams = weighted(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
+		avgParams.setMargins(dp(8), 0, 0, 0);
+		row.addView(metricCard(
+				t("screen.virtual_craft.holographic_shop.mining.stats.week_avg"),
+				CryptoCurrency.BTC.formatCompact(avg),
+				CYAN), avgParams);
+		var bestParams = weighted(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
+		bestParams.setMargins(dp(8), 0, 0, 0);
+		row.addView(metricCard(
+				t("screen.virtual_craft.holographic_shop.mining.stats.week_best"),
+				CryptoCurrency.BTC.formatCompact(best),
+				GREEN), bestParams);
+		return row;
 	}
 
 	/** Render the 7-day BTC production buckets as a simple bar chart. */
@@ -1745,17 +1831,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		chart.setOrientation(LinearLayout.HORIZONTAL);
 		chart.setGravity(Gravity.BOTTOM);
 
-		java.util.List<dev.tatami.virtualcraft.network.SyncWalletPreferencesPayload.DailyBucket> buckets = miningStatsCache.last7DayBuckets();
-		// Build a 7-element array indexed by today, today-1, ..., today-6 so the
-		// chart always shows seven slots even when some days are zero.
-		long todayStart = (java.time.Instant.now().getEpochSecond() / 86400L) * 86400L;
-		long[] btcByDay = new long[7];
-		for (var bucket : buckets) {
-			long delta = (todayStart - bucket.dayStartEpochSeconds()) / 86400L;
-			if (delta >= 0 && delta < btcByDay.length) {
-				btcByDay[(int) delta] = bucket.btcMinor();
-			}
-		}
+		long[] btcByDay = sevenDayBtc();
 		long maxBtc = 1L;
 		for (long value : btcByDay) {
 			if (value > maxBtc) {
@@ -1777,6 +1853,24 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			chart.addView(column, columnParams);
 		}
 		return chart;
+	}
+
+	/**
+	 * Last 7 days of BTC production as a 7-element array indexed by today,
+	 * today-1, ..., today-6 (so it always has seven slots even when some days
+	 * are zero). Shared by the bar chart and the week summary.
+	 */
+	private long[] sevenDayBtc() {
+		java.util.List<dev.tatami.virtualcraft.network.SyncWalletPreferencesPayload.DailyBucket> buckets = miningStatsCache.last7DayBuckets();
+		long todayStart = (java.time.Instant.now().getEpochSecond() / 86400L) * 86400L;
+		long[] btcByDay = new long[7];
+		for (var bucket : buckets) {
+			long delta = (todayStart - bucket.dayStartEpochSeconds()) / 86400L;
+			if (delta >= 0 && delta < btcByDay.length) {
+				btcByDay[(int) delta] = bucket.btcMinor();
+			}
+		}
+		return btcByDay;
 	}
 
 	private void buildMiningActions() {
@@ -1820,7 +1914,9 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	}
 
 	private void buildContractsContent() {
-		contentColumn.addView(sectionHeader(t("screen.virtual_craft.holographic_shop.contracts.title"), null));
+		contentColumn.addView(sectionHeader(
+				t("screen.virtual_craft.holographic_shop.contracts.title"),
+				t("screen.virtual_craft.holographic_shop.contracts.reset_in", contractResetCountdown())));
 		contentColumn.addView(spacer(dp(10)));
 
 		if (contractCache.isEmpty()) {
@@ -1830,12 +1926,13 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			return;
 		}
 
+		java.util.List<DailyContractSnapshot> ordered = sortedContracts();
 		ScrollView scroll = scrollShell("contracts");
 		LinearLayout list = vertical();
 		list.setPadding(dp(10), dp(10), dp(10), dp(10));
-		for (int index = 0; index < contractCache.size(); index++) {
-			list.addView(contractCard(contractCache.get(index)));
-			if (index + 1 < contractCache.size()) {
+		for (int index = 0; index < ordered.size(); index++) {
+			list.addView(contractCard(ordered.get(index)));
+			if (index + 1 < ordered.size()) {
 				list.addView(spacer(dp(8)));
 			}
 		}
@@ -1859,10 +1956,21 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		var textParams = weighted(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
 		textParams.setMargins(dp(10), 0, dp(8), 0);
 		text.addView(bodyText(t(contract.titleKey())));
+		LinearLayout rewardRow = new LinearLayout(requireContext());
+		rewardRow.setOrientation(LinearLayout.HORIZONTAL);
+		rewardRow.setGravity(Gravity.CENTER_VERTICAL);
+		int rewardColor = rewardAccent(contract.rewardKind());
+		View rewardPill = new View(requireContext());
+		rewardPill.setBackground(rounded(rewardColor, 0, 999f, 0));
+		LinearLayout.LayoutParams pillParams = new LinearLayout.LayoutParams(dp(6), dp(6));
+		pillParams.setMargins(0, 0, dp(5), 0);
+		rewardRow.addView(rewardPill, pillParams);
 		TextView reward = hintText(t("screen.virtual_craft.holographic_shop.contracts.reward", contract.rewardText()));
 		reward.setMaxLines(1);
 		reward.setEllipsize(TextUtils.TruncateAt.END);
-		text.addView(reward);
+		reward.setTextColor(rewardColor);
+		rewardRow.addView(reward, weighted(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+		text.addView(rewardRow);
 		row.addView(text, textParams);
 
 		TextView progress = bodyText(contractProgressText(contract));
@@ -1911,6 +2019,95 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 				t("screen.virtual_craft.holographic_shop.contracts.count", completedContracts(), contractCache.size()),
 				t("screen.virtual_craft.holographic_shop.contracts.claimable", claimableContracts()),
 				CYAN));
+		if (!contractCache.isEmpty()) {
+			int total = contractCache.size();
+			float ratio = total <= 0 ? 0f : Math.min(1f, (float) completedContracts() / (float) total);
+			actionColumn.addView(spacer(dp(8)));
+			actionColumn.addView(progressBar(ratio, GREEN), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(8)));
+			actionColumn.addView(spacer(dp(10)));
+			boolean any = claimableContracts() > 0;
+			Button claimAll = actionButton(t("screen.virtual_craft.holographic_shop.contracts.claim_all"), GREEN, this::claimAllContracts);
+			claimAll.setEnabled(any);
+			claimAll.setTextColor(any ? GREEN : TEXT_DIM);
+			actionColumn.addView(claimAll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(30)));
+		}
+	}
+
+	/** Claim every contract that is complete but not yet claimed (one packet each). */
+	private void claimAllContracts() {
+		for (DailyContractSnapshot contract : contractCache) {
+			if (!contract.claimed() && contract.progress() >= contract.target()) {
+				sendContractClaim(contract.id());
+			}
+		}
+	}
+
+	/** Generic [0,1] progress bar (post-measured fill), reused by the contracts overview. */
+	private View progressBar(float ratio, int accent) {
+		FrameLayout frame = new FrameLayout(requireContext());
+		frame.setBackground(rounded(PANEL_SOFT, WINDOW_STROKE, 999f, 1));
+		View fill = new View(requireContext());
+		fill.setBackground(rounded(accent, 0, 999f, 0));
+		float clamped = Math.max(0f, Math.min(1f, ratio));
+		frame.post(() -> {
+			int width = Math.max(1, Math.round(frame.getWidth() * clamped));
+			fill.setLayoutParams(new FrameLayout.LayoutParams(width, ViewGroup.LayoutParams.MATCH_PARENT));
+		});
+		frame.addView(fill, new FrameLayout.LayoutParams(1, ViewGroup.LayoutParams.MATCH_PARENT));
+		return frame;
+	}
+
+	/** Ordered for display: claimable first, then in-progress (by ratio desc), then claimed. */
+	private java.util.List<DailyContractSnapshot> sortedContracts() {
+		java.util.List<DailyContractSnapshot> ordered = new ArrayList<>(contractCache);
+		ordered.sort(java.util.Comparator
+				.comparingInt((DailyContractSnapshot c) -> contractRank(c))
+				.thenComparing(java.util.Comparator.comparingDouble((DailyContractSnapshot c) -> contractProgressRatio(c)).reversed()));
+		return ordered;
+	}
+
+	private int contractRank(DailyContractSnapshot contract) {
+		if (contract.claimed()) {
+			return 2;
+		}
+		return contract.progress() >= contract.target() ? 0 : 1;
+	}
+
+	private double contractProgressRatio(DailyContractSnapshot contract) {
+		return contract.target() <= 0L ? 1.0 : Math.min(1.0, (double) contract.progress() / (double) contract.target());
+	}
+
+	/** Colour-codes a contract reward by its kind so the list reads at a glance. */
+	private int rewardAccent(String kind) {
+		return switch (kind == null ? "" : kind) {
+			case "quantum_hash_voucher" -> 0xFF8B5CF6;
+			case "encrypted_hash_voucher" -> 0xFF6366F1;
+			case "explorer_hash_voucher" -> CYAN;
+			case "btc" -> 0xFFF59E0B;
+			case "usdt" -> GREEN;
+			case "data_fragment" -> 0xFF38BDF8;
+			default -> TEXT_DIM;
+		};
+	}
+
+	/** Seconds until the next UTC-midnight contract refresh, formatted as e.g. "7h 12m". */
+	private String contractResetCountdown() {
+		long now = System.currentTimeMillis() / 1000L;
+		long dayStart = now - Math.floorMod(now, 86400L);
+		long resetIn = Math.max(0L, dayStart + 86400L - now);
+		return formatDuration(resetIn);
+	}
+
+	private String formatDuration(long seconds) {
+		long hours = seconds / 3600L;
+		long minutes = (seconds % 3600L) / 60L;
+		if (hours > 0) {
+			return hours + "h " + minutes + "m";
+		}
+		if (minutes > 0) {
+			return minutes + "m";
+		}
+		return Math.max(0L, seconds) + "s";
 	}
 
 	private int completedContracts() {

@@ -50,6 +50,9 @@ public class VirtualDataCoreBlockEntity extends BlockEntity {
 	private UUID owner;
 	private int siteIndex;
 	private int roomVersion;
+	private int depth;
+	private boolean boss;
+	private long[] controlledGates = new long[0];
 	private long activeUntilGameTime;
 	private long cooldownUntilGameTime;
 	private long cacheUntilGameTime;
@@ -80,7 +83,7 @@ public class VirtualDataCoreBlockEntity extends BlockEntity {
 		if (core.phase == PHASE_CACHE && core.cacheUntilGameTime > 0L && now >= core.cacheUntilGameTime) {
 			core.enterExtractPhase();
 		}
-		if (now % 10L == 0L) {
+		if (now % 20L == 0L) {
 			core.flashCurrentHint();
 		}
 		if (now % 40L == 0L && core.phase == PHASE_CACHE) {
@@ -99,6 +102,36 @@ public class VirtualDataCoreBlockEntity extends BlockEntity {
 	public void setRoomVersion(int roomVersion) {
 		if (this.roomVersion < roomVersion) {
 			this.roomVersion = roomVersion;
+			setChanged();
+		}
+	}
+
+	/** Graph distance from the hub — deeper rooms hand out richer rewards. */
+	public void setDepth(int depth) {
+		if (this.depth != depth) {
+			this.depth = depth;
+			setChanged();
+		}
+	}
+
+	/** Marks this core as the hardened firewall (boss) variant: tighter timer, bigger payout. */
+	public void setBoss(boolean boss) {
+		if (this.boss != boss) {
+			this.boss = boss;
+			setChanged();
+		}
+	}
+
+	/**
+	 * Packed positions of the corridor gates this core unlocks on completion —
+	 * i.e. the doors into the rooms that branch off this one. This is the single
+	 * piece of cross-block state the labyrinth needs: clearing a room's core is
+	 * what opens the way deeper.
+	 */
+	public void setControlledGates(long[] gates) {
+		long[] next = gates == null ? new long[0] : gates.clone();
+		if (!Arrays.equals(this.controlledGates, next)) {
+			this.controlledGates = next;
 			setChanged();
 		}
 	}
@@ -230,7 +263,7 @@ public class VirtualDataCoreBlockEntity extends BlockEntity {
 		routeIndex = 0;
 		corrosion = 0;
 		phase = PHASE_SCAN;
-		activeUntilGameTime = now + ACTIVE_TICKS;
+		activeUntilGameTime = now + activeTicks();
 		cacheUntilGameTime = 0L;
 		setGatesOpen(false);
 		flashAllRelays(ParticleTypes.END_ROD, 8);
@@ -364,7 +397,14 @@ public class VirtualDataCoreBlockEntity extends BlockEntity {
 	private void complete(ServerLevel level, Player player) {
 		long remaining = Math.max(0L, activeUntilGameTime - level.getGameTime());
 		int openedCaches = Integer.bitCount(cacheMask);
-		int multiplier = VirtualDataRoomPattern.rewardMultiplier(corrosion, remaining, ACTIVE_TICKS, openedCaches);
+		// Deeper rooms (and the firewall boss) scale the payout: +1 per two
+		// levels of depth, +2 for the boss, on top of the base performance
+		// multiplier — so pushing further into the labyrinth is worth it.
+		int depthBonus = Math.min(4, depth / 2);
+		int bossBonus = boss ? 2 : 0;
+		int multiplier = Math.max(1, Math.min(12,
+				VirtualDataRoomPattern.rewardMultiplier(corrosion, remaining, activeTicks(), openedCaches)
+						+ depthBonus + bossBonus));
 		int fragments = (4 + level.random.nextInt(4)) * multiplier;
 		give(player, new ItemStack(ModItems.DATA_FRAGMENT.get(), fragments));
 		rollVoucher(level, player, 0.002F * multiplier, ModItems.GENESIS_HASH_VOUCHER.get());
@@ -375,16 +415,26 @@ public class VirtualDataCoreBlockEntity extends BlockEntity {
 			rollVoucher(level, player, 0.10F, ModItems.ENCRYPTED_HASH_VOUCHER.get());
 			rollVoucher(level, player, 0.03F, ModItems.QUANTUM_HASH_VOUCHER.get());
 		}
+		if (boss) {
+			rollVoucher(level, player, 0.50F, ModItems.QUANTUM_HASH_VOUCHER.get());
+			rollVoucher(level, player, 0.08F, ModItems.GENESIS_HASH_VOUCHER.get());
+		}
 		if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
 			DailyContractService.recordProgress(serverPlayer, DailyContractType.DECODE_RELIC, 1L);
 		}
 		cooldownUntilGameTime = level.getGameTime() + SUCCESS_COOLDOWN_TICKS;
 		resetActive();
 		setGatesOpen(false);
+		// Clearing this room is the "key" that unseals the corridors leading
+		// deeper — the firewall boss instead just frees its rich dead-end vault.
+		openControlledGates();
 		flashAllRelays(ParticleTypes.HAPPY_VILLAGER, 14);
 		flashAllCaches(ParticleTypes.HAPPY_VILLAGER, 14);
 		playSound(SoundEvents.BEACON_POWER_SELECT, 1.0F, 1.35F);
-		player.displayClientMessage(Component.translatable("message.virtual_craft.virtual_data.complete", fragments, multiplier).withStyle(ChatFormatting.AQUA), true);
+		String key = boss
+				? "message.virtual_craft.virtual_data.firewall_breached"
+				: "message.virtual_craft.virtual_data.complete";
+		player.displayClientMessage(Component.translatable(key, fragments, multiplier).withStyle(boss ? ChatFormatting.GOLD : ChatFormatting.AQUA), true);
 		setChanged();
 	}
 
@@ -446,14 +496,31 @@ public class VirtualDataCoreBlockEntity extends BlockEntity {
 	}
 
 	private void flashCurrentHint() {
-		if (phase == PHASE_SCAN) {
-			flashScanRelays();
-		} else if (phase == PHASE_ROUTE) {
-			flashCurrentRouteTarget();
-		} else if (phase == PHASE_CACHE) {
-			flashAllCaches(ParticleTypes.END_ROD, 8);
-		} else if (phase == PHASE_EXTRACT) {
-			flashCore(ParticleTypes.ELECTRIC_SPARK, 8);
+		// Ambient "alive" pulse on the core itself. Deliberately does NOT keep
+		// re-revealing the current scan/route answer the way the old build did —
+		// the answer now flashes exactly once when each phase begins, turning the
+		// intrusion into a real memory puzzle instead of follow-the-particles.
+		if (phase == PHASE_EXTRACT) {
+			flashCore(ParticleTypes.HAPPY_VILLAGER, 6);
+		} else {
+			flashCore(ParticleTypes.ELECTRIC_SPARK, 4);
+		}
+	}
+
+	private long activeTicks() {
+		return boss ? (ACTIVE_TICKS * 2L) / 3L : ACTIVE_TICKS;
+	}
+
+	private void openControlledGates() {
+		if (level == null) {
+			return;
+		}
+		for (long packed : controlledGates) {
+			BlockPos gate = BlockPos.of(packed);
+			BlockState state = level.getBlockState(gate);
+			if (state.is(ModBlocks.VIRTUAL_DATA_GATE.get()) && !state.getValue(VirtualDataGateBlock.OPEN)) {
+				level.setBlock(gate, state.setValue(VirtualDataGateBlock.OPEN, true), 3);
+			}
 		}
 	}
 
@@ -576,6 +643,9 @@ public class VirtualDataCoreBlockEntity extends BlockEntity {
 		}
 		tag.putInt("site_index", siteIndex);
 		tag.putInt("room_version", roomVersion);
+		tag.putInt("depth", depth);
+		tag.putBoolean("boss", boss);
+		tag.putLongArray("controlled_gates", controlledGates);
 		tag.putLong("active_until", activeUntilGameTime);
 		tag.putLong("cooldown_until", cooldownUntilGameTime);
 		tag.putLong("cache_until", cacheUntilGameTime);
@@ -596,6 +666,9 @@ public class VirtualDataCoreBlockEntity extends BlockEntity {
 		owner = tag.hasUUID("owner") ? tag.getUUID("owner") : null;
 		siteIndex = tag.getInt("site_index");
 		roomVersion = tag.getInt("room_version");
+		depth = tag.getInt("depth");
+		boss = tag.getBoolean("boss");
+		controlledGates = tag.getLongArray("controlled_gates");
 		activeUntilGameTime = tag.getLong("active_until");
 		cooldownUntilGameTime = tag.getLong("cooldown_until");
 		cacheUntilGameTime = tag.getLong("cache_until");
