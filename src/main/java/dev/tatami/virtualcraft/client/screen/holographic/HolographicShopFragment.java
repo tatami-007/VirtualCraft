@@ -56,6 +56,7 @@ import icyllis.modernui.mc.MuiScreen;
 import icyllis.modernui.mc.ScreenCallback;
 import icyllis.modernui.text.TextUtils;
 import icyllis.modernui.view.Gravity;
+import icyllis.modernui.view.KeyEvent;
 import icyllis.modernui.view.LayoutInflater;
 import icyllis.modernui.view.MotionEvent;
 import icyllis.modernui.view.View;
@@ -174,6 +175,26 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	private final EnumMap<FocusTarget, String> pendingInputOverrides = new EnumMap<>(FocusTarget.class);
 	private PickerTarget pickerTarget = PickerTarget.NONE;
 	private boolean convertReverseQuote;
+
+	// --- v26 holographic terminal interaction polish ---
+	// #1 Preserve inner ScrollView offsets across full view-tree rebuilds. Keyed by a
+	//    stable per-list id so an in-page refresh (selecting a row, dragging a slider)
+	//    no longer snaps long lists back to the top. Cleared on explicit page switches.
+	private final java.util.Map<String, Integer> savedScrollY = new java.util.HashMap<>();
+	private final java.util.Map<String, ScrollView> liveScrollShells = new java.util.HashMap<>();
+	// #2 Live-update the action-panel summary card while a slider is dragged. The retained
+	//    views are updated in place instead of rebuilding the tree, because a rebuild would
+	//    destroy the SeekBar mid-drag and abort the gesture.
+	private java.util.function.Supplier<StatusModel> liveStatusModel;
+	private LinearLayout liveStatusCardView;
+	private TextView liveStatusSummaryView;
+	private TextView liveStatusIssueView;
+	// #3 Enter-to-submit: the active page's primary action (withdraw/convert/transfer/...).
+	private Runnable primaryAction;
+
+	/** Immutable view-model for the action-panel summary card (see {@link #liveStatusCard}). */
+	private record StatusModel(String summary, String issue, int accent) {
+	}
 
 	// --- Refresh debounce ---
 	// Multiple sync packets (wallet, exchange, preferences, catalog) routinely
@@ -700,6 +721,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			return;
 		}
 		stashInputs();
+		stashScrollPositions();
 		refreshNav();
 		buildContentPage();
 		buildActionPage();
@@ -800,6 +822,13 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 
 	private void buildActionPage() {
 		actionColumn.removeAllViews();
+		// Drop references to the previous page's live-update views so a stale slider drag
+		// can never write into a recycled card.
+		liveStatusModel = null;
+		liveStatusCardView = null;
+		liveStatusSummaryView = null;
+		liveStatusIssueView = null;
+		primaryAction = null;
 		actionColumn.addView(sectionHeader(actionTitle(), actionSubtitle()));
 		actionColumn.addView(spacer(dp(10)));
 
@@ -864,7 +893,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		contentColumn.addView(sectionHeader(t("screen.virtual_craft.holographic_shop.wallet.assets"), null));
 		contentColumn.addView(spacer(dp(10)));
 
-		ScrollView assetScroll = scrollShell();
+		ScrollView assetScroll = scrollShell("wallet.assets");
 		LinearLayout assetList = vertical();
 		for (CryptoCurrency currency : CryptoCurrency.values()) {
 			long balance = balances[currency.ordinal()];
@@ -1085,6 +1114,8 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			String depositProblem = walletDepositProblem(requested, depositable);
 			actionColumn.addView(fieldLabel(t("screen.virtual_craft.holographic_shop.amount_whole")));
 			walletAmountInput = input(walletAmountText, Long.toString(Math.max(0L, depositable)));
+			primaryAction = this::sendWalletDeposit;
+			submitOnEnter(walletAmountInput);
 			actionColumn.addView(walletAmountInput, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(34)));
 			actionColumn.addView(spacer(dp(6)));
 			actionColumn.addView(wholeAmountSlider(
@@ -1101,7 +1132,12 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 				requestRefresh(false, FocusTarget.WALLET_AMOUNT);
 			}), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(QUICK_BUTTON_HEIGHT_DP)));
 			actionColumn.addView(spacer(dp(10)));
-			actionColumn.addView(statusCard(walletDepositSummary(requested), depositProblem, depositProblem.isBlank() ? GREEN : AMBER));
+			actionColumn.addView(liveStatusCard(() -> {
+				long req = parseWhole(walletAmountText);
+				long max = inventoryWholeItemCount(selectedWalletCurrency);
+				String p = walletDepositProblem(req, max);
+				return new StatusModel(walletDepositSummary(req), p, p.isBlank() ? GREEN : AMBER);
+			}));
 			actionColumn.addView(spacer(dp(10)));
 			actionColumn.addView(actionButton(t("screen.virtual_craft.holographic_shop.deposit_current", selectedWalletCurrency.ticker()), GREEN, this::sendWalletDeposit),
 				new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(30)));
@@ -1117,6 +1153,8 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		String withdrawProblem = walletWithdrawProblem(requested, withdrawable);
 		actionColumn.addView(fieldLabel(t("screen.virtual_craft.holographic_shop.amount_whole")));
 		walletAmountInput = input(walletAmountText, Long.toString(Math.max(0L, withdrawable)));
+		primaryAction = () -> sendWalletWithdraw(WalletActionPayload.Action.WITHDRAW_ITEM);
+		submitOnEnter(walletAmountInput);
 		actionColumn.addView(walletAmountInput, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(34)));
 		actionColumn.addView(spacer(dp(6)));
 		actionColumn.addView(wholeAmountSlider(
@@ -1133,7 +1171,12 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			requestRefresh(false, FocusTarget.WALLET_AMOUNT);
 		}), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(QUICK_BUTTON_HEIGHT_DP)));
 		actionColumn.addView(spacer(dp(10)));
-		actionColumn.addView(statusCard(walletWithdrawSummary(requested), withdrawProblem, withdrawProblem.isBlank() ? GREEN : AMBER));
+		actionColumn.addView(liveStatusCard(() -> {
+			long req = parseWhole(walletAmountText);
+			long max = wholeItemCount(selectedWalletCurrency);
+			String p = walletWithdrawProblem(req, max);
+			return new StatusModel(walletWithdrawSummary(req), p, p.isBlank() ? GREEN : AMBER);
+		}));
 		actionColumn.addView(spacer(dp(10)));
 
 		Button withdrawCoin = actionButton(t("screen.virtual_craft.holographic_shop.withdraw_item"), GREEN, () -> sendWalletWithdraw(WalletActionPayload.Action.WITHDRAW_ITEM));
@@ -1292,6 +1335,8 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		actionColumn.addView(spacer(dp(10)));
 		actionColumn.addView(fieldLabel(t("screen.virtual_craft.holographic_shop.transfer.amount")));
 		convertAmountInput = input(convertAmountText, convertReverseQuote ? convertTargetCurrency.ticker() : convertSourceCurrency.ticker());
+		primaryAction = this::sendConvertAction;
+		submitOnEnter(convertAmountInput);
 		actionColumn.addView(convertAmountInput, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(34)));
 		actionColumn.addView(spacer(dp(6)));
 		CryptoCurrency convertInputCurrency = convertReverseQuote ? convertTargetCurrency : convertSourceCurrency;
@@ -1310,7 +1355,10 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		actionColumn.addView(quickAmountRow(convertInputCurrency, convertSliderMax, value -> convertAmountText = value, FocusTarget.CONVERT_AMOUNT), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 		actionColumn.addView(spacer(dp(10)));
 		String problem = convertProblem();
-		actionColumn.addView(statusCard(convertSummaryLine(), problem, problem.isBlank() ? GREEN : AMBER));
+		actionColumn.addView(liveStatusCard(() -> {
+			String p = convertProblem();
+			return new StatusModel(convertSummaryLine(), p, p.isBlank() ? GREEN : AMBER);
+		}));
 		actionColumn.addView(spacer(dp(10)));
 
 		Button submit = actionButton(t("screen.virtual_craft.holographic_shop.convert.submit"), GREEN, this::sendConvertAction);
@@ -1381,7 +1429,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		// HOVER_EXIT 不会再到达，必须主动 hide 避免 tooltip “慌子在上面”。
 		hideShopTooltip();
 
-		ScrollView listScroll = scrollShell();
+		ScrollView listScroll = scrollShell("shop.catalog");
 		LinearLayout list = vertical();
 		if (offers.isEmpty()) {
 			list.addView(emptyState(t("screen.virtual_craft.holographic_shop.shop.empty"), t("screen.virtual_craft.holographic_shop.shop.waiting")));
@@ -1450,7 +1498,24 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		String issue = buying
 				? (buyProblem.isBlank() ? t("screen.virtual_craft.holographic_shop.shop.auto_swap_detail") : buyProblem)
 				: sellProblem;
-		actionColumn.addView(statusCard(summary, issue, (buying ? buyProblem : sellProblem).isBlank() ? (buying ? CYAN : GREEN) : AMBER));
+		actionColumn.addView(liveStatusCard(() -> {
+			ShopOffer liveOffer = selectedOffer();
+			int liveBuyMax = currentShopBuyMax(liveOffer);
+			int liveSellMax = currentShopSellMax(liveOffer);
+			int liveMaxQuantity = Math.max(1, maxShopQuantity(liveBuyMax, liveSellMax));
+			int liveQuantity = clampInt(parseInt(shopQuantityText, 1), 1, liveMaxQuantity);
+			String liveBuyProblem = shopBuyProblem(liveQuantity, liveOffer, liveBuyMax);
+			String liveSellProblem = shopSellProblem(liveQuantity, liveOffer, liveSellMax);
+			boolean liveBuying = shopTradeMode == ShopTradeMode.BUY;
+			String liveSummary = liveBuying
+					? t("screen.virtual_craft.holographic_shop.shop.buy_total", liveQuantity, formatTickerAmount(shopSettlementCurrency, shopBuyTotal(liveQuantity, liveOffer)))
+					: t("screen.virtual_craft.holographic_shop.shop.sell_total", liveQuantity, formatTickerAmount(shopSettlementCurrency, shopSellTotal(liveQuantity, liveOffer)));
+			String liveIssue = liveBuying
+					? (liveBuyProblem.isBlank() ? t("screen.virtual_craft.holographic_shop.shop.auto_swap_detail") : liveBuyProblem)
+					: liveSellProblem;
+			int liveAccent = (liveBuying ? liveBuyProblem : liveSellProblem).isBlank() ? (liveBuying ? CYAN : GREEN) : AMBER;
+			return new StatusModel(liveSummary, liveIssue, liveAccent);
+		}));
 		actionColumn.addView(spacer(dp(10)));
 
 		Button primary = actionButton(t(buying ? "screen.virtual_craft.holographic_shop.buy" : "screen.virtual_craft.holographic_shop.sell"),
@@ -1488,6 +1553,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		// "粘贴" 被遮挡). Force dp(40) + CENTER_VERTICAL so the stroke has room.
 		targetRow.setGravity(Gravity.CENTER_VERTICAL);
 		transferTargetInput = input(transferTargetText, t("screen.virtual_craft.holographic_shop.transfer.target"));
+		submitOnEnter(transferTargetInput);
 		targetRow.addView(transferTargetInput, weighted(0, dp(34), 1f));
 		var chooseParams = new LinearLayout.LayoutParams(dp(64), dp(34));
 		chooseParams.setMargins(dp(8), 0, 0, 0);
@@ -1536,6 +1602,8 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		actionColumn.addView(spacer(dp(10)));
 		actionColumn.addView(fieldLabel(t("screen.virtual_craft.holographic_shop.transfer.amount")));
 		transferAmountInput = input(transferAmountText, transferCurrency.ticker());
+		primaryAction = this::sendTransferAction;
+		submitOnEnter(transferAmountInput);
 		actionColumn.addView(transferAmountInput, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(34)));
 		actionColumn.addView(spacer(dp(6)));
 		actionColumn.addView(currencyAmountSlider(
@@ -1550,11 +1618,15 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		actionColumn.addView(quickAmountRow(transferCurrency, value -> transferAmountText = value, true, FocusTarget.TRANSFER_AMOUNT), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 		actionColumn.addView(spacer(dp(10)));
 		String problem = transferProblem();
-		actionColumn.addView(statusCard(transferSummary(), problem, problem.isBlank() ? GREEN : AMBER));
+		actionColumn.addView(liveStatusCard(() -> {
+			String p = transferProblem();
+			return new StatusModel(transferSummary(), p, p.isBlank() ? GREEN : AMBER);
+		}));
 		actionColumn.addView(spacer(dp(10)));
 
 		actionColumn.addView(fieldLabel(t("screen.virtual_craft.holographic_shop.transfer.memo")));
 		transferMemoInput = input(transferMemoText, t("screen.virtual_craft.holographic_shop.transfer.memo_hint"));
+		submitOnEnter(transferMemoInput);
 		actionColumn.addView(transferMemoInput, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(30)));
 		actionColumn.addView(spacer(dp(10)));
 
@@ -1717,6 +1789,8 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		actionColumn.addView(spacer(dp(10)));
 		actionColumn.addView(fieldLabel(t("screen.virtual_craft.holographic_shop.mining.quantity", miningCount)));
 		miningAmountInput = input(miningAmountText, Integer.toString(vouchers));
+		primaryAction = this::sendMiningAction;
+		submitOnEnter(miningAmountInput);
 		actionColumn.addView(miningAmountInput, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(34)));
 		actionColumn.addView(spacer(dp(6)));
 		actionColumn.addView(actionButton(t("screen.virtual_craft.holographic_shop.mining.all"), CYAN, () -> {
@@ -1734,7 +1808,11 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			}
 		}), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 		actionColumn.addView(spacer(dp(10)));
-		actionColumn.addView(statusCard(miningSummaryLine(miningCount), problem, problem.isBlank() ? GREEN : AMBER));
+		actionColumn.addView(liveStatusCard(() -> {
+			long liveCount = parseWhole(miningAmountText);
+			String p = miningProblem(liveCount, countHashVouchers());
+			return new StatusModel(miningSummaryLine(liveCount), p, p.isBlank() ? GREEN : AMBER);
+		}));
 		actionColumn.addView(spacer(dp(10)));
 
 		Button settle = actionButton(t("screen.virtual_craft.holographic_shop.mining.settle"), GREEN, this::sendMiningAction);
@@ -1752,7 +1830,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			return;
 		}
 
-		ScrollView scroll = scrollShell();
+		ScrollView scroll = scrollShell("contracts");
 		LinearLayout list = vertical();
 		list.setPadding(dp(10), dp(10), dp(10), dp(10));
 		for (int index = 0; index < contractCache.size(); index++) {
@@ -2469,6 +2547,8 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 				onChanged.accept(resolved);
 				if (!fromUser) {
 					requestRefresh(false, FocusTarget.NONE);
+				} else {
+					updateLiveStatus();
 				}
 			}
 
@@ -2511,6 +2591,8 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 				pendingInputOverrides.put(focusTarget, text);
 				if (!fromUser) {
 					requestRefresh(false, focusTarget);
+				} else {
+					updateLiveStatus();
 				}
 			}
 
@@ -2552,6 +2634,8 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 				pendingInputOverrides.put(focusTarget, text);
 				if (!fromUser) {
 					requestRefresh(false, focusTarget);
+				} else {
+					updateLiveStatus();
 				}
 			}
 
@@ -2628,6 +2712,60 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			card.addView(issueView);
 		}
 		return card;
+	}
+
+	/**
+	 * Like {@link #statusCard} but retains references to the card and its text views so the
+	 * summary can be refreshed in place while a slider is dragged (#2). The supplier is
+	 * re-evaluated from current model state by {@link #updateLiveStatus()}.
+	 */
+	private View liveStatusCard(java.util.function.Supplier<StatusModel> model) {
+		liveStatusModel = model;
+		StatusModel m = model.get();
+		LinearLayout card = card(PANEL_ROW, m.accent(), 10f);
+		card.setPadding(dp(12), dp(12), dp(12), dp(12));
+		TextView summaryView = bodyText(m.summary());
+		summaryView.setMaxLines(2);
+		summaryView.setEllipsize(TextUtils.TruncateAt.END);
+		card.addView(summaryView);
+		card.addView(spacer(dp(4)));
+		// Always create the issue row (even when blank) so live updates can toggle it via
+		// visibility instead of adding/removing children mid-drag.
+		TextView issueView = hintText("");
+		issueView.setMaxLines(2);
+		issueView.setEllipsize(TextUtils.TruncateAt.END);
+		card.addView(issueView);
+		liveStatusCardView = card;
+		liveStatusSummaryView = summaryView;
+		liveStatusIssueView = issueView;
+		applyLiveStatus(m);
+		return card;
+	}
+
+	private void applyLiveStatus(StatusModel m) {
+		if (liveStatusSummaryView != null) {
+			liveStatusSummaryView.setText(m.summary());
+		}
+		if (liveStatusIssueView != null) {
+			if (m.issue() == null || m.issue().isBlank()) {
+				liveStatusIssueView.setText("");
+				liveStatusIssueView.setVisibility(View.GONE);
+			} else {
+				liveStatusIssueView.setVisibility(View.VISIBLE);
+				liveStatusIssueView.setText(m.issue());
+				liveStatusIssueView.setTextColor(m.accent() == GREEN ? TEXT_DIM : m.accent());
+			}
+		}
+		if (liveStatusCardView != null) {
+			liveStatusCardView.setBackground(HolographicTheme.acrylic(PANEL_ROW, m.accent(), 10f));
+		}
+	}
+
+	/** Recompute and re-render the live status card from the current model, if one is active. */
+	private void updateLiveStatus() {
+		if (liveStatusModel != null) {
+			applyLiveStatus(liveStatusModel.get());
+		}
 	}
 
 	private View infoCard(String label, String title, String value, int accentColor) {
@@ -2759,6 +2897,9 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	private void navigateTo(Page page) {
 		currentPage = page;
 		pickerTarget = PickerTarget.NONE;
+		// Explicit page switches start at the top; only in-page rebuilds preserve scroll.
+		savedScrollY.clear();
+		liveScrollShells.clear();
 		// Populate derived state that each page depends on BEFORE we rebuild so that the
 		// render path never has to query the network layer or iterate global state.
 		if (page == Page.TRANSFER) {
@@ -2879,6 +3020,30 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		return input;
 	}
 
+	/**
+	 * Wire an EditText so pressing Enter (or numpad Enter) runs the current page's primary
+	 * action (#3). The freshly typed value is flushed into model state via {@link
+	 * #stashInputs()} first, mirroring what a full rebuild would do, so the action sees the
+	 * latest input. The listener is checked before the editor's own key handling.
+	 */
+	private void submitOnEnter(EditText input) {
+		if (input == null) {
+			return;
+		}
+		input.setOnKeyListener((v, keyCode, event) -> {
+			if (event.getAction() == KeyEvent.ACTION_DOWN
+					&& (keyCode == KeyEvent.KEY_ENTER || keyCode == KeyEvent.KEY_KP_ENTER)) {
+				Runnable action = primaryAction;
+				if (action != null) {
+					stashInputs();
+					action.run();
+					return true;
+				}
+			}
+			return false;
+		});
+	}
+
 	private TextView chip() {
 		TextView view = new TextView(requireContext());
 		view.setTextSize(13f);
@@ -2943,10 +3108,47 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	}
 
 	private ScrollView scrollShell() {
+		return scrollShell(null);
+	}
+
+	/**
+	 * Keyed variant of {@link #scrollShell()}. When {@code key} is non-null the new shell is
+	 * registered so its scroll offset is captured before the next rebuild ({@link
+	 * #stashScrollPositions()}) and re-applied here, keeping long lists from snapping back to
+	 * the top whenever an in-page interaction triggers a full view-tree rebuild.
+	 */
+	private ScrollView scrollShell(String key) {
 		ScrollView scroll = new HoloScrollView(requireContext());
 		scroll.setBackground(HolographicTheme.acrylic(PANEL_ROW, WINDOW_STROKE, 10f));
 		wireScrollFocus(scroll);
+		if (key != null) {
+			liveScrollShells.put(key, scroll);
+			Integer saved = savedScrollY.get(key);
+			if (saved != null && saved > 0) {
+				int target = saved;
+				// Defer until after measure/layout so the content height exists and the
+				// offset is not clamped to 0.
+				scroll.post(() -> scroll.scrollTo(0, target));
+			}
+		}
 		return scroll;
+	}
+
+	/**
+	 * Snapshot the live scroll offsets just before the view tree is rebuilt. Mirrors the
+	 * input/focus stashing done in {@link #stashInputs()}.
+	 */
+	private void stashScrollPositions() {
+		if (liveScrollShells.isEmpty()) {
+			return;
+		}
+		for (java.util.Map.Entry<String, ScrollView> entry : liveScrollShells.entrySet()) {
+			ScrollView scroll = entry.getValue();
+			if (scroll != null) {
+				savedScrollY.put(entry.getKey(), scroll.getScrollY());
+			}
+		}
+		liveScrollShells.clear();
 	}
 
 	/**
