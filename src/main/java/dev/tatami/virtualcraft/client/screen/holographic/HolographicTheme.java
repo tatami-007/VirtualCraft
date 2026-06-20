@@ -4,9 +4,13 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 
 import dev.tatami.virtualcraft.currency.CryptoCurrency;
+import icyllis.modernui.animation.ValueAnimator;
 import icyllis.modernui.graphics.drawable.Drawable;
 import icyllis.modernui.graphics.drawable.LayerDrawable;
 import icyllis.modernui.graphics.drawable.ShapeDrawable;
+import icyllis.modernui.view.MotionEvent;
+import icyllis.modernui.view.View;
+import icyllis.modernui.widget.Toast;
 
 /**
  * Static design tokens & drawable helpers shared by every page of the
@@ -177,5 +181,108 @@ public final class HolographicTheme {
 		// For older entries, falling back to the existing absolute timestamp
 		// preserves precision without polluting the UI.
 		return TIME_FORMAT.format(java.time.Instant.ofEpochSecond(epochSeconds));
+	}
+
+	// -- App-feel micro-interactions -------------------------------------
+	// These rely on ModernUI's frame-driven ValueAnimator (NOT View.postDelayed,
+	// which is unreliable on Minecraft's render thread) so they animate smoothly.
+
+	private static final float HOVER_SCALE = 1.02f;
+	private static final float PRESS_SCALE = 0.96f;
+
+	/**
+	 * Wires hover + press feedback onto any clickable view: a subtle lift on
+	 * hover and a spring-down on press, like tapping a button in a phone app.
+	 * Both listeners return {@code false} so the view's own click handling is
+	 * untouched.
+	 */
+	public static void interactive(View view) {
+		// state[0] = hovered, state[1] = pressed
+		final boolean[] state = new boolean[2];
+		view.setOnHoverListener((v, event) -> {
+			int action = event.getAction();
+			if (action == MotionEvent.ACTION_HOVER_ENTER) {
+				state[0] = true;
+				animateScale(v, combinedScale(state));
+			} else if (action == MotionEvent.ACTION_HOVER_EXIT) {
+				state[0] = false;
+				animateScale(v, combinedScale(state));
+			}
+			return false;
+		});
+		view.setOnTouchListener((v, event) -> {
+			int action = event.getAction();
+			if (action == MotionEvent.ACTION_DOWN) {
+				state[1] = true;
+				animateScale(v, combinedScale(state));
+			} else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+				state[1] = false;
+				animateScale(v, combinedScale(state));
+			}
+			return false;
+		});
+	}
+
+	private static float combinedScale(boolean[] state) {
+		float scale = 1f;
+		if (state[0]) {
+			scale *= HOVER_SCALE;
+		}
+		if (state[1]) {
+			scale *= PRESS_SCALE;
+		}
+		return scale;
+	}
+
+	private static void animateScale(View view, float target) {
+		view.setPivotX(view.getWidth() / 2f);
+		view.setPivotY(view.getHeight() / 2f);
+		final float from = view.getScaleX();
+		if (Math.abs(from - target) < 0.001f) {
+			return;
+		}
+		ValueAnimator anim = ValueAnimator.ofFloat(0f, 1f);
+		anim.setDuration(90);
+		anim.addUpdateListener(a -> {
+			float f = (float) a.getAnimatedValue();
+			float scale = from + (target - from) * f;
+			view.setScaleX(scale);
+			view.setScaleY(scale);
+		});
+		anim.start();
+	}
+
+	/** Fade + slide-in used when a page's content tree is (re)built on tab switch. */
+	public static void enterTransition(View view) {
+		view.setAlpha(0f);
+		view.setTranslationX(14f);
+		ValueAnimator anim = ValueAnimator.ofFloat(0f, 1f);
+		anim.setDuration(160);
+		anim.addUpdateListener(a -> {
+			float f = (float) a.getAnimatedValue();
+			view.setAlpha(f);
+			view.setTranslationX((1f - f) * 14f);
+		});
+		anim.start();
+	}
+
+	/** Animated vertical scroll, so keyboard navigation glides instead of jumping. */
+	public static void smoothScrollY(View view, int targetY) {
+		final int from = view.getScrollY();
+		if (from == targetY) {
+			return;
+		}
+		ValueAnimator anim = ValueAnimator.ofFloat(0f, 1f);
+		anim.setDuration(150);
+		anim.addUpdateListener(a -> {
+			float f = (float) a.getAnimatedValue();
+			view.scrollTo(0, Math.round(from + (targetY - from) * f));
+		});
+		anim.start();
+	}
+
+	/** App-style transient toast notification anchored by the ModernUI window. */
+	public static void toast(icyllis.modernui.core.Context context, String text) {
+		Toast.makeText(context, text, Toast.LENGTH_SHORT).show();
 	}
 }

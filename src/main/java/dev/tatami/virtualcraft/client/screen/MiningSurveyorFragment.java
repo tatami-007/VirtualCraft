@@ -302,9 +302,9 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 			int viewTop = resultScroll.getScrollY();
 			int viewHeight = resultScroll.getHeight();
 			if (top < viewTop) {
-				resultScroll.scrollTo(0, top);
+				HolographicTheme.smoothScrollY(resultScroll, top);
 			} else if (bottom > viewTop + viewHeight) {
-				resultScroll.scrollTo(0, Math.max(0, bottom - viewHeight));
+				HolographicTheme.smoothScrollY(resultScroll, Math.max(0, bottom - viewHeight));
 			}
 		});
 	}
@@ -485,6 +485,7 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 				refreshResults();
 			}
 		});
+		HolographicTheme.interactive(container);
 		return container;
 	}
 
@@ -704,6 +705,7 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 		button.setPadding(dp(8), dp(5), dp(8), dp(5));
 		button.setBackground(HolographicTheme.rounded(PANEL_BUTTON, WINDOW_STROKE, 9f, 1));
 		button.setOnClickListener(v -> action.run());
+		HolographicTheme.interactive(button);
 		return button;
 	}
 

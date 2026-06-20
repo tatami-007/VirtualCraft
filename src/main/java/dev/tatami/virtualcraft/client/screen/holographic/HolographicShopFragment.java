@@ -150,6 +150,9 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	// bounced back to Wallet every time they reopen the terminal.
 	private static Page lastOpenedPage = Page.WALLET;
 	private Page currentPage = lastOpenedPage;
+	// When true, the next content rebuild plays a fade/slide-in transition. Set on
+	// real page switches (and first open) only, so in-page refreshes don't flicker.
+	private boolean pageTransitionPending;
 	// Visual order of the nav column — indexes the 1..6 keyboard shortcuts.
 	private static final Page[] NAV_ORDER = {
 			Page.WALLET, Page.CONVERT, Page.SHOP, Page.TRANSFER, Page.MINING, Page.CONTRACTS };
@@ -400,6 +403,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		if (currentPage == Page.TRANSFER) {
 			refreshPlayerSuggestions();
 		}
+		pageTransitionPending = true;
 		refreshPage(FocusTarget.NONE);
 		// Number-key tab switching (1..6). The root holds focus by default so the
 		// shortcuts work immediately on open; once a text field is focused it
@@ -751,6 +755,10 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		buildActionPage();
 		refreshPicker();
 		restoreFocus(focusTarget);
+		if (pageTransitionPending) {
+			pageTransitionPending = false;
+			HolographicTheme.enterTransition(contentColumn);
+		}
 	}
 
 	private void refreshNav() {
@@ -1166,8 +1174,10 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			actionColumn.addView(actionButton(t("screen.virtual_craft.holographic_shop.deposit_current", selectedWalletCurrency.ticker()), GREEN, this::sendWalletDeposit),
 				new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(30)));
 			actionColumn.addView(spacer(dp(6)));
-			actionColumn.addView(actionButton(t("screen.virtual_craft.holographic_shop.deposit_all"), CYAN, () ->
-					PacketDistributor.sendToServer(new WalletActionPayload(sessionId, WalletActionPayload.Action.DEPOSIT_ALL, "", "", 0L, ""))),
+			actionColumn.addView(actionButton(t("screen.virtual_craft.holographic_shop.deposit_all"), CYAN, () -> {
+					PacketDistributor.sendToServer(new WalletActionPayload(sessionId, WalletActionPayload.Action.DEPOSIT_ALL, "", "", 0L, ""));
+					toast("screen.virtual_craft.holographic_shop.toast.deposit");
+				}),
 				new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(30)));
 			return;
 		}
@@ -2007,7 +2017,10 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		actionRow.addView(goal, weighted(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 		Button claim = compactActionButton(contract.claimed()
 				? t("screen.virtual_craft.holographic_shop.contracts.claimed")
-				: t("screen.virtual_craft.holographic_shop.contracts.claim"), () -> sendContractClaim(contract.id()));
+				: t("screen.virtual_craft.holographic_shop.contracts.claim"), () -> {
+					sendContractClaim(contract.id());
+					toast("screen.virtual_craft.holographic_shop.toast.claim");
+				});
 		claim.setEnabled(complete && !contract.claimed());
 		claim.setTextColor(complete && !contract.claimed() ? GREEN : TEXT_DIM);
 		actionRow.addView(claim, new LinearLayout.LayoutParams(dp(76), dp(30)));
@@ -2052,10 +2065,15 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 
 	/** Claim every contract that is complete but not yet claimed (one packet each). */
 	private void claimAllContracts() {
+		int claimed = 0;
 		for (DailyContractSnapshot contract : contractCache) {
 			if (!contract.claimed() && contract.progress() >= contract.target()) {
 				sendContractClaim(contract.id());
+				claimed++;
 			}
+		}
+		if (claimed > 0) {
+			toast("screen.virtual_craft.holographic_shop.toast.claim");
 		}
 	}
 
@@ -3082,6 +3100,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		if (page != null) {
 			button.setOnClickListener(v -> navigateTo(page));
 		}
+		HolographicTheme.interactive(button);
 		return button;
 	}
 
@@ -3132,6 +3151,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	private void navigateTo(Page page) {
 		currentPage = page;
 		lastOpenedPage = page;
+		pageTransitionPending = true;
 		pickerTarget = PickerTarget.NONE;
 		// Explicit page switches start at the top; only in-page rebuilds preserve scroll.
 		savedScrollY.clear();
@@ -3166,6 +3186,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		button.setPadding(0, 0, 0, 0);
 		button.setBackground(rounded(PANEL_BUTTON, accentColor, 9f, 1));
 		button.setOnClickListener(v -> action.run());
+		HolographicTheme.interactive(button);
 		return button;
 	}
 
@@ -3187,6 +3208,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		button.setPadding(dp(8), dp(6), dp(8), dp(6));
 		button.setBackground(rounded(PANEL_BUTTON, WINDOW_STROKE, 9f, 1));
 		button.setOnClickListener(v -> action.run());
+		HolographicTheme.interactive(button);
 		return button;
 	}
 
@@ -3215,6 +3237,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		button.setPadding(dp(8), dp(6), dp(8), dp(6));
 		button.setBackground(rounded(selected ? PANEL_ACTIVE : PANEL_BUTTON, selected ? CYAN : WINDOW_STROKE, 9f, 1));
 		button.setOnClickListener(v -> action.run());
+		HolographicTheme.interactive(button);
 		return button;
 	}
 
@@ -4081,12 +4104,18 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		return new VoucherSummary(tiers, totalCount, totalBtcMinor);
 	}
 
+	/** Show a transient app-style confirmation toast keyed by a lang string. */
+	private void toast(String key) {
+		HolographicTheme.toast(requireContext(), t(key));
+	}
+
 	private void sendShopAction(ShopActionPayload.Action action) {
 		ShopOffer offer = selectedOffer();
 		if (offer == null) {
 			return;
 		}
 		PacketDistributor.sendToServer(new ShopActionPayload(sessionId, action, selectedOfferIndex, Math.max(1, parseInt(shopQuantityText, 1)), shopSettlementCurrency.id()));
+		toast("screen.virtual_craft.holographic_shop.toast.order");
 	}
 
 	private void sendWalletDeposit() {
@@ -4102,6 +4131,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 				"",
 				walletDepositMinor(),
 				""));
+		toast("screen.virtual_craft.holographic_shop.toast.deposit");
 	}
 
 	private void sendWalletWithdraw(WalletActionPayload.Action action) {
@@ -4114,6 +4144,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 				? CryptoCurrency.USDT
 				: selectedWalletCurrency;
 		PacketDistributor.sendToServer(new WalletActionPayload(sessionId, action, currency.id(), "", walletWithdrawMinor(), ""));
+		toast("screen.virtual_craft.holographic_shop.toast.withdraw");
 	}
 
 	private void sendConvertAction() {
@@ -4129,6 +4160,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 				convertTargetCurrency.id(),
 				convertSourceAmount(),
 				""));
+		toast("screen.virtual_craft.holographic_shop.toast.convert");
 	}
 
 	private void sendTransferAction() {
@@ -4146,6 +4178,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 				parseAmount(transferCurrency, transferAmountText),
 				transferTargetText.trim(),
 				transferMemoText.trim()));
+		toast("screen.virtual_craft.holographic_shop.toast.transfer");
 	}
 
 	private void sendMiningAction() {
@@ -4161,6 +4194,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 				"",
 				parseWhole(miningAmountText),
 				""));
+		toast("screen.virtual_craft.holographic_shop.toast.mining");
 	}
 
 	private void sendContractClaim(String contractId) {
