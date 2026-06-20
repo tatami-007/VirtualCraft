@@ -3122,7 +3122,9 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		button.setTextColor(TEXT);
 		button.setMinimumWidth(0);
 		button.setMinimumHeight(0);
-		button.setPadding(0, 0, dp(1), dp(1));
+		// Symmetric padding so the status glyph sits dead-centre in the button.
+		// The old asymmetric (right/bottom) padding nudged it up-left.
+		button.setPadding(0, 0, 0, 0);
 		button.setBackground(rounded(PANEL_BUTTON, accentColor, 9f, 1));
 		button.setOnClickListener(v -> action.run());
 		return button;
