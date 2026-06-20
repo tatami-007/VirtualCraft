@@ -372,6 +372,7 @@
   "screen.virtual_craft.mining_surveyor.filter.source": "Source",
   "screen.virtual_craft.mining_surveyor.filter.sort": "Sort",
   "screen.virtual_craft.mining_surveyor.count": "%s items",
+  "screen.virtual_craft.mining_surveyor.kbd_hint": "\u2191\u2193 select \u00b7 Enter scan \u00b7 double-click to scan",
   "screen.virtual_craft.mining_surveyor.empty": "No matching ores",
   "screen.virtual_craft.mining_surveyor.empty_hint": "Try another keyword or switch the vanilla/mod filter.",
   "screen.virtual_craft.mining_surveyor.selected": "Selected",

@@ -150,6 +150,9 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	// bounced back to Wallet every time they reopen the terminal.
 	private static Page lastOpenedPage = Page.WALLET;
 	private Page currentPage = lastOpenedPage;
+	// Visual order of the nav column — indexes the 1..6 keyboard shortcuts.
+	private static final Page[] NAV_ORDER = {
+			Page.WALLET, Page.CONVERT, Page.SHOP, Page.TRANSFER, Page.MINING, Page.CONTRACTS };
 	private int selectedOfferIndex;
 	private CryptoCurrency selectedWalletCurrency = CryptoCurrency.USDT;
 	private CryptoCurrency convertSourceCurrency = CryptoCurrency.USDT;
@@ -398,6 +401,13 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			refreshPlayerSuggestions();
 		}
 		refreshPage(FocusTarget.NONE);
+		// Number-key tab switching (1..6). The root holds focus by default so the
+		// shortcuts work immediately on open; once a text field is focused it
+		// naturally consumes the digit (typing an amount), so we never fight input.
+		root.setFocusable(true);
+		root.setFocusableInTouchMode(true);
+		root.setOnKeyListener((v, keyCode, event) -> handleNavShortcut(keyCode, event));
+		root.post(root::requestFocus);
 		// Note: the server pushes the initial wallet/exchange/preferences/catalog
 		// snapshot itself right after openMenu (see HolographicShopSyncDispatcher),
 		// so we no longer need a client → server REQUEST_SYNC round-trip here.
@@ -758,17 +768,17 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		ResourceLocation miningIcon = ResourceLocation.fromNamespaceAndPath("virtual_craft", "encrypted_hash_voucher");
 		ResourceLocation contractsIcon = ResourceLocation.fromNamespaceAndPath("minecraft", "writable_book");
 		LinearLayout.LayoutParams navParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32));
-		navColumn.addView(navIconButton(walletIcon, t("screen.virtual_craft.holographic_shop.page.wallet"), Page.WALLET), navParams);
+		navColumn.addView(navIconButton(walletIcon, "1  " + t("screen.virtual_craft.holographic_shop.page.wallet"), Page.WALLET), navParams);
 		navColumn.addView(spacer(dp(6)));
-		navColumn.addView(navIconButton(convertIcon, t("screen.virtual_craft.holographic_shop.page.convert"), Page.CONVERT), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
+		navColumn.addView(navIconButton(convertIcon, "2  " + t("screen.virtual_craft.holographic_shop.page.convert"), Page.CONVERT), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
 		navColumn.addView(spacer(dp(6)));
-		navColumn.addView(navIconButton(shopIcon, t("screen.virtual_craft.holographic_shop.page.shop"), Page.SHOP), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
+		navColumn.addView(navIconButton(shopIcon, "3  " + t("screen.virtual_craft.holographic_shop.page.shop"), Page.SHOP), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
 		navColumn.addView(spacer(dp(6)));
-		navColumn.addView(navIconButton(transferIcon, t("screen.virtual_craft.holographic_shop.page.transfer"), Page.TRANSFER), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
+		navColumn.addView(navIconButton(transferIcon, "4  " + t("screen.virtual_craft.holographic_shop.page.transfer"), Page.TRANSFER), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
 		navColumn.addView(spacer(dp(6)));
-		navColumn.addView(navIconButton(miningIcon, t("screen.virtual_craft.holographic_shop.page.mining"), Page.MINING), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
+		navColumn.addView(navIconButton(miningIcon, "5  " + t("screen.virtual_craft.holographic_shop.page.mining"), Page.MINING), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
 		navColumn.addView(spacer(dp(6)));
-		navColumn.addView(navIconButton(contractsIcon, t("screen.virtual_craft.holographic_shop.page.contracts"), Page.CONTRACTS), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
+		navColumn.addView(navIconButton(contractsIcon, "6  " + t("screen.virtual_craft.holographic_shop.page.contracts"), Page.CONTRACTS), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
 		navColumn.addView(spacer(dp(14)));
 		navColumn.addView(sectionHeader(t("screen.virtual_craft.holographic_shop.sidebar.portfolio"), null));
 
@@ -3096,6 +3106,27 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			button.setCompoundDrawablePadding(dp(8));
 		}
 		return button;
+	}
+
+	private boolean handleNavShortcut(int keyCode, KeyEvent event) {
+		if (event.getAction() != KeyEvent.ACTION_DOWN) {
+			return false;
+		}
+		if (keyCode < KeyEvent.KEY_1 || keyCode > KeyEvent.KEY_9) {
+			return false;
+		}
+		int index = keyCode - KeyEvent.KEY_1;
+		if (index >= NAV_ORDER.length) {
+			return false;
+		}
+		Page page = NAV_ORDER[index];
+		if (page != currentPage) {
+			navigateTo(page);
+		}
+		if (root != null) {
+			root.requestFocus();
+		}
+		return true;
 	}
 
 	private void navigateTo(Page page) {

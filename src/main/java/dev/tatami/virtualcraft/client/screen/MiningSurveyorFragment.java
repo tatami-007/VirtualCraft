@@ -60,8 +60,11 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 	private FrameLayout root;
 	private LinearLayout targetCard;
 	private LinearLayout resultList;
+	private ScrollView resultScroll;
 	private LinearLayout filterRowContainer;
 	private Button searchClearButton;
+	private Button scanButton;
+	private TextView headerCount;
 	private EditText searchInput;
 	private MiningSurveyTarget selectedTarget;
 	private String lastClickedKey;
@@ -85,6 +88,7 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 		root = new FrameLayout(requireContext());
 		root.setFocusable(true);
 		root.setFocusableInTouchMode(true);
+		root.setOnKeyListener((v, keyCode, event) -> handleListKey(keyCode, event));
 		root.setBackground(HolographicTheme.rounded(0x40081422, 0, 0f, 0));
 		root.setPadding(dp(18), dp(18), dp(18), dp(18));
 
@@ -120,11 +124,18 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 		main.addView(buildFilterRow());
 		main.addView(spacer(dp(8)));
 
-		ScrollView scroll = new HoloScrollView(requireContext());
+		resultScroll = new HoloScrollView(requireContext());
 		resultList = vertical();
 		resultList.setPadding(dp(2), dp(2), dp(8), dp(18));
-		scroll.addView(resultList, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-		main.addView(scroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+		resultScroll.addView(resultList, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+		main.addView(resultScroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+		// Always-on keyboard cheat-sheet under the list so the new navigation is
+		// discoverable without a tooltip hunt.
+		TextView kbdHint = hintText(t("screen.virtual_craft.mining_surveyor.kbd_hint"));
+		kbdHint.setGravity(Gravity.CENTER);
+		LinearLayout.LayoutParams kbdParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+		kbdParams.setMargins(0, dp(6), 0, 0);
+		main.addView(kbdHint, kbdParams);
 
 		LinearLayout action = vertical();
 		action.setPadding(dp(14), dp(14), dp(14), dp(14));
@@ -137,7 +148,8 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 		targetCard.setPadding(dp(14), dp(12), dp(14), dp(12));
 		action.addView(targetCard, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 		action.addView(spacer(dp(10)));
-		action.addView(actionButton(t("screen.virtual_craft.mining_surveyor.scan"), CYAN, this::scan), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(36)));
+		scanButton = actionButton(t("screen.virtual_craft.mining_surveyor.scan"), CYAN, this::scan);
+		action.addView(scanButton, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(36)));
 		action.addView(spacer(dp(8)));
 		action.addView(buildUtilityActions(), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(34)));
 
@@ -156,6 +168,9 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 		header.setGravity(Gravity.CENTER_VERTICAL);
 		TextView title = titleText(t("screen.virtual_craft.mining_surveyor.title"));
 		header.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+		headerCount = hintText("");
+		headerCount.setTextSize(13f);
+		header.addView(headerCount);
 		return header;
 	}
 
@@ -201,16 +216,9 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 		// v25 Enter-to-scan: if exactly one result remains visible, hitting Enter
 		// selects+scans without forcing the user back to the mouse for the scan
 		// button. Most common path is "type 'diamo' → Enter".
-		searchInput.setOnKeyListener((v, keyCode, event) -> {
-			if (event.getAction() != KeyEvent.ACTION_DOWN) {
-				return false;
-			}
-			if (keyCode != KeyEvent.KEY_ENTER && keyCode != KeyEvent.KEY_KP_ENTER) {
-				return false;
-			}
-			attemptQuickScan();
-			return true;
-		});
+		// ↑/↓ move the selection through the live result list, Enter scans it —
+		// the whole pick→scan loop becomes keyboard-only, no reach for the mouse.
+		searchInput.setOnKeyListener((v, keyCode, event) -> handleListKey(keyCode, event));
 		LinearLayout.LayoutParams searchParams = new LinearLayout.LayoutParams(0, dp(32), 1f);
 		bar.addView(searchInput, searchParams);
 
@@ -226,15 +234,103 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 
 	private void attemptQuickScan() {
 		List<MiningSurveyTarget> visible = visibleTargets();
-		if (visible.size() == 1) {
+		if (selectedTarget != null && containsKey(visible, selectedTarget)) {
+			// Honor the active selection first — this is what the ↑/↓ + Enter flow expects.
+			scan();
+		} else if (visible.size() == 1) {
 			// Disambiguated by the current search/filter — fire the one match.
 			selectedTarget = visible.get(0);
 			scan();
-		} else if (selectedTarget != null && visible.contains(selectedTarget)) {
-			// Multiple visible but the active selection is among them — honor it.
-			scan();
 		}
 		// Else ambiguous; do nothing so the player picks one explicitly.
+	}
+
+	private boolean handleListKey(int keyCode, KeyEvent event) {
+		if (event.getAction() != KeyEvent.ACTION_DOWN) {
+			return false;
+		}
+		switch (keyCode) {
+			case KeyEvent.KEY_DOWN -> {
+				moveSelection(1);
+				return true;
+			}
+			case KeyEvent.KEY_UP -> {
+				moveSelection(-1);
+				return true;
+			}
+			case KeyEvent.KEY_ENTER, KeyEvent.KEY_KP_ENTER -> {
+				attemptQuickScan();
+				return true;
+			}
+			default -> {
+				return false;
+			}
+		}
+	}
+
+	private void moveSelection(int delta) {
+		List<MiningSurveyTarget> visible = visibleTargets();
+		if (visible.isEmpty()) {
+			return;
+		}
+		int index = -1;
+		if (selectedTarget != null) {
+			for (int i = 0; i < visible.size(); i++) {
+				if (visible.get(i).key().equals(selectedTarget.key())) {
+					index = i;
+					break;
+				}
+			}
+		}
+		int next = index < 0
+				? (delta > 0 ? 0 : visible.size() - 1)
+				: Math.floorMod(index + delta, visible.size());
+		selectedTarget = visible.get(next);
+		refreshSelectedCard();
+		refreshResults();
+		scrollSelectedIntoView(next);
+	}
+
+	private void scrollSelectedIntoView(int index) {
+		if (resultScroll == null) {
+			return;
+		}
+		int rowHeight = dp(48) + dp(6);
+		int top = index * rowHeight;
+		int bottom = top + dp(48);
+		resultScroll.post(() -> {
+			int viewTop = resultScroll.getScrollY();
+			int viewHeight = resultScroll.getHeight();
+			if (top < viewTop) {
+				resultScroll.scrollTo(0, top);
+			} else if (bottom > viewTop + viewHeight) {
+				resultScroll.scrollTo(0, Math.max(0, bottom - viewHeight));
+			}
+		});
+	}
+
+	private boolean containsKey(List<MiningSurveyTarget> list, MiningSurveyTarget target) {
+		for (MiningSurveyTarget candidate : list) {
+			if (candidate.key().equals(target.key())) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private void updateScanButton() {
+		if (scanButton == null) {
+			return;
+		}
+		if (selectedTarget != null) {
+			scanButton.setText(t("screen.virtual_craft.mining_surveyor.scan") + " \u00b7 " + selectedTarget.name().getString());
+			scanButton.setEnabled(true);
+			scanButton.setAlpha(1f);
+		} else {
+			scanButton.setText(t("screen.virtual_craft.mining_surveyor.scan"));
+			scanButton.setEnabled(false);
+			scanButton.setAlpha(0.4f);
+		}
 	}
 
 	private void refreshSearchAffordances() {
@@ -335,6 +431,9 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 		if (visible.isEmpty()) {
 			resultList.addView(emptyState(t("screen.virtual_craft.mining_surveyor.empty"), t("screen.virtual_craft.mining_surveyor.empty_hint")));
 		}
+		if (headerCount != null) {
+			headerCount.setText(t("screen.virtual_craft.mining_surveyor.count", visible.size()));
+		}
 		refreshSearchAffordances();
 	}
 
@@ -390,6 +489,7 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 	}
 
 	private void refreshSelectedCard() {
+		updateScanButton();
 		if (targetCard == null) {
 			return;
 		}

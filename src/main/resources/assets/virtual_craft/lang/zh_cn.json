@@ -372,6 +372,7 @@
   "screen.virtual_craft.mining_surveyor.filter.source": "来源",
   "screen.virtual_craft.mining_surveyor.filter.sort": "排序",
   "screen.virtual_craft.mining_surveyor.count": "%s 项",
+  "screen.virtual_craft.mining_surveyor.kbd_hint": "\u2191\u2193 选择 · 回车扫描 · 双击直接扫",
   "screen.virtual_craft.mining_surveyor.empty": "没有匹配矿物",
   "screen.virtual_craft.mining_surveyor.empty_hint": "换个关键词，或切换原版/模组筛选。",
   "screen.virtual_craft.mining_surveyor.selected": "已选",
