@@ -461,5 +461,12 @@
   "item.virtual_craft.hard_drive": "硬盘",
   "item.virtual_craft.copper_wire": "铜线",
   "item.virtual_craft.silicon_wafer": "硅片",
-  "item.virtual_craft.silicon": "硅"
+  "item.virtual_craft.silicon": "硅",
+  "message.virtual_craft.data_mine.enter": "接入数据矿脉 · 第 %1$s 层",
+  "message.virtual_craft.data_mine.descend": "下潜至第 %1$s 层 · 危险与矿脉同步提升",
+  "message.virtual_craft.data_mine.mined": "算力袋 +%1$s · 合计 %2$s",
+  "message.virtual_craft.data_mine.settle": "撤离结算 · 最深 %1$s 层 · 碎片 ×%2$s · 算力券 ×%3$s",
+  "message.virtual_craft.data_mine.settle_empty": "算力袋为空，无可结算",
+  "message.virtual_craft.data_mine.death": "阵亡 · 本局算力袋 %1$s 单位已丢失",
+  "message.virtual_craft.data_mine.extract_hint": "潜行右键计算机 撤离并结算（袋：%1$s）"
 }

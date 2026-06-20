@@ -124,6 +124,7 @@ public class ComputerItem extends Item {
 	 * 才退而求其次回到主世界 shared spawn——避免静默 "传错地方" 的体验。
 	 */
 	private static void exitVirtualWorld(ServerPlayer player, MinecraftServer server) {
+		dev.tatami.virtualcraft.gameplay.VirtualDataRelicManager.settleRun(player);
 		VirtualWorldReturnPoint rp = player.getData(ModAttachments.VIRTUAL_WORLD_RETURN_POINT);
 		ServerLevel target;
 		Vec3 pos;

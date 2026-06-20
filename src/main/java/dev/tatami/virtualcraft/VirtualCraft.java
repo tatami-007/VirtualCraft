@@ -21,6 +21,7 @@ import dev.tatami.virtualcraft.client.highlight.AbsorberOreHighlighter;
 import dev.tatami.virtualcraft.client.highlight.MiningSurveyorHighlighter;
 import dev.tatami.virtualcraft.client.VirtualCraftClient;
 import dev.tatami.virtualcraft.exchange.ExchangeRateService;
+import dev.tatami.virtualcraft.gameplay.DataMineEvents;
 import dev.tatami.virtualcraft.gameplay.HolographicTerminalSession;
 import dev.tatami.virtualcraft.network.CloseHolographicTerminalPayload;
 import dev.tatami.virtualcraft.network.NetworkMessageRegistry;
@@ -82,6 +83,7 @@ public class VirtualCraft {
 
 		// 1:1 ME-Beam-Former 全局无线塔管理器 — 集中调度所有塔的能量转发，应听 ServerTickEvent.Post + ServerStoppedEvent
 		WirelessEnergyNetwork.registerEvents(NeoForge.EVENT_BUS);
+		DataMineEvents.register(NeoForge.EVENT_BUS);
 
 		ModBlocks.REGISTRY.register(modEventBus);
 		ModBlockEntities.REGISTRY.register(modEventBus);

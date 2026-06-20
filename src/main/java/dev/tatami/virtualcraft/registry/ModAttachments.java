@@ -1,6 +1,7 @@
 package dev.tatami.virtualcraft.registry;
 
 import dev.tatami.virtualcraft.VirtualCraft;
+import dev.tatami.virtualcraft.gameplay.DataMineRunState;
 import dev.tatami.virtualcraft.gameplay.VirtualWorldReturnPoint;
 import dev.tatami.virtualcraft.wallet.WalletBalances;
 import dev.tatami.virtualcraft.wallet.WalletPreferences;
@@ -29,4 +30,7 @@ public final class ModAttachments {
 	 */
 	public static final DeferredHolder<AttachmentType<?>, AttachmentType<VirtualWorldReturnPoint>> VIRTUAL_WORLD_RETURN_POINT = REGISTRY.register("virtual_world_return_point",
 			() -> AttachmentType.serializable(VirtualWorldReturnPoint::new).copyOnDeath().build());
+
+	public static final DeferredHolder<AttachmentType<?>, AttachmentType<DataMineRunState>> DATA_MINE_RUN = REGISTRY.register("data_mine_run",
+			() -> AttachmentType.serializable(DataMineRunState::new).build());
 }
