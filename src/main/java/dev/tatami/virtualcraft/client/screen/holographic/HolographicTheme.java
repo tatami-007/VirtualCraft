@@ -187,26 +187,26 @@ public final class HolographicTheme {
 	// These rely on ModernUI's frame-driven ValueAnimator (NOT View.postDelayed,
 	// which is unreliable on Minecraft's render thread) so they animate smoothly.
 
-	private static final float HOVER_SCALE = 1.02f;
-	private static final float PRESS_SCALE = 0.96f;
+	private static final float PRESS_SCALE = 0.97f;
+	private static final float HOVER_ALPHA = 0.78f;
+	private static final float PRESS_ALPHA = 0.55f;
 
 	/**
-	 * Wires hover + press feedback onto any clickable view: a subtle lift on
-	 * hover and a spring-down on press, like tapping a button in a phone app.
-	 * Both listeners return {@code false} so the view's own click handling is
-	 * untouched.
+	 * Wires hover + press feedback onto any clickable view. Hover dims the
+	 * view slightly; press both dims and shrinks it. Alpha-based hover avoids
+	 * the scale-up clipping that occurred when the view grew past its layout
+	 * bounds. Both listeners return {@code false} so click handling is untouched.
 	 */
 	public static void interactive(View view) {
-		// state[0] = hovered, state[1] = pressed
 		final boolean[] state = new boolean[2];
 		view.setOnHoverListener((v, event) -> {
 			int action = event.getAction();
 			if (action == MotionEvent.ACTION_HOVER_ENTER) {
 				state[0] = true;
-				animateScale(v, combinedScale(state));
+				applyInteractiveState(v, state);
 			} else if (action == MotionEvent.ACTION_HOVER_EXIT) {
 				state[0] = false;
-				animateScale(v, combinedScale(state));
+				applyInteractiveState(v, state);
 			}
 			return false;
 		});
@@ -214,38 +214,41 @@ public final class HolographicTheme {
 			int action = event.getAction();
 			if (action == MotionEvent.ACTION_DOWN) {
 				state[1] = true;
-				animateScale(v, combinedScale(state));
+				applyInteractiveState(v, state);
 			} else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
 				state[1] = false;
-				animateScale(v, combinedScale(state));
+				applyInteractiveState(v, state);
 			}
 			return false;
 		});
 	}
 
-	private static float combinedScale(boolean[] state) {
-		float scale = 1f;
-		if (state[0]) {
-			scale *= HOVER_SCALE;
-		}
+	private static void applyInteractiveState(View view, boolean[] state) {
+		float targetAlpha = 1f;
+		float targetScale = 1f;
 		if (state[1]) {
-			scale *= PRESS_SCALE;
+			targetAlpha = PRESS_ALPHA;
+			targetScale = PRESS_SCALE;
+		} else if (state[0]) {
+			targetAlpha = HOVER_ALPHA;
 		}
-		return scale;
+		animateInteractive(view, targetAlpha, targetScale);
 	}
 
-	private static void animateScale(View view, float target) {
-		view.setPivotX(view.getWidth() / 2f);
-		view.setPivotY(view.getHeight() / 2f);
-		final float from = view.getScaleX();
-		if (Math.abs(from - target) < 0.001f) {
+	private static void animateInteractive(View view, float targetAlpha, float targetScale) {
+		final float fromAlpha = view.getAlpha();
+		final float fromScale = view.getScaleX();
+		if (Math.abs(fromAlpha - targetAlpha) < 0.001f && Math.abs(fromScale - targetScale) < 0.001f) {
 			return;
 		}
+		view.setPivotX(view.getWidth() / 2f);
+		view.setPivotY(view.getHeight() / 2f);
 		ValueAnimator anim = ValueAnimator.ofFloat(0f, 1f);
 		anim.setDuration(90);
 		anim.addUpdateListener(a -> {
 			float f = (float) a.getAnimatedValue();
-			float scale = from + (target - from) * f;
+			view.setAlpha(fromAlpha + (targetAlpha - fromAlpha) * f);
+			float scale = fromScale + (targetScale - fromScale) * f;
 			view.setScaleX(scale);
 			view.setScaleY(scale);
 		});

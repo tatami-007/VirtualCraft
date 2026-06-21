@@ -232,7 +232,7 @@
   "screen.virtual_craft.holographic_shop.contracts.convert_currency.title": "Currency Swap",
   "screen.virtual_craft.holographic_shop.contracts.convert_currency.goal": "Convert %s",
   "screen.virtual_craft.holographic_shop.refresh": "↻",
-  "screen.virtual_craft.holographic_shop.refreshing": "…",
+  "screen.virtual_craft.holographic_shop.refreshing": "⋯",
   "screen.virtual_craft.holographic_shop.refresh_success": "✓",
   "screen.virtual_craft.holographic_shop.refresh_tooltip": "Refresh rates",
   "screen.virtual_craft.holographic_shop.wallet.address_label": "Wallet",

@@ -1509,7 +1509,6 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		int quantity = clampInt(parseInt(shopQuantityText, 1), 1, maxQuantity);
 		shopQuantityText = Integer.toString(quantity);
 
-		actionColumn.addView(fieldLabel(t("screen.virtual_craft.holographic_shop.shop_quantity", quantity)));
 		actionColumn.addView(quantitySlider(t("screen.virtual_craft.holographic_shop.transfer.amount"), 1, maxQuantity, quantity, value -> {
 			shopQuantityText = Integer.toString(value);
 		}), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -1914,12 +1913,6 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		submitOnEnter(miningAmountInput);
 		actionColumn.addView(miningAmountInput, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(34)));
 		actionColumn.addView(spacer(dp(6)));
-		actionColumn.addView(actionButton(t("screen.virtual_craft.holographic_shop.mining.all"), CYAN, () -> {
-			miningAmountText = Integer.toString(vouchers);
-			pendingInputOverrides.put(FocusTarget.MINING_AMOUNT, miningAmountText);
-			requestRefresh(false, FocusTarget.MINING_AMOUNT);
-		}), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(28)));
-		actionColumn.addView(spacer(dp(6)));
 		actionColumn.addView(quantitySlider(t("item.virtual_craft.hash_voucher"), 0, sliderMax, requested, value -> {
 			String text = Integer.toString(value);
 			miningAmountText = text;
@@ -1928,6 +1921,12 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 				miningAmountInput.setText(text);
 			}
 		}), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+		actionColumn.addView(spacer(dp(6)));
+		actionColumn.addView(actionButton(t("screen.virtual_craft.holographic_shop.mining.all"), CYAN, () -> {
+			miningAmountText = Integer.toString(vouchers);
+			pendingInputOverrides.put(FocusTarget.MINING_AMOUNT, miningAmountText);
+			requestRefresh(false, FocusTarget.MINING_AMOUNT);
+		}), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(28)));
 		actionColumn.addView(spacer(dp(10)));
 		actionColumn.addView(liveStatusCard(() -> {
 			long liveCount = parseWhole(miningAmountText);

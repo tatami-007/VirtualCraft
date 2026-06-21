@@ -232,7 +232,7 @@
   "screen.virtual_craft.holographic_shop.contracts.convert_currency.title": "闪兑成交",
   "screen.virtual_craft.holographic_shop.contracts.convert_currency.goal": "兑换 %s",
   "screen.virtual_craft.holographic_shop.refresh": "↻",
-  "screen.virtual_craft.holographic_shop.refreshing": "…",
+  "screen.virtual_craft.holographic_shop.refreshing": "⋯",
   "screen.virtual_craft.holographic_shop.refresh_success": "✓",
   "screen.virtual_craft.holographic_shop.refresh_tooltip": "刷新汇率",
   "screen.virtual_craft.holographic_shop.wallet.address_label": "钱包地址",
