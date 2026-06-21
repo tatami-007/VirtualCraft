@@ -75,14 +75,11 @@ public final class MiningSurveyorHighlighter {
 					.setCullState(RenderStateShard.NO_CULL)
 					.createCompositeState(false));
 
-	private static final int RESCAN_INTERVAL_TICKS = 20;
-
 	private BlockPos cachedOrigin;
 	private MiningSurveyTarget cachedTarget;
 	private List<BlockPos> cachedCluster = List.of();
 	private List<AABB> cachedBoxes = List.of();
 	private List<CachedEdge> cachedEdges = List.of();
-	private long lastRescanTick;
 
 	public void renderInGame(PoseStack poseStack) {
 		Minecraft minecraft = Minecraft.getInstance();
@@ -110,17 +107,25 @@ public final class MiningSurveyorHighlighter {
 		MiningSurveyTarget target = MiningSurveyorClientState.target().orElseGet(() -> stack.isEmpty()
 				? MiningSurveyTarget.defaultTarget()
 				: MiningSurveyTargetData.lockedTarget(stack));
-		long currentTick = level.getGameTime();
-		boolean targetChanged = !origin.equals(cachedOrigin) || !target.equals(cachedTarget);
-		boolean rescanDue = (currentTick - lastRescanTick) >= RESCAN_INTERVAL_TICKS;
-		if (targetChanged || rescanDue) {
+		if (!origin.equals(cachedOrigin) || !target.equals(cachedTarget)) {
 			cachedOrigin = origin.immutable();
 			cachedTarget = target;
-			lastRescanTick = currentTick;
-			List<BlockPos> freshCluster = OreClusterFinder.collectConnectedOres(level, cachedOrigin, MAX_RENDERED_ORES, target);
-			if (targetChanged || freshCluster.size() != cachedCluster.size()) {
-				cachedCluster = freshCluster;
-				rebuildGeometry(cachedCluster.isEmpty() ? List.of(cachedOrigin) : cachedCluster);
+			cachedCluster = OreClusterFinder.collectConnectedOres(level, cachedOrigin, MAX_RENDERED_ORES, target);
+			rebuildGeometry(cachedCluster.isEmpty() ? List.of(cachedOrigin) : cachedCluster);
+		} else if (!cachedCluster.isEmpty()) {
+			List<BlockPos> valid = new ArrayList<>(cachedCluster.size());
+			for (BlockPos p : cachedCluster) {
+				if (target.matches(level.getBlockState(p))) {
+					valid.add(p);
+				}
+			}
+			if (valid.size() != cachedCluster.size()) {
+				cachedCluster = valid;
+				if (cachedCluster.isEmpty()) {
+					clearCache();
+					return;
+				}
+				rebuildGeometry(cachedCluster);
 			}
 		}
 		if (cachedBoxes.isEmpty()) {
@@ -156,9 +161,12 @@ public final class MiningSurveyorHighlighter {
 		MiningSurveyTarget surveyTarget = MiningSurveyorClientState.target().orElseGet(() -> stack.isEmpty()
 				? MiningSurveyTarget.defaultTarget()
 				: MiningSurveyTargetData.lockedTarget(stack));
-		int cluster = MiningSurveyorClientState.clusterSize();
-		if (cluster <= 0 && !stack.isEmpty()) {
-			cluster = MiningSurveyTargetData.clusterSize(stack);
+		int cluster = cachedCluster.size();
+		if (cluster <= 0) {
+			cluster = MiningSurveyorClientState.clusterSize();
+			if (cluster <= 0 && !stack.isEmpty()) {
+				cluster = MiningSurveyTargetData.clusterSize(stack);
+			}
 		}
 		// Always-on locator chip (name · cluster · distance · vertical hint) so the
 		// player keeps the lock-on readout even when staring straight at the vein
@@ -390,6 +398,5 @@ public final class MiningSurveyorHighlighter {
 		cachedCluster = List.of();
 		cachedBoxes = List.of();
 		cachedEdges = List.of();
-		lastRescanTick = 0;
 	}
 }
