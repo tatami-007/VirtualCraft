@@ -34,8 +34,8 @@ public final class ModCreativeTabs {
 				tabData.accept(ModItems.ENCRYPTED_HASH_VOUCHER.get());
 				tabData.accept(ModItems.QUANTUM_HASH_VOUCHER.get());
 				tabData.accept(ModItems.GENESIS_HASH_VOUCHER.get());
-				tabData.accept(ModItems.DATA_FRAGMENT.get());
 				tabData.accept(ModItems.MINING_SURVEYOR.get());
+				tabData.accept(ModItems.DATA_FRAGMENT.get());
 				tabData.accept(ModItems.SPEED_UPGRADE_CARD.get());
 				// 1:1 ME-Beam-Former 风格的光束绑定器（替换了 v20 的 LinkCard）
 				tabData.accept(ModItems.LASER_BINDING_TOOL.get());
@@ -62,13 +62,6 @@ public final class ModCreativeTabs {
 				tabData.accept(ModItems.MOUSE.get());
 				tabData.accept(ModItems.COMPUTER_MAINFRAME.get());
 				tabData.accept(ModItems.COMPUTER.get());
-				tabData.accept(ModBlocks.VIRTUAL_DATA_CORE.get().asItem());
-				tabData.accept(ModBlocks.VIRTUAL_DATA_ANCHOR.get().asItem());
-				tabData.accept(ModBlocks.VIRTUAL_DATA_RELAY.get().asItem());
-				tabData.accept(ModBlocks.CORRUPTED_DATA_NODE.get().asItem());
-				tabData.accept(ModBlocks.VIRTUAL_DATA_CACHE.get().asItem());
-				tabData.accept(ModBlocks.VIRTUAL_DATA_GATE.get().asItem());
-				tabData.accept(ModItems.VIRTUAL_SHEEP_SPAWN_EGG.get());
 			}).build());
 }
 

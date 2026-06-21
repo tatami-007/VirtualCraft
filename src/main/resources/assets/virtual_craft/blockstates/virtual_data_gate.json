@@ -1,6 +1,0 @@
-{
-  "variants": {
-    "open=false": { "model": "virtual_craft:block/virtual_data_gate" },
-    "open=true": { "model": "virtual_craft:block/virtual_data_gate_open" }
-  }
-}

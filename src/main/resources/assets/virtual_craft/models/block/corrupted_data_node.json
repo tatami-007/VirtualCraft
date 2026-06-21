@@ -1,7 +1,0 @@
-{
-  "parent": "block/cube_all",
-  "textures": {
-    "all": "virtual_craft:block/corrupted_data_node",
-    "particle": "virtual_craft:block/corrupted_data_node"
-  }
-}

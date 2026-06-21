@@ -14,8 +14,6 @@ import dev.tatami.virtualcraft.client.screen.holographic.HolographicShopClientCa
 import dev.tatami.virtualcraft.client.screen.holographic.HolographicShopFragment;
 import dev.tatami.virtualcraft.client.screen.PowMinerScreen;
 import dev.tatami.virtualcraft.client.screen.holographic.HolographicIconCache;
-import dev.tatami.virtualcraft.client.render.VirtualSheepRenderer;
-import dev.tatami.virtualcraft.registry.ModEntityTypes;
 import dev.tatami.virtualcraft.registry.ModMenuTypes;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 
@@ -45,7 +43,6 @@ public final class VirtualCraftClient {
 	 * <p>目前本 mod 没有需要 BER 的方块实体，这个方法作为未来加新 BER 的预留入口存在。</p>
 	 */
 	public static void registerBlockEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
-		event.registerEntityRenderer(ModEntityTypes.VIRTUAL_SHEEP.get(), VirtualSheepRenderer::new);
 	}
 
 	public static void registerShaders(RegisterShadersEvent event) {

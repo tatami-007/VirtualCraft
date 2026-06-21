@@ -6,18 +6,12 @@ import net.neoforged.neoforge.registries.DeferredBlock;
 import net.minecraft.world.level.block.Block;
 
 import dev.tatami.virtualcraft.VirtualCraft;
-import dev.tatami.virtualcraft.block.CorruptedDataNodeBlock;
 import dev.tatami.virtualcraft.block.DeepslateElectricOreBlock;
 import dev.tatami.virtualcraft.block.ElectricBallGeneratorBlock;
 import dev.tatami.virtualcraft.block.ElectricCondenserBlock;
 import dev.tatami.virtualcraft.block.ElectricOreBlock;
 import dev.tatami.virtualcraft.block.HolographicShopBlock;
 import dev.tatami.virtualcraft.block.PowMinerBlock;
-import dev.tatami.virtualcraft.block.VirtualDataAnchorBlock;
-import dev.tatami.virtualcraft.block.VirtualDataCacheBlock;
-import dev.tatami.virtualcraft.block.VirtualDataCoreBlock;
-import dev.tatami.virtualcraft.block.VirtualDataGateBlock;
-import dev.tatami.virtualcraft.block.VirtualDataRelayBlock;
 import dev.tatami.virtualcraft.block.WirelessPowerTowerBlock;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -34,12 +28,6 @@ public final class ModBlocks {
 	public static final DeferredBlock<Block> ELECTRIC_BALL_GENERATOR = REGISTRY.register("electric_ball_generator", ElectricBallGeneratorBlock::new);
 	public static final DeferredBlock<Block> HOLOGRAPHIC_SHOP = REGISTRY.register("holographic_shop", HolographicShopBlock::new);
 	public static final DeferredBlock<Block> POW_MINER = REGISTRY.register("pow_miner", PowMinerBlock::new);
-	public static final DeferredBlock<Block> VIRTUAL_DATA_CORE = REGISTRY.register("virtual_data_core", () -> new VirtualDataCoreBlock());
-	public static final DeferredBlock<Block> VIRTUAL_DATA_ANCHOR = REGISTRY.register("virtual_data_anchor", () -> new VirtualDataAnchorBlock());
-	public static final DeferredBlock<Block> VIRTUAL_DATA_RELAY = REGISTRY.register("virtual_data_relay", () -> new VirtualDataRelayBlock());
-	public static final DeferredBlock<Block> CORRUPTED_DATA_NODE = REGISTRY.register("corrupted_data_node", () -> new CorruptedDataNodeBlock());
-	public static final DeferredBlock<Block> VIRTUAL_DATA_CACHE = REGISTRY.register("virtual_data_cache", () -> new VirtualDataCacheBlock());
-	public static final DeferredBlock<Block> VIRTUAL_DATA_GATE = REGISTRY.register("virtual_data_gate", () -> new VirtualDataGateBlock());
 	/**
 	 * 无线供电塔 1:1 沿用 ME-Beam-Former 1.21.1 的 properties：
 	 * 金属硬度 1.5、金属音、需要镐挖、noOcclusion 防视觉穿模。
