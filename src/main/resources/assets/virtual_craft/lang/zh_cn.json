@@ -480,5 +480,7 @@
   "message.virtual_craft.data_mine.death": "阵亡 · 本局算力袋 %1$s 单位已丢失",
   "message.virtual_craft.data_mine.extract_hint": "潜行右键计算机 撤离并结算（袋：%1$s）",
   "screen.virtual_craft.mining_surveyor.toast.scan": "已锁定扫描目标",
+  "screen.virtual_craft.mining_surveyor.lock_status": "\u5f53\u524d\u9501\u5b9a",
+  "screen.virtual_craft.mining_surveyor.block_count": "\u5339\u914d %s \u79cd\u65b9\u5757",
   "screen.virtual_craft.mining_surveyor.toast.clear": "已清除目标"
 }

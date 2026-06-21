@@ -21,6 +21,7 @@ import java.util.Locale;
 import dev.tatami.virtualcraft.client.screen.holographic.HoloScrollView;
 import dev.tatami.virtualcraft.client.screen.holographic.HolographicIconCache;
 import dev.tatami.virtualcraft.client.screen.holographic.HolographicTheme;
+import dev.tatami.virtualcraft.client.highlight.MiningSurveyorClientState;
 import dev.tatami.virtualcraft.mining.MiningSurveyTarget;
 import dev.tatami.virtualcraft.mining.MiningSurveyTargetData;
 import dev.tatami.virtualcraft.network.MiningSurveyorActionPayload;
@@ -45,11 +46,14 @@ import icyllis.modernui.widget.LinearLayout;
 import icyllis.modernui.widget.ScrollView;
 import icyllis.modernui.widget.TextView;
 import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.level.block.Block;
 import net.neoforged.neoforge.network.PacketDistributor;
 
@@ -144,14 +148,32 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 		actionParams.setMargins(dp(12), 0, 0, 0);
 		body.addView(action, actionParams);
 
+		// -- Current lock status (if any) ---
+		LinearLayout lockCard = buildLockStatusCard();
+		if (lockCard != null) {
+			action.addView(lockCard, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+			action.addView(spacer(dp(10)));
+		}
+
+		// -- Selected target card ---
 		targetCard = vertical();
 		targetCard.setPadding(dp(14), dp(12), dp(14), dp(12));
 		action.addView(targetCard, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 		action.addView(spacer(dp(10)));
+
+		// -- Scan button ---
 		scanButton = actionButton(t("screen.virtual_craft.mining_surveyor.scan"), CYAN, this::scan);
 		action.addView(scanButton, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(36)));
 		action.addView(spacer(dp(8)));
+
+		// -- Utility row ---
 		action.addView(buildUtilityActions(), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(34)));
+		action.addView(spacer(dp(8)));
+
+		// -- Hint text ---
+		TextView hint = hintText(t("screen.virtual_craft.mining_surveyor.modern_hint"));
+		hint.setMaxLines(3);
+		action.addView(hint);
 
 		refreshSelectedCard();
 		refreshResults();
@@ -490,6 +512,65 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 		return container;
 	}
 
+	/**
+	 * Builds a card showing the current survey lock status (if a target is
+	 * actively locked). Shows ore name, coordinates, cluster size, and distance.
+	 */
+	private LinearLayout buildLockStatusCard() {
+		java.util.Optional<BlockPos> lockPos = MiningSurveyorClientState.targetPos()
+				.or(() -> stack.isEmpty() ? java.util.Optional.empty() : MiningSurveyTargetData.target(stack));
+		if (lockPos.isEmpty()) {
+			return null;
+		}
+		BlockPos pos = lockPos.get();
+		MiningSurveyTarget lockTarget = MiningSurveyorClientState.target()
+				.orElseGet(() -> stack.isEmpty() ? MiningSurveyTarget.defaultTarget() : MiningSurveyTargetData.lockedTarget(stack));
+		int cluster = MiningSurveyorClientState.clusterSize();
+		if (cluster <= 0 && !stack.isEmpty()) {
+			cluster = MiningSurveyTargetData.clusterSize(stack);
+		}
+
+		LinearLayout card = card(PANEL_ACTIVE, CYAN, 10f);
+		card.setPadding(dp(14), dp(10), dp(14), dp(10));
+
+		TextView header = hintText(t("screen.virtual_craft.mining_surveyor.lock_status"));
+		header.setTextColor(CYAN);
+		card.addView(header);
+		card.addView(spacer(dp(6)));
+
+		LinearLayout nameRow = new LinearLayout(requireContext());
+		nameRow.setOrientation(LinearLayout.HORIZONTAL);
+		nameRow.setGravity(Gravity.CENTER_VERTICAL);
+		nameRow.addView(itemIconView(lockTarget.icon(), 20), new LinearLayout.LayoutParams(dp(20), dp(20)));
+		TextView name = bodyText(lockTarget.name().getString());
+		LinearLayout.LayoutParams nameParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+		nameParams.setMargins(dp(6), 0, 0, 0);
+		nameRow.addView(name, nameParams);
+		if (cluster > 0) {
+			TextView clusterText = hintText("  \u00d7" + cluster);
+			clusterText.setTextColor(HolographicTheme.GREEN);
+			nameRow.addView(clusterText);
+		}
+		card.addView(nameRow);
+		card.addView(spacer(dp(4)));
+
+		String coords = pos.getX() + ", " + pos.getY() + ", " + pos.getZ();
+		card.addView(hintText(coords));
+
+		var player = Minecraft.getInstance().player;
+		if (player != null) {
+			double dist = Vec3.atCenterOf(pos).subtract(player.getEyePosition()).length();
+			int dy = pos.getY() - Mth.floor(player.getY());
+			String distText = (int) Math.round(dist) + "m";
+			if (dy > 2) distText += "  \u2191" + dy;
+			else if (dy < -2) distText += "  \u2193" + (-dy);
+			TextView distView = hintText(distText);
+			distView.setTextColor(TEXT_SOFT);
+			card.addView(distView);
+		}
+		return card;
+	}
+
 	private void refreshSelectedCard() {
 		updateScanButton();
 		if (targetCard == null) {
@@ -514,10 +595,19 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 		text.addView(hintText(namespaceLabel(selectedTarget)));
 		row.addView(text, textParams);
 		targetCard.addView(row);
-		targetCard.addView(spacer(dp(10)));
+		targetCard.addView(spacer(dp(6)));
 		TextView tags = hintText(tagSummary(selectedTarget));
 		tags.setMaxLines(2);
 		targetCard.addView(tags);
+
+		// Block count hint (how many blocks this target matches)
+		int blockCount = selectedTarget.fallbackBlocks().size();
+		if (blockCount > 0) {
+			targetCard.addView(spacer(dp(4)));
+			TextView blockHint = hintText(t("screen.virtual_craft.mining_surveyor.block_count", blockCount));
+			blockHint.setTextColor(TEXT_SOFT);
+			targetCard.addView(blockHint);
+		}
 	}
 
 	private View buildUtilityActions() {

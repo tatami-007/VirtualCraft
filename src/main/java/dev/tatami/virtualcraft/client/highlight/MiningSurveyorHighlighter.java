@@ -163,20 +163,49 @@ public final class MiningSurveyorHighlighter {
 		double distance = Vec3.atCenterOf(pos).subtract(player.getEyePosition()).length();
 		int meters = (int) Math.round(distance);
 		int dy = pos.getY() - Mth.floor(player.getY());
-		StringBuilder sb = new StringBuilder(surveyTarget.name().getString());
-		if (cluster > 0) {
-			sb.append("  \u00d7").append(cluster);
+		String name = surveyTarget.name().getString();
+		String clusterStr = cluster > 0 ? "\u00d7" + cluster : "";
+		String distStr = meters + "m";
+		String vertStr = dy > 2 ? "\u2191" + dy : (dy < -2 ? "\u2193" + (-dy) : "");
+		var font = Minecraft.getInstance().font;
+
+		// Card positioned at bottom-left, above hotbar, away from common info
+		// mods (WAILA/Jade at top-center, JourneyMap at top-left corner).
+		int cardX = 6;
+		int cardY = guiGraphics.guiHeight() - 58;
+
+		// Measure text widths for proper card sizing
+		int nameWidth = font.width(name);
+		int line2Width = font.width(distStr + "  " + vertStr);
+		int contentWidth = Math.max(nameWidth + (clusterStr.isEmpty() ? 0 : font.width("  " + clusterStr)), line2Width);
+		int padH = 8;
+		int padV = 6;
+		int cardW = contentWidth + padH * 2 + 6;
+		int cardH = padV * 2 + 22;
+
+		// Draw card background: rounded-feel dark translucent panel
+		guiGraphics.fill(cardX, cardY, cardX + cardW, cardY + cardH, 0xCC0D1B2A);
+		// Top accent line (cyan)
+		guiGraphics.fill(cardX, cardY, cardX + cardW, cardY + 2, 0xCC0EA5E9);
+		// Left accent stripe
+		guiGraphics.fill(cardX, cardY, cardX + 2, cardY + cardH, 0xCC0EA5E9);
+
+		// Line 1: ore name + cluster count
+		int textX = cardX + padH + 2;
+		int textY = cardY + padV;
+		guiGraphics.drawString(font, name, textX, textY, 0xFF8FEAFF, true);
+		if (!clusterStr.isEmpty()) {
+			int clusterX = textX + nameWidth + font.width("  ");
+			guiGraphics.drawString(font, clusterStr, clusterX, textY, 0xFF10B981, true);
 		}
-		sb.append("  \u00b7  ").append(meters).append('m');
-		if (dy > 2) {
-			sb.append("  \u2191").append(dy);
-		} else if (dy < -2) {
-			sb.append("  \u2193").append(-dy);
+		// Line 2: distance + vertical offset
+		int line2Y = textY + 12;
+		guiGraphics.drawString(font, distStr, textX, line2Y, 0xFFB8D4E8, true);
+		if (!vertStr.isEmpty()) {
+			int vertX = textX + font.width(distStr + "  ");
+			int vertColor = dy > 0 ? 0xFFD97706 : 0xFF10B981;
+			guiGraphics.drawString(font, vertStr, vertX, line2Y, vertColor, true);
 		}
-		String text = sb.toString();
-		int centerX = guiGraphics.guiWidth() / 2;
-		guiGraphics.drawCenteredString(Minecraft.getInstance().font, text, centerX + 1, 5, 0xAA000000);
-		guiGraphics.drawCenteredString(Minecraft.getInstance().font, text, centerX, 4, 0xFF8FEAFF);
 	}
 
 	private ItemStack resolveSurveyor(LocalPlayer player) {
@@ -237,17 +266,21 @@ public final class MiningSurveyorHighlighter {
 
 		String arrow = arrowGlyph(x - centerX, y - centerY);
 		String meters = Math.round(distance) + "m";
-		guiGraphics.drawCenteredString(Minecraft.getInstance().font, arrow, x + 1, y - 13, 0xAA000000);
-		guiGraphics.drawCenteredString(Minecraft.getInstance().font, arrow, x, y - 14, 0xFF8FEAFF);
-		guiGraphics.drawCenteredString(Minecraft.getInstance().font, meters, x + 1, y + 2, 0xAA000000);
-		guiGraphics.drawCenteredString(Minecraft.getInstance().font, meters, x, y + 1, 0xFFFFFFFF);
+		var font = Minecraft.getInstance().font;
+		int meterWidth = font.width(meters);
+		int arrowWidth = font.width(arrow);
+		int bgW = Math.max(meterWidth, arrowWidth) + 10;
+		int bgH = 26;
+		guiGraphics.fill(x - bgW / 2, y - 16, x + bgW / 2, y - 16 + bgH, 0x900D1B2A);
+		guiGraphics.drawCenteredString(font, arrow, x, y - 13, 0xFF8FEAFF);
+		guiGraphics.drawCenteredString(font, meters, x, y + 1, 0xFFB8D4E8);
 	}
 
 	private String arrowGlyph(int dx, int dy) {
 		if (Math.abs(dx) > Math.abs(dy)) {
-			return dx >= 0 ? ">" : "<";
+			return dx >= 0 ? "\u25b6" : "\u25c0";
 		}
-		return dy >= 0 ? "v" : "^";
+		return dy >= 0 ? "\u25bc" : "\u25b2";
 	}
 
 	private void rebuildGeometry(List<BlockPos> positions) {

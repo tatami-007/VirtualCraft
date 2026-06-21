@@ -480,5 +480,7 @@
   "message.virtual_craft.data_mine.death": "You died — %1$s pouch units lost this run",
   "message.virtual_craft.data_mine.extract_hint": "Sneak + right-click the Computer to extract (pouch: %1$s)",
   "screen.virtual_craft.mining_surveyor.toast.scan": "Scan target locked",
+  "screen.virtual_craft.mining_surveyor.lock_status": "Active Lock",
+  "screen.virtual_craft.mining_surveyor.block_count": "Matches %s block types",
   "screen.virtual_craft.mining_surveyor.toast.clear": "Target cleared"
 }
