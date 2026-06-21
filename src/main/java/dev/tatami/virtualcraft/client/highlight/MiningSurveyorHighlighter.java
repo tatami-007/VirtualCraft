@@ -110,29 +110,41 @@ public final class MiningSurveyorHighlighter {
 		MiningSurveyTarget target = MiningSurveyorClientState.target().orElseGet(() -> stack.isEmpty()
 				? MiningSurveyTarget.defaultTarget()
 				: MiningSurveyTargetData.lockedTarget(stack));
-		long tick = level.getGameTime();
-		boolean targetChanged = !origin.equals(cachedOrigin) || !target.equals(cachedTarget);
-		if (targetChanged || (tick - lastFullScanTick) >= FULL_RESCAN_INTERVAL) {
+		boolean targetChanged = !origin.equals(cachedOrigin)
+				|| cachedTarget == null
+				|| !target.key().equals(cachedTarget.key());
+		if (targetChanged) {
 			cachedOrigin = origin.immutable();
 			cachedTarget = target;
-			lastFullScanTick = tick;
-			List<BlockPos> fresh = OreClusterFinder.collectConnectedOres(level, cachedOrigin, MAX_RENDERED_ORES, target);
-			if (fresh.isEmpty()) {
+			lastFullScanTick = level.getGameTime();
+			cachedCluster = OreClusterFinder.collectConnectedOres(level, cachedOrigin, MAX_RENDERED_ORES, target);
+			if (cachedCluster.isEmpty()) {
 				clearCache();
 				return;
 			}
-			if (targetChanged || fresh.size() != cachedCluster.size()) {
-				cachedCluster = fresh;
-				rebuildGeometry(cachedCluster);
-			}
-		} else if (!cachedCluster.isEmpty()) {
+			rebuildGeometry(cachedCluster);
+		} else {
 			List<BlockPos> valid = new ArrayList<>(cachedCluster.size());
 			for (BlockPos p : cachedCluster) {
 				if (target.matches(level.getBlockState(p))) {
 					valid.add(p);
 				}
 			}
-			if (valid.size() != cachedCluster.size()) {
+			boolean shrunk = valid.size() != cachedCluster.size();
+			long tick = level.getGameTime();
+			if ((tick - lastFullScanTick) >= FULL_RESCAN_INTERVAL) {
+				lastFullScanTick = tick;
+				BlockPos anchor = target.matches(level.getBlockState(cachedOrigin))
+						? cachedOrigin : (!valid.isEmpty() ? valid.get(0) : null);
+				if (anchor != null) {
+					List<BlockPos> fresh = OreClusterFinder.collectConnectedOres(level, anchor, MAX_RENDERED_ORES, target);
+					if (fresh.size() > valid.size()) {
+						valid = fresh;
+						shrunk = true;
+					}
+				}
+			}
+			if (shrunk) {
 				cachedCluster = valid;
 				if (cachedCluster.isEmpty()) {
 					clearCache();
