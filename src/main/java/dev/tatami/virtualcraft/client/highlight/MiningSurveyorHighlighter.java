@@ -163,24 +163,35 @@ public final class MiningSurveyorHighlighter {
 		double distance = Vec3.atCenterOf(pos).subtract(player.getEyePosition()).length();
 		int meters = (int) Math.round(distance);
 		int dy = pos.getY() - Mth.floor(player.getY());
-		StringBuilder sb = new StringBuilder(surveyTarget.name().getString());
-		if (cluster > 0) {
-			sb.append("  \u00d7").append(cluster);
-		}
-		sb.append("  \u00b7  ").append(meters).append('m');
-		if (dy > 2) {
-			sb.append("  \u2191").append(dy);
-		} else if (dy < -2) {
-			sb.append("  \u2193").append(-dy);
-		}
-		String text = sb.toString();
 		var font = Minecraft.getInstance().font;
-		// Bottom-left, above hotbar — avoids WAILA/Jade/TOP at top-center and
-		// JourneyMap minimap at top-left. Simple text with drop shadow, no panel.
 		int x = 6;
 		int y = guiGraphics.guiHeight() - 50;
-		guiGraphics.drawString(font, text, x + 1, y + 1, 0x66000000, false);
-		guiGraphics.drawString(font, text, x, y, 0xFF8FEAFF, false);
+
+		String name = surveyTarget.name().getString();
+		String countStr = cluster > 0 ? " \u00d7" + cluster : "";
+		String distStr = " " + meters + "m";
+		String vertStr = dy > 2 ? " \u2191" + dy : dy < -2 ? " \u2193" + (-dy) : "";
+		String fullText = "\u25c6 " + name + countStr + "  " + distStr + vertStr;
+
+		int textWidth = font.width(fullText);
+		guiGraphics.fill(x - 3, y - 3, x + textWidth + 3, y + font.lineHeight + 2, 0x60000000);
+
+		int cx = x;
+		cx = drawSegment(guiGraphics, font, "\u25c6 ", cx, y, 0xFF4DD8F0);
+		cx = drawSegment(guiGraphics, font, name, cx, y, 0xFFCCEEFF);
+		if (!countStr.isEmpty()) {
+			cx = drawSegment(guiGraphics, font, countStr, cx, y, 0xFF66DDAA);
+		}
+		cx = drawSegment(guiGraphics, font, "  " + distStr, cx, y, 0xFFAABBCC);
+		if (!vertStr.isEmpty()) {
+			int vertColor = dy > 0 ? 0xFFEEAA44 : 0xFF66DDAA;
+			drawSegment(guiGraphics, font, vertStr, cx, y, vertColor);
+		}
+	}
+
+	private int drawSegment(GuiGraphics guiGraphics, net.minecraft.client.gui.Font font, String text, int x, int y, int color) {
+		guiGraphics.drawString(font, text, x, y, color, false);
+		return x + font.width(text);
 	}
 
 	private ItemStack resolveSurveyor(LocalPlayer player) {

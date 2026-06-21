@@ -89,7 +89,7 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 		LinearLayout window = vertical();
 		window.setBackground(HolographicTheme.acrylic(WINDOW, WINDOW_STROKE, 12f));
 		window.setPadding(dp(18), dp(16), dp(18), dp(16));
-		FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(dp(500), dp(460));
+		FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(dp(600), dp(480));
 		params.gravity = Gravity.CENTER;
 		root.addView(window, params);
 
