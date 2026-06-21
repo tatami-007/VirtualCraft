@@ -26,7 +26,6 @@ import dev.tatami.virtualcraft.network.CloseHolographicTerminalPayload;
 import dev.tatami.virtualcraft.network.NetworkMessageRegistry;
 import dev.tatami.virtualcraft.energy.WirelessEnergyNetwork;
 import dev.tatami.virtualcraft.registry.ModCreativeTabs;
-import dev.tatami.virtualcraft.registry.ModDimensions;
 import dev.tatami.virtualcraft.registry.ModBlockEntities;
 import dev.tatami.virtualcraft.registry.ModAttachments;
 import dev.tatami.virtualcraft.registry.ModBlocks;
@@ -93,7 +92,6 @@ public class VirtualCraft {
 		ModMenuTypes.REGISTRY.register(modEventBus);
 
 		ModCreativeTabs.REGISTRY.register(modEventBus);
-		ModDimensions.CHUNK_GENERATORS.register(modEventBus);
 	}
 
 	public static void queueServerWork(int tick, Runnable action) {
