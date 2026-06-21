@@ -2190,6 +2190,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 				refreshPlayerSuggestions();
 				requestRefresh(false, FocusTarget.TRANSFER_TARGET);
 			});
+			HolographicTheme.interactive(chip);
 			LinearLayout.LayoutParams params = weighted(0, dp(26), 1f);
 			if (index > 0) {
 				params.setMargins(dp(6), 0, 0, 0);
@@ -2219,6 +2220,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 					refreshPlayerSuggestions();
 					requestRefresh(false, FocusTarget.TRANSFER_TARGET);
 				});
+				HolographicTheme.interactive(button);
 				if (column == 0) {
 					line.addView(button, weighted(0, dp(28), 1f));
 				} else {
@@ -2248,6 +2250,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			refreshPlayerSuggestions();
 			requestRefresh(false, FocusTarget.TRANSFER_TARGET);
 		});
+		HolographicTheme.interactive(row);
 
 		row.addView(playerAvatarView(playerName, ICON_SMALL_DP));
 		LinearLayout text = vertical();
@@ -2454,6 +2457,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		row.setGravity(Gravity.CENTER_VERTICAL);
 		row.setPadding(dp(10), dp(9), dp(16), dp(9));
 		row.setOnClickListener(v -> action.run());
+		HolographicTheme.interactive(row);
 
 		// v23 hover tooltip 触发器从整行收紧到图标（用户原话："鼠标停留到图标"）。
 		// 行为：鼠标进入图标 → mica 风详情卡弹出；移出图标 → 立即隐藏。
@@ -2599,6 +2603,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		card.setOrientation(LinearLayout.VERTICAL);
 		card.setPadding(dp(12), dp(12), dp(12), dp(12));
 		card.setOnClickListener(v -> action.run());
+		HolographicTheme.interactive(card);
 
 		card.addView(hintText(label));
 		card.addView(spacer(dp(6)));
@@ -2671,6 +2676,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		row.setGravity(Gravity.CENTER_VERTICAL);
 		row.setPadding(dp(10), dp(9), dp(10), dp(9));
 		row.setOnClickListener(v -> action.run());
+		HolographicTheme.interactive(row);
 		row.addView(currencyIconView(currency, ICON_SMALL_DP));
 
 		LinearLayout text = vertical();
@@ -3257,6 +3263,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		button.setPadding(0, 0, 0, 0);
 		button.setBackground(rounded(PANEL_BUTTON, WINDOW_STROKE, 9f, 1));
 		button.setOnClickListener(v -> action.run());
+		HolographicTheme.interactive(button);
 		return button;
 	}
 

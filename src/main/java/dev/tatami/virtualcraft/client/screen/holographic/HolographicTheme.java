@@ -65,7 +65,7 @@ public final class HolographicTheme {
 	// width that used to hold "同步成功" is now wasted whitespace, so shrink to
 	// 40dp — the glyph itself reads the state, the full description lives in
 	// the hover tooltip via setTooltipText.
-	public static final int HEADER_REFRESH_WIDTH_DP = 40;
+	public static final int HEADER_REFRESH_WIDTH_DP = 72;
 	public static final int MAX_ACTIVITY_ROWS = 4;
 	// 12sp 字体 + dp(6)*2 padding 至少需要 dp(30) 才能完整显示；
 	// 原值 26 低于行高导致 quickAmount 按钮文字被裁成空白椭圆。

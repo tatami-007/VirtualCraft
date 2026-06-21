@@ -155,6 +155,7 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 
 		refreshSelectedCard();
 		refreshResults();
+		HolographicTheme.enterTransition(window);
 		root.post(() -> {
 			searchInput.clearFocus();
 			root.requestFocus();
@@ -583,11 +584,13 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 			return;
 		}
 		PacketDistributor.sendToServer(new MiningSurveyorActionPayload(selectedTarget.key(), false));
+		toast("screen.virtual_craft.mining_surveyor.toast.scan");
 		close();
 	}
 
 	private void clearLock() {
 		PacketDistributor.sendToServer(new MiningSurveyorActionPayload("", true));
+		toast("screen.virtual_craft.mining_surveyor.toast.clear");
 		close();
 	}
 
@@ -790,6 +793,10 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 
 	private int dp(float value) {
 		return root == null ? Math.round(value) : root.dp(value);
+	}
+
+	private void toast(String key) {
+		HolographicTheme.toast(requireContext(), t(key));
 	}
 
 	private enum SortMode {

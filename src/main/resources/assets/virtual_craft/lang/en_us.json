@@ -478,5 +478,7 @@
   "message.virtual_craft.data_mine.settle": "Extracted · depth %1$s · fragments ×%2$s · vouchers ×%3$s",
   "message.virtual_craft.data_mine.settle_empty": "Hash pouch empty — nothing to settle",
   "message.virtual_craft.data_mine.death": "You died — %1$s pouch units lost this run",
-  "message.virtual_craft.data_mine.extract_hint": "Sneak + right-click the Computer to extract (pouch: %1$s)"
+  "message.virtual_craft.data_mine.extract_hint": "Sneak + right-click the Computer to extract (pouch: %1$s)",
+  "screen.virtual_craft.mining_surveyor.toast.scan": "Scan target locked",
+  "screen.virtual_craft.mining_surveyor.toast.clear": "Target cleared"
 }
