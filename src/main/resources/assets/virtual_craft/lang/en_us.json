@@ -463,6 +463,11 @@
   "item.virtual_craft.silicon": "Silicon",
   "screen.virtual_craft.mining_surveyor.toast.scan": "Scan target locked",
   "screen.virtual_craft.mining_surveyor.toast.clear": "Target cleared",
-  "message.virtual_craft.computer.rebuilding": "Virtual world is being redesigned...",
-  "tooltip.virtual_craft.computer.rebuilding": "Virtual world dimension under construction"
+  "tooltip.virtual_craft.computer": "Right-click to enter/exit Virtual World",
+  "message.virtual_craft.computer.unavailable": "Virtual World is unavailable!",
+  "message.virtual_craft.computer.disconnect": "Disconnecting from Virtual World...",
+  "message.virtual_craft.computer.connect": "Connecting to Virtual World...",
+  "block.virtual_craft.energy_pylon": "Energy Pylon",
+  "block.virtual_craft.holographic_wall": "Holographic Wall",
+  "block.virtual_craft.circuit_floor": "Circuit Floor"
 }

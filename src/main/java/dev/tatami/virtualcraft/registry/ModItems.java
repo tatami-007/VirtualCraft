@@ -62,6 +62,9 @@ public final class ModItems {
 	public static final DeferredItem<Item> POW_MINER = block(ModBlocks.POW_MINER);
 	public static final DeferredItem<Item> WIRELESS_POWER_TOWER = block(ModBlocks.WIRELESS_POWER_TOWER);
 	public static final DeferredItem<Item> DATA_FRAGMENT = REGISTRY.register("data_fragment", () -> new Item(new Item.Properties()));
+	public static final DeferredItem<Item> CIRCUIT_FLOOR = block(ModBlocks.CIRCUIT_FLOOR);
+	public static final DeferredItem<Item> HOLOGRAPHIC_WALL = block(ModBlocks.HOLOGRAPHIC_WALL);
+	public static final DeferredItem<Item> ENERGY_PYLON = block(ModBlocks.ENERGY_PYLON);
 	public static final DeferredItem<Item> CRYPTO_BTC = REGISTRY.register(CryptoCurrency.BTC.itemName(), () -> new Item(new Item.Properties().stacksTo(CryptoCurrency.BTC.stackLimit())));
 	public static final DeferredItem<Item> CRYPTO_ETH = REGISTRY.register(CryptoCurrency.ETH.itemName(), () -> new Item(new Item.Properties().stacksTo(CryptoCurrency.ETH.stackLimit())));
 	public static final DeferredItem<Item> CRYPTO_USDT = REGISTRY.register(CryptoCurrency.USDT.itemName(), () -> new Item(new Item.Properties().stacksTo(CryptoCurrency.USDT.stackLimit())));
@@ -88,7 +91,7 @@ public final class ModItems {
 	public static final DeferredItem<Item> MOUSE = REGISTRY.register("mouse", () -> new Item(new Item.Properties()));
 	public static final DeferredItem<Item> COMPUTER_MAINFRAME = REGISTRY.register("computer_mainframe", () -> new Item(new Item.Properties()));
 	/** 电脑：右键空气在主世界 ↔ 虚拟世界之间切换。 */
-	public static final DeferredItem<Item> COMPUTER = REGISTRY.register("computer", () -> new Item(new Item.Properties().stacksTo(1)));
+	public static final DeferredItem<Item> COMPUTER = REGISTRY.register("computer", ComputerItem::new);
 
 	public static List<Item> hashVoucherItems() {
 		return List.of(

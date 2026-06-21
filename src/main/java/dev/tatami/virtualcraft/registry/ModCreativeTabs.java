@@ -62,6 +62,10 @@ public final class ModCreativeTabs {
 				tabData.accept(ModItems.MOUSE.get());
 				tabData.accept(ModItems.COMPUTER_MAINFRAME.get());
 				tabData.accept(ModItems.COMPUTER.get());
+				// === 虚拟世界维度方块 ===
+				tabData.accept(ModItems.CIRCUIT_FLOOR.get());
+				tabData.accept(ModItems.HOLOGRAPHIC_WALL.get());
+				tabData.accept(ModItems.ENERGY_PYLON.get());
 			}).build());
 }
 

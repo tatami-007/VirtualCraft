@@ -1,6 +1,7 @@
 package dev.tatami.virtualcraft.registry;
 
 import dev.tatami.virtualcraft.VirtualCraft;
+import dev.tatami.virtualcraft.gameplay.VirtualWorldReturnPoint;
 import dev.tatami.virtualcraft.wallet.WalletBalances;
 import dev.tatami.virtualcraft.wallet.WalletPreferences;
 import net.neoforged.neoforge.attachment.AttachmentType;
@@ -19,4 +20,7 @@ public final class ModAttachments {
 
 	public static final DeferredHolder<AttachmentType<?>, AttachmentType<WalletPreferences>> WALLET_PREFERENCES = REGISTRY.register("wallet_preferences",
 			() -> AttachmentType.serializable(WalletPreferences::new).copyOnDeath().build());
+
+	public static final DeferredHolder<AttachmentType<?>, AttachmentType<VirtualWorldReturnPoint>> VIRTUAL_WORLD_RETURN_POINT = REGISTRY.register("virtual_world_return_point",
+			() -> AttachmentType.builder(VirtualWorldReturnPoint::new).serialize(VirtualWorldReturnPoint.CODEC).copyOnDeath().build());
 }

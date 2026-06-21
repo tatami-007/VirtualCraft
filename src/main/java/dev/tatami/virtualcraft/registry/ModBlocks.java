@@ -12,6 +12,9 @@ import dev.tatami.virtualcraft.block.ElectricCondenserBlock;
 import dev.tatami.virtualcraft.block.ElectricOreBlock;
 import dev.tatami.virtualcraft.block.HolographicShopBlock;
 import dev.tatami.virtualcraft.block.PowMinerBlock;
+import dev.tatami.virtualcraft.block.CircuitFloorBlock;
+import dev.tatami.virtualcraft.block.EnergyPylonBlock;
+import dev.tatami.virtualcraft.block.HolographicWallBlock;
 import dev.tatami.virtualcraft.block.WirelessPowerTowerBlock;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -39,6 +42,7 @@ public final class ModBlocks {
 					.sound(SoundType.METAL)
 					.requiresCorrectToolForDrops()
 					.noOcclusion()));
+	public static final DeferredBlock<Block> CIRCUIT_FLOOR = REGISTRY.register("circuit_floor", CircuitFloorBlock::new);
+	public static final DeferredBlock<Block> HOLOGRAPHIC_WALL = REGISTRY.register("holographic_wall", HolographicWallBlock::new);
+	public static final DeferredBlock<Block> ENERGY_PYLON = REGISTRY.register("energy_pylon", EnergyPylonBlock::new);
 }
-
-
