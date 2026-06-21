@@ -469,5 +469,6 @@
   "message.virtual_craft.computer.connect": "Connecting to Virtual World...",
   "block.virtual_craft.energy_pylon": "Energy Pylon",
   "block.virtual_craft.holographic_wall": "Holographic Wall",
-  "block.virtual_craft.circuit_floor": "Circuit Floor"
+  "block.virtual_craft.circuit_floor": "Circuit Floor",
+  "screen.virtual_craft.mining_surveyor.dblclick_hint": "Double-click list item to scan directly"
 }

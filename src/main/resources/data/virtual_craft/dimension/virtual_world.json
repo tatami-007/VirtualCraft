@@ -4,6 +4,8 @@
     "type": "minecraft:flat",
     "settings": {
       "biome": "minecraft:plains",
+      "lakes": false,
+      "features": false,
       "layers": [
         {
           "block": "minecraft:bedrock",
@@ -11,14 +13,17 @@
         },
         {
           "block": "minecraft:deepslate",
-          "height": 3
+          "height": 31
+        },
+        {
+          "block": "minecraft:stone",
+          "height": 31
         },
         {
           "block": "virtual_craft:circuit_floor",
-          "height": 60
+          "height": 1
         }
       ],
-      "features": false,
       "structure_overrides": []
     }
   }

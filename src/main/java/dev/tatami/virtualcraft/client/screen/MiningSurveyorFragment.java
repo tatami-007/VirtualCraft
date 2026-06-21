@@ -144,11 +144,12 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 
 		// -- Scan button ---
 		scanButton = actionButton(t("screen.virtual_craft.mining_surveyor.scan"), CYAN, this::scan);
-		action.addView(scanButton, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(36)));
+		action.addView(scanButton, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44)));
 		action.addView(spacer(dp(8)));
 
 		// -- Utility row ---
 		action.addView(buildUtilityActions(), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(34)));
+		action.addView(buildHintRow());
 		refreshSelectedCard();
 		refreshResults();
 		HolographicTheme.enterTransition(window);
@@ -320,7 +321,11 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 			return;
 		}
 		if (selectedTarget != null) {
-			scanButton.setText(t("screen.virtual_craft.mining_surveyor.scan") + " \u00b7 " + selectedTarget.name().getString());
+			String name = selectedTarget.name().getString();
+			if (name.length() > 8) {
+				name = name.substring(0, 8) + "\u2026";
+			}
+			scanButton.setText(t("screen.virtual_craft.mining_surveyor.scan") + " \u00b7 " + name);
 			scanButton.setEnabled(true);
 			scanButton.setAlpha(1f);
 		} else {
@@ -526,6 +531,15 @@ public class MiningSurveyorFragment extends Fragment implements ScreenCallback {
 		doneParams.setMargins(dp(8), 0, 0, 0);
 		row.addView(secondaryActionButton(t("gui.done"), this::close), doneParams);
 		return row;
+	}
+
+	/** Hint row below the utility buttons. */
+	private View buildHintRow() {
+		TextView hint = hintText(t("screen.virtual_craft.mining_surveyor.dblclick_hint"));
+		hint.setTextSize(10f);
+		hint.setGravity(Gravity.CENTER);
+		hint.setPadding(0, dp(6), 0, 0);
+		return hint;
 	}
 
 	private Button secondaryActionButton(String text, Runnable action) {

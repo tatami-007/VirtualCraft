@@ -12,6 +12,7 @@ public class EnergyPylonBlock extends Block {
 				.strength(50.0f, 1200.0f)
 				.sound(SoundType.AMETHYST)
 				.lightLevel(state -> 15)
+				.emissiveRendering((state, getter, pos) -> true)
 				.requiresCorrectToolForDrops()
 				.noOcclusion());
 	}

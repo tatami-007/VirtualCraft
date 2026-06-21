@@ -11,7 +11,7 @@ public class CircuitFloorBlock extends Block {
 				.mapColor(MapColor.COLOR_CYAN)
 				.strength(50.0f, 1200.0f)
 				.sound(SoundType.METAL)
-				.lightLevel(state -> 3)
+				.lightLevel(state -> 8)
 				.requiresCorrectToolForDrops());
 	}
 }
