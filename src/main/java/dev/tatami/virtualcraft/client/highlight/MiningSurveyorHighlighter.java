@@ -75,11 +75,14 @@ public final class MiningSurveyorHighlighter {
 					.setCullState(RenderStateShard.NO_CULL)
 					.createCompositeState(false));
 
+	private static final int RESCAN_INTERVAL_TICKS = 20;
+
 	private BlockPos cachedOrigin;
 	private MiningSurveyTarget cachedTarget;
 	private List<BlockPos> cachedCluster = List.of();
 	private List<AABB> cachedBoxes = List.of();
 	private List<CachedEdge> cachedEdges = List.of();
+	private long lastRescanTick;
 
 	public void renderInGame(PoseStack poseStack) {
 		Minecraft minecraft = Minecraft.getInstance();
@@ -107,11 +110,18 @@ public final class MiningSurveyorHighlighter {
 		MiningSurveyTarget target = MiningSurveyorClientState.target().orElseGet(() -> stack.isEmpty()
 				? MiningSurveyTarget.defaultTarget()
 				: MiningSurveyTargetData.lockedTarget(stack));
-		if (!origin.equals(cachedOrigin) || !target.equals(cachedTarget)) {
+		long currentTick = level.getGameTime();
+		boolean targetChanged = !origin.equals(cachedOrigin) || !target.equals(cachedTarget);
+		boolean rescanDue = (currentTick - lastRescanTick) >= RESCAN_INTERVAL_TICKS;
+		if (targetChanged || rescanDue) {
 			cachedOrigin = origin.immutable();
 			cachedTarget = target;
-			cachedCluster = OreClusterFinder.collectConnectedOres(level, cachedOrigin, MAX_RENDERED_ORES, target);
-			rebuildGeometry(cachedCluster.isEmpty() ? List.of(cachedOrigin) : cachedCluster);
+			lastRescanTick = currentTick;
+			List<BlockPos> freshCluster = OreClusterFinder.collectConnectedOres(level, cachedOrigin, MAX_RENDERED_ORES, target);
+			if (targetChanged || freshCluster.size() != cachedCluster.size()) {
+				cachedCluster = freshCluster;
+				rebuildGeometry(cachedCluster.isEmpty() ? List.of(cachedOrigin) : cachedCluster);
+			}
 		}
 		if (cachedBoxes.isEmpty()) {
 			return;
@@ -380,5 +390,6 @@ public final class MiningSurveyorHighlighter {
 		cachedCluster = List.of();
 		cachedBoxes = List.of();
 		cachedEdges = List.of();
+		lastRescanTick = 0;
 	}
 }
