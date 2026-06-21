@@ -43,8 +43,8 @@ public class PowMinerMenu extends AbstractContainerMenu {
 		this.data = data;
 
 		// 双输出：基础凭证保留原槽位；稀有凭证进入右侧槽，避免稀有产物掉地导致自动化链断开。
-		addOutputSlot(BASIC_OUTPUT_SLOT, 79, 32);
-		addOutputSlot(RARE_OUTPUT_SLOT, 97, 32);
+		addOutputSlot(BASIC_OUTPUT_SLOT, 69, 32);
+		addOutputSlot(RARE_OUTPUT_SLOT, 91, 32);
 		addPlayerInventory(playerInventory);
 		addPlayerHotbar(playerInventory);
 		addDataSlots(data);
