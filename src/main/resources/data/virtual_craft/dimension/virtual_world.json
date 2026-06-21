@@ -1,29 +1,10 @@
 {
   "type": "virtual_craft:virtual_world",
   "generator": {
-    "type": "minecraft:flat",
-    "settings": {
-      "biome": "minecraft:plains",
-      "features": false,
-      "layers": [
-        {
-          "block": "minecraft:bedrock",
-          "height": 1
-        },
-        {
-          "block": "minecraft:deepslate",
-          "height": 31
-        },
-        {
-          "block": "minecraft:stone",
-          "height": 31
-        },
-        {
-          "block": "virtual_craft:circuit_floor",
-          "height": 1
-        }
-      ],
-      "structure_overrides": []
+    "type": "virtual_craft:virtual_world",
+    "biome_source": {
+      "type": "minecraft:fixed",
+      "biome": "minecraft:plains"
     }
   }
 }
