@@ -8,6 +8,7 @@ import com.google.gson.GsonBuilder;
 
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
+import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.fml.loading.FMLEnvironment;
@@ -122,6 +123,11 @@ public class VirtualCraft {
 	@SubscribeEvent
 	public void onPlayerLoggedOut(net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent event) {
 		HolographicTerminalSession.cleanup(event.getEntity().getUUID());
+	}
+
+	@SubscribeEvent
+	public void onServerStopping(ServerStoppingEvent event) {
+		ExchangeRateService.shutdown();
 	}
 }
 

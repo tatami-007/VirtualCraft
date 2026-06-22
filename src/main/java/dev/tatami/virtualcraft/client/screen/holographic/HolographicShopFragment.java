@@ -546,7 +546,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		header.addView(titleBlock, weighted(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
 		long nowMs = System.currentTimeMillis();
-		if (exchangeRefreshPending && nowMs - exchangeRefreshStartedAtMs > 900L) {
+		if (exchangeRefreshPending && nowMs - exchangeRefreshStartedAtMs > 6000L) {
 			exchangeRefreshPending = false;
 		}
 		if (exchangeRefreshSuccessUntilMs > 0L && nowMs >= exchangeRefreshSuccessUntilMs) {
@@ -678,7 +678,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		}
 		// (2) Timeout fallback: if no snapshot ever arrives, clear pending
 		//     after 900 ms so the button doesn’t stay stuck on AMBER.
-		if (exchangeRefreshPending && nowMs - exchangeRefreshStartedAtMs > 900L) {
+		if (exchangeRefreshPending && nowMs - exchangeRefreshStartedAtMs > 6000L) {
 			exchangeRefreshPending = false;
 			exchangeRefreshSnapshotArrivedMs = 0L;
 		}
