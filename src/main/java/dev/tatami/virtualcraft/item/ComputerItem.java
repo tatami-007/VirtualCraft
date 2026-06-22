@@ -18,6 +18,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Rarity;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.levelgen.Heightmap;
 
 import dev.tatami.virtualcraft.gameplay.VirtualWorldReturnPoint;
 import dev.tatami.virtualcraft.registry.ModAttachments;
@@ -65,7 +66,8 @@ public class ComputerItem extends Item {
 			}
 			sp.setData(ModAttachments.VIRTUAL_WORLD_RETURN_POINT, new VirtualWorldReturnPoint(current, sp.getX(),
 					sp.getY(), sp.getZ(), sp.getYRot(), sp.getXRot()));
-			sp.teleportTo(vw, 0.5, 64, 0.5, Set.of(), sp.getYRot(), sp.getXRot());
+			int surfaceY = vw.getHeight(Heightmap.Types.MOTION_BLOCKING, 0, 0) + 1;
+			sp.teleportTo(vw, 0.5, surfaceY, 0.5, Set.of(), sp.getYRot(), sp.getXRot());
 			sp.displayClientMessage(
 					Component.translatable("message.virtual_craft.computer.connect").withStyle(ChatFormatting.GREEN),
 					true);
