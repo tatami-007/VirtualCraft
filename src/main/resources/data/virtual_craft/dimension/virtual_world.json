@@ -1,7 +1,7 @@
 {
   "type": "virtual_craft:virtual_world",
   "generator": {
-    "type": "minecraft:noise",
+    "type": "virtual_craft:virtual_world",
     "biome_source": {
       "type": "minecraft:multi_noise",
       "preset": "minecraft:overworld"

@@ -66,7 +66,12 @@ public class ComputerItem extends Item {
 			}
 			sp.setData(ModAttachments.VIRTUAL_WORLD_RETURN_POINT, new VirtualWorldReturnPoint(current, sp.getX(),
 					sp.getY(), sp.getZ(), sp.getYRot(), sp.getXRot()));
+			// Force chunk at spawn to generate before querying heightmap
+			vw.getChunk(0, 0);
 			int surfaceY = vw.getHeight(Heightmap.Types.MOTION_BLOCKING, 0, 0) + 1;
+			if (surfaceY <= vw.getMinBuildHeight()) {
+				surfaceY = 80;
+			}
 			sp.teleportTo(vw, 0.5, surfaceY, 0.5, Set.of(), sp.getYRot(), sp.getXRot());
 			sp.displayClientMessage(
 					Component.translatable("message.virtual_craft.computer.connect").withStyle(ChatFormatting.GREEN),

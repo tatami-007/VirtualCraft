@@ -460,5 +460,6 @@
   "block.virtual_craft.energy_pylon": "Energy Pylon",
   "block.virtual_craft.holographic_wall": "Holographic Wall",
   "block.virtual_craft.circuit_floor": "Circuit Floor",
-  "screen.virtual_craft.mining_surveyor.tracking": "Tracking"
+  "screen.virtual_craft.mining_surveyor.tracking": "Tracking",
+  "message.virtual_craft.exchange.refresh_failed": "Exchange rate refresh failed - server unreachable"
 }

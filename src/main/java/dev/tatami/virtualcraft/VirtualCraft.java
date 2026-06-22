@@ -29,6 +29,7 @@ import dev.tatami.virtualcraft.registry.ModCreativeTabs;
 import dev.tatami.virtualcraft.registry.ModBlockEntities;
 import dev.tatami.virtualcraft.registry.ModAttachments;
 import dev.tatami.virtualcraft.registry.ModBlocks;
+import dev.tatami.virtualcraft.registry.ModDimensions;
 import dev.tatami.virtualcraft.registry.ModCapabilities;
 import dev.tatami.virtualcraft.registry.ModEntityTypes;
 import dev.tatami.virtualcraft.registry.ModItems;
@@ -84,6 +85,7 @@ public class VirtualCraft {
 		WirelessEnergyNetwork.registerEvents(NeoForge.EVENT_BUS);
 
 		ModBlocks.REGISTRY.register(modEventBus);
+		ModDimensions.CHUNK_GENERATOR_CODECS.register(modEventBus);
 		ModBlockEntities.REGISTRY.register(modEventBus);
 		ModAttachments.REGISTRY.register(modEventBus);
 		ModEntityTypes.REGISTRY.register(modEventBus);

@@ -128,7 +128,13 @@ public record WalletActionPayload(int menuId, Action action, String primaryCurre
 						return;
 					}
 					ExchangeRateSnapshot refreshedSnapshot = ExchangeRateService.refreshNow(player.server);
-					player.displayClientMessage(Component.translatable("message.virtual_craft.exchange.refreshed"), true);
+
+								if (ExchangeRateService.didLastRefreshFail()) {
+									player.displayClientMessage(Component.translatable("message.virtual_craft.exchange.refresh_failed").withStyle(net.minecraft.ChatFormatting.RED), true);
+								} else {
+									player.displayClientMessage(Component.translatable("message.virtual_craft.exchange.refreshed"), true);
+								}
+
 					syncTerminalState(context, menuId, player, refreshedSnapshot);
 				}
 				case SETTLE_MINING -> {

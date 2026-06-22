@@ -31,13 +31,14 @@ public final class ExchangeRateService {
 	private static final long STALE_AFTER_SECONDS = 1_800L;
 	private static final long MANUAL_REFRESH_COOLDOWN_SECONDS = 30L;
 	private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
-			.connectTimeout(Duration.ofSeconds(5))
+			.connectTimeout(Duration.ofSeconds(10))
 			.build();
 	private static final Path CACHE_PATH = FMLPaths.CONFIGDIR.get().resolve("virtual_craft").resolve("exchange_rates.json");
 	private static volatile ExchangeRateSnapshot currentSnapshot = ExchangeRateSnapshot.defaultSnapshot();
 	private static volatile boolean refreshInFlight;
 	private static volatile int nextRefreshTick;
 	private static volatile long lastManualRefreshEpochSeconds;
+	private static volatile boolean lastRefreshFailed;
 
 	private ExchangeRateService() {
 	}
@@ -62,6 +63,10 @@ public final class ExchangeRateService {
 
 	public static boolean canManualRefresh() {
 		return Instant.now().getEpochSecond() - lastManualRefreshEpochSeconds >= MANUAL_REFRESH_COOLDOWN_SECONDS;
+	}
+
+	public static boolean didLastRefreshFail() {
+		return lastRefreshFailed;
 	}
 
 	public static ExchangeRateSnapshot refreshNow(MinecraftServer server) {
@@ -94,9 +99,11 @@ public final class ExchangeRateService {
 		try {
 			ExchangeRateSnapshot liveSnapshot = fetchLiveSnapshot();
 			currentSnapshot = withStaleStatus(liveSnapshot);
+			lastRefreshFailed = false;
 			saveCache(liveSnapshot);
 			VirtualCraft.LOGGER.info("Loaded live crypto exchange rates for {}", server.getMotd());
 		} catch (Exception exception) {
+			lastRefreshFailed = true;
 			VirtualCraft.LOGGER.warn("Falling back to cached/default exchange rates", exception);
 		}
 		return withStaleStatus(currentSnapshot);
@@ -150,9 +157,23 @@ public final class ExchangeRateService {
 	}
 
 	private static ExchangeRateSnapshot fetchLiveSnapshot() throws IOException, InterruptedException {
+		try {
+			return fetchFromCoinGecko();
+		} catch (Exception primaryEx) {
+			VirtualCraft.LOGGER.debug("CoinGecko unavailable, trying CoinCap fallback", primaryEx);
+			try {
+				return fetchFromCoinCap();
+			} catch (Exception fallbackEx) {
+				primaryEx.addSuppressed(fallbackEx);
+				throw primaryEx;
+			}
+		}
+	}
+
+	private static ExchangeRateSnapshot fetchFromCoinGecko() throws IOException, InterruptedException {
 		HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
 				.uri(URI.create("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,tron,dogecoin&vs_currencies=usd&include_last_updated_at=true&precision=full"))
-				.timeout(Duration.ofSeconds(5))
+				.timeout(Duration.ofSeconds(10))
 				.GET()
 				.header("Accept", "application/json");
 		String demoKey = System.getenv("VIRTUAL_CRAFT_COINGECKO_API_KEY");
@@ -175,6 +196,42 @@ public final class ExchangeRateService {
 		quotes.put(CryptoCurrency.DOGE, getQuote(root, "dogecoin"));
 		long updatedAt = latestUpdatedAt(root);
 		return new ExchangeRateSnapshot(quotes, updatedAt, ExchangeRateSnapshot.SourceStatus.LIVE);
+	}
+
+	private static ExchangeRateSnapshot fetchFromCoinCap() throws IOException, InterruptedException {
+		String[] coinCapIds = {"bitcoin", "ethereum", "solana", "tron", "dogecoin"};
+		EnumMap<CryptoCurrency, BigDecimal> quotes = new EnumMap<>(CryptoCurrency.class);
+		quotes.put(CryptoCurrency.USDT, BigDecimal.ONE.setScale(2, RoundingMode.DOWN));
+
+		for (String id : coinCapIds) {
+			HttpRequest request = HttpRequest.newBuilder()
+					.uri(URI.create("https://api.coincap.io/v2/assets/" + id))
+					.timeout(Duration.ofSeconds(10))
+					.GET()
+					.header("Accept", "application/json")
+					.build();
+			HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+			if (response.statusCode() < 200 || response.statusCode() >= 300) {
+				throw new IOException("CoinCap error for " + id + ": " + response.statusCode());
+			}
+			JsonObject root = GsonHelper.parse(response.body());
+			JsonObject data = GsonHelper.getAsJsonObject(root, "data");
+			String priceStr = GsonHelper.getAsString(data, "priceUsd", "0");
+			BigDecimal price = new BigDecimal(priceStr);
+
+			CryptoCurrency currency = switch (id) {
+				case "bitcoin" -> CryptoCurrency.BTC;
+				case "ethereum" -> CryptoCurrency.ETH;
+				case "solana" -> CryptoCurrency.SOL;
+				case "tron" -> CryptoCurrency.TRX;
+				case "dogecoin" -> CryptoCurrency.DOGE;
+				default -> null;
+			};
+			if (currency != null) {
+				quotes.put(currency, price);
+			}
+		}
+		return new ExchangeRateSnapshot(quotes, Instant.now().getEpochSecond(), ExchangeRateSnapshot.SourceStatus.LIVE);
 	}
 
 	private static BigDecimal getQuote(JsonObject root, String key) throws IOException {

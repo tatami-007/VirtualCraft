@@ -460,5 +460,6 @@
   "block.virtual_craft.energy_pylon": "能量塔",
   "block.virtual_craft.holographic_wall": "全息墙",
   "block.virtual_craft.circuit_floor": "电路地板",
-  "screen.virtual_craft.mining_surveyor.tracking": "当前追踪"
+  "screen.virtual_craft.mining_surveyor.tracking": "当前追踪",
+  "message.virtual_craft.exchange.refresh_failed": "汇率刷新失败 - 无法连接服务器"
 }
