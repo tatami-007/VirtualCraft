@@ -39,6 +39,11 @@ public final class ExchangeRateService {
 	private static final long STALE_AFTER_SECONDS = 120L;
 	private static final long MANUAL_REFRESH_COOLDOWN_SECONDS = 5L;
 	private static final long WS_RECONNECT_INTERVAL_MS = 10_000L;
+
+	private static final String BINANCE_REST = "https://data-api.binance.vision/api/v3/ticker/price";
+	private static final String BINANCE_WS = "wss://data-stream.binance.vision/ws/"
+			+ "btcusdt@miniTicker/ethusdt@miniTicker/solusdt@miniTicker/dogeusdt@miniTicker/trxusdt@miniTicker";
+
 	private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
 			.connectTimeout(Duration.ofSeconds(10))
 			.build();
@@ -56,7 +61,6 @@ public final class ExchangeRateService {
 	private static final EnumMap<CryptoCurrency, BigDecimal> livePrices = new EnumMap<>(CryptoCurrency.class);
 	private static volatile ExchangeRateSnapshot pendingBroadcast;
 	private static volatile long lastBroadcastTick;
-	private static volatile MinecraftServer activeServer;
 
 	private ExchangeRateService() {
 	}
@@ -66,7 +70,6 @@ public final class ExchangeRateService {
 	}
 
 	public static void initialize(MinecraftServer server) {
-		activeServer = server;
 		ExchangeRateSnapshot snapshot = loadCache().orElseGet(ExchangeRateSnapshot::defaultSnapshot);
 		currentSnapshot = withStaleStatus(snapshot);
 		for (CryptoCurrency c : CryptoCurrency.values()) {
@@ -78,19 +81,15 @@ public final class ExchangeRateService {
 	}
 
 	public static void tick(MinecraftServer server) {
-		activeServer = server;
-
 		if (!wsConnected && System.currentTimeMillis() - lastWsReconnectAttemptMs > WS_RECONNECT_INTERVAL_MS) {
 			connectWebSocket();
 		}
-
 		if (pendingBroadcast != null && server.getTickCount() - lastBroadcastTick >= BROADCAST_THROTTLE_TICKS) {
 			ExchangeRateSnapshot toSend = pendingBroadcast;
 			pendingBroadcast = null;
 			lastBroadcastTick = server.getTickCount();
 			broadcastToOpenTerminals(server, toSend);
 		}
-
 		if (!wsConnected && server.getTickCount() >= nextHttpRefreshTick) {
 			nextHttpRefreshTick = server.getTickCount() + HTTP_FALLBACK_INTERVAL_TICKS;
 			refreshLiveRatesAsync(server, false);
@@ -127,11 +126,10 @@ public final class ExchangeRateService {
 			activeWebSocket = null;
 		}
 		wsConnected = false;
-		activeServer = null;
 		pendingBroadcast = null;
 	}
 
-	// ---- WebSocket ----
+	// ---- WebSocket (Binance Vision) ----
 
 	private static void connectWebSocket() {
 		lastWsReconnectAttemptMs = System.currentTimeMillis();
@@ -139,37 +137,35 @@ public final class ExchangeRateService {
 			HttpClient.newHttpClient()
 					.newWebSocketBuilder()
 					.connectTimeout(Duration.ofSeconds(10))
-					.buildAsync(
-							URI.create("wss://ws.coincap.io/prices?assets=bitcoin,ethereum,solana,dogecoin,tron"),
-							new CoinCapListener())
+					.buildAsync(URI.create(BINANCE_WS), new BinanceWsListener())
 					.thenAccept(ws -> {
 						activeWebSocket = ws;
 						wsConnected = true;
 						lastRefreshFailed = false;
-						VirtualCraft.LOGGER.info("Connected to CoinCap WebSocket for real-time prices");
+						VirtualCraft.LOGGER.info("Connected to Binance WebSocket for real-time prices");
 					})
 					.exceptionally(ex -> {
 						wsConnected = false;
-						VirtualCraft.LOGGER.debug("CoinCap WebSocket connect failed", ex);
+						VirtualCraft.LOGGER.debug("Binance WebSocket connect failed", ex);
 						return null;
 					});
 		} catch (Exception e) {
-			VirtualCraft.LOGGER.debug("Failed to initiate CoinCap WebSocket", e);
+			VirtualCraft.LOGGER.debug("Failed to initiate Binance WebSocket", e);
 		}
 	}
 
-	private static CryptoCurrency mapCoinCapId(String id) {
-		return switch (id) {
-			case "bitcoin" -> CryptoCurrency.BTC;
-			case "ethereum" -> CryptoCurrency.ETH;
-			case "solana" -> CryptoCurrency.SOL;
-			case "tron" -> CryptoCurrency.TRX;
-			case "dogecoin" -> CryptoCurrency.DOGE;
+	private static CryptoCurrency mapBinanceSymbol(String symbol) {
+		return switch (symbol) {
+			case "BTCUSDT" -> CryptoCurrency.BTC;
+			case "ETHUSDT" -> CryptoCurrency.ETH;
+			case "SOLUSDT" -> CryptoCurrency.SOL;
+			case "TRXUSDT" -> CryptoCurrency.TRX;
+			case "DOGEUSDT" -> CryptoCurrency.DOGE;
 			default -> null;
 		};
 	}
 
-	private static final class CoinCapListener implements WebSocket.Listener {
+	private static final class BinanceWsListener implements WebSocket.Listener {
 		private final StringBuilder buffer = new StringBuilder();
 
 		@Override
@@ -183,34 +179,35 @@ public final class ExchangeRateService {
 			buffer.setLength(0);
 			try {
 				JsonObject obj = GsonHelper.parse(message);
-				boolean changed = false;
-				synchronized (livePrices) {
-					for (Map.Entry<String, JsonElement> entry : obj.entrySet()) {
-						CryptoCurrency currency = mapCoinCapId(entry.getKey());
-						if (currency != null) {
-							BigDecimal price = new BigDecimal(entry.getValue().getAsString());
+				String symbol = GsonHelper.getAsString(obj, "s", "");
+				String closePrice = GsonHelper.getAsString(obj, "c", "");
+				if (!symbol.isEmpty() && !closePrice.isEmpty()) {
+					CryptoCurrency currency = mapBinanceSymbol(symbol);
+					if (currency != null) {
+						BigDecimal price = new BigDecimal(closePrice);
+						boolean changed;
+						synchronized (livePrices) {
 							BigDecimal old = livePrices.get(currency);
-							if (old == null || old.compareTo(price) != 0) {
+							changed = old == null || old.compareTo(price) != 0;
+							if (changed) {
 								livePrices.put(currency, price);
-								changed = true;
 							}
+						}
+						if (changed) {
+							EnumMap<CryptoCurrency, BigDecimal> copy;
+							synchronized (livePrices) {
+								copy = new EnumMap<>(livePrices);
+							}
+							ExchangeRateSnapshot fresh = new ExchangeRateSnapshot(
+									copy, Instant.now().getEpochSecond(), ExchangeRateSnapshot.SourceStatus.LIVE);
+							currentSnapshot = fresh;
+							pendingBroadcast = fresh;
+							lastRefreshFailed = false;
 						}
 					}
 				}
-				if (changed) {
-					EnumMap<CryptoCurrency, BigDecimal> copy;
-					synchronized (livePrices) {
-						copy = new EnumMap<>(livePrices);
-					}
-					ExchangeRateSnapshot fresh = new ExchangeRateSnapshot(
-							copy, Instant.now().getEpochSecond(), ExchangeRateSnapshot.SourceStatus.LIVE);
-					currentSnapshot = fresh;
-					pendingBroadcast = fresh;
-					lastRefreshFailed = false;
-					saveCache(fresh);
-				}
 			} catch (Exception e) {
-				VirtualCraft.LOGGER.debug("Failed to parse CoinCap WS message: {}", message, e);
+				VirtualCraft.LOGGER.debug("Failed to parse Binance WS message: {}", message, e);
 			}
 			webSocket.request(1);
 			return CompletableFuture.completedFuture(null);
@@ -220,7 +217,7 @@ public final class ExchangeRateService {
 		public CompletionStage<?> onClose(WebSocket webSocket, int statusCode, String reason) {
 			wsConnected = false;
 			activeWebSocket = null;
-			VirtualCraft.LOGGER.info("CoinCap WebSocket closed: {} {}", statusCode, reason);
+			VirtualCraft.LOGGER.info("Binance WebSocket closed: {} {}", statusCode, reason);
 			return CompletableFuture.completedFuture(null);
 		}
 
@@ -228,7 +225,7 @@ public final class ExchangeRateService {
 		public void onError(WebSocket webSocket, Throwable error) {
 			wsConnected = false;
 			activeWebSocket = null;
-			VirtualCraft.LOGGER.debug("CoinCap WebSocket error", error);
+			VirtualCraft.LOGGER.debug("Binance WebSocket error", error);
 		}
 	}
 
@@ -243,7 +240,7 @@ public final class ExchangeRateService {
 		}
 	}
 
-	// ---- HTTP fallback ----
+	// ---- HTTP fallback (Binance Vision REST) ----
 
 	private static void refreshLiveRatesAsync(MinecraftServer server, boolean logErrors) {
 		if (refreshInFlight) {
@@ -252,7 +249,7 @@ public final class ExchangeRateService {
 		refreshInFlight = true;
 		CompletableFuture.runAsync(() -> {
 			try {
-				ExchangeRateSnapshot liveSnapshot = fetchLiveSnapshot();
+				ExchangeRateSnapshot liveSnapshot = fetchFromBinanceRest();
 				currentSnapshot = withStaleStatus(liveSnapshot);
 				lastRefreshFailed = false;
 				saveCache(liveSnapshot);
@@ -261,11 +258,12 @@ public final class ExchangeRateService {
 						livePrices.put(c, liveSnapshot.quoteToUsdt(c));
 					}
 				}
-				VirtualCraft.LOGGER.info("Loaded live crypto exchange rates via HTTP");
+				pendingBroadcast = withStaleStatus(liveSnapshot);
+				VirtualCraft.LOGGER.info("Loaded live crypto exchange rates via Binance REST");
 			} catch (Exception exception) {
 				lastRefreshFailed = true;
 				if (logErrors) {
-					VirtualCraft.LOGGER.warn("Falling back to cached/default exchange rates", exception);
+					VirtualCraft.LOGGER.warn("Failed to fetch exchange rates", exception);
 				}
 			} finally {
 				refreshInFlight = false;
@@ -275,7 +273,7 @@ public final class ExchangeRateService {
 
 	private static ExchangeRateSnapshot refreshLiveRates(MinecraftServer server) {
 		try {
-			ExchangeRateSnapshot liveSnapshot = fetchLiveSnapshot();
+			ExchangeRateSnapshot liveSnapshot = fetchFromBinanceRest();
 			currentSnapshot = withStaleStatus(liveSnapshot);
 			lastRefreshFailed = false;
 			saveCache(liveSnapshot);
@@ -284,73 +282,37 @@ public final class ExchangeRateService {
 					livePrices.put(c, liveSnapshot.quoteToUsdt(c));
 				}
 			}
-			VirtualCraft.LOGGER.info("Loaded live crypto exchange rates via HTTP (manual)");
+			VirtualCraft.LOGGER.info("Loaded live crypto exchange rates via Binance REST (manual)");
 		} catch (Exception exception) {
 			lastRefreshFailed = true;
-			VirtualCraft.LOGGER.warn("Falling back to cached/default exchange rates", exception);
+			VirtualCraft.LOGGER.warn("Failed to fetch exchange rates", exception);
 		}
 		return withStaleStatus(currentSnapshot);
 	}
 
-	private static ExchangeRateSnapshot fetchLiveSnapshot() throws IOException, InterruptedException {
-		try {
-			return fetchFromCoinGecko();
-		} catch (Exception primaryEx) {
-			VirtualCraft.LOGGER.debug("CoinGecko unavailable, trying CoinCap REST fallback", primaryEx);
-			try {
-				return fetchFromCoinCapRest();
-			} catch (Exception fallbackEx) {
-				primaryEx.addSuppressed(fallbackEx);
-				throw primaryEx;
-			}
-		}
-	}
-
-	private static ExchangeRateSnapshot fetchFromCoinGecko() throws IOException, InterruptedException {
-		HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
-				.uri(URI.create("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,tron,dogecoin&vs_currencies=usd&include_last_updated_at=true&precision=full"))
-				.timeout(Duration.ofSeconds(10))
-				.GET()
-				.header("Accept", "application/json");
-		String demoKey = System.getenv("VIRTUAL_CRAFT_COINGECKO_API_KEY");
-		if (demoKey != null && !demoKey.isBlank()) {
-			requestBuilder.header("x-cg-demo-api-key", demoKey.trim());
-		}
-		HttpResponse<String> response = HTTP_CLIENT.send(requestBuilder.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-		if (response.statusCode() < 200 || response.statusCode() >= 300) {
-			throw new IOException("Unexpected CoinGecko response status: " + response.statusCode());
-		}
-		JsonObject root = GsonHelper.parse(response.body());
-		EnumMap<CryptoCurrency, BigDecimal> quotes = new EnumMap<>(CryptoCurrency.class);
-		quotes.put(CryptoCurrency.BTC, getQuote(root, "bitcoin"));
-		quotes.put(CryptoCurrency.ETH, getQuote(root, "ethereum"));
-		quotes.put(CryptoCurrency.USDT, BigDecimal.ONE.setScale(2, RoundingMode.DOWN));
-		quotes.put(CryptoCurrency.SOL, getQuote(root, "solana"));
-		quotes.put(CryptoCurrency.TRX, getQuote(root, "tron"));
-		quotes.put(CryptoCurrency.DOGE, getQuote(root, "dogecoin"));
-		long updatedAt = latestUpdatedAt(root);
-		return new ExchangeRateSnapshot(quotes, updatedAt, ExchangeRateSnapshot.SourceStatus.LIVE);
-	}
-
-	private static ExchangeRateSnapshot fetchFromCoinCapRest() throws IOException, InterruptedException {
-		String[] ids = {"bitcoin", "ethereum", "solana", "tron", "dogecoin"};
+	private static ExchangeRateSnapshot fetchFromBinanceRest() throws IOException, InterruptedException {
+		String[][] pairs = {
+				{"BTCUSDT", "BTC"}, {"ETHUSDT", "ETH"}, {"SOLUSDT", "SOL"},
+				{"TRXUSDT", "TRX"}, {"DOGEUSDT", "DOGE"}
+		};
 		EnumMap<CryptoCurrency, BigDecimal> quotes = new EnumMap<>(CryptoCurrency.class);
 		quotes.put(CryptoCurrency.USDT, BigDecimal.ONE.setScale(2, RoundingMode.DOWN));
-		for (String id : ids) {
+
+		for (String[] pair : pairs) {
 			HttpRequest request = HttpRequest.newBuilder()
-					.uri(URI.create("https://api.coincap.io/v2/assets/" + id))
+					.uri(URI.create(BINANCE_REST + "?symbol=" + pair[0]))
 					.timeout(Duration.ofSeconds(10))
 					.GET()
 					.header("Accept", "application/json")
 					.build();
 			HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
 			if (response.statusCode() < 200 || response.statusCode() >= 300) {
-				throw new IOException("CoinCap REST error for " + id + ": " + response.statusCode());
+				throw new IOException("Binance REST error for " + pair[0] + ": " + response.statusCode());
 			}
-			JsonObject root = GsonHelper.parse(response.body());
-			JsonObject data = GsonHelper.getAsJsonObject(root, "data");
-			BigDecimal price = new BigDecimal(GsonHelper.getAsString(data, "priceUsd", "0"));
-			CryptoCurrency currency = mapCoinCapId(id);
+			JsonObject obj = GsonHelper.parse(response.body());
+			String priceStr = GsonHelper.getAsString(obj, "price", "0");
+			BigDecimal price = new BigDecimal(priceStr);
+			CryptoCurrency currency = CryptoCurrency.byId(pair[1].toLowerCase()).orElse(null);
 			if (currency != null) {
 				quotes.put(currency, price);
 			}
@@ -405,28 +367,6 @@ public final class ExchangeRateService {
 		} catch (IOException exception) {
 			VirtualCraft.LOGGER.warn("Failed to write exchange rate cache {}", CACHE_PATH, exception);
 		}
-	}
-
-	// ---- Helpers ----
-
-	private static BigDecimal getQuote(JsonObject root, String key) throws IOException {
-		JsonObject entry = GsonHelper.getAsJsonObject(root, key);
-		JsonElement valueElement = entry.get("usd");
-		if (valueElement == null) {
-			throw new IOException("Missing CoinGecko simple price for " + key);
-		}
-		return valueElement.getAsBigDecimal();
-	}
-
-	private static long latestUpdatedAt(JsonObject root) {
-		long latest = Instant.now().getEpochSecond();
-		for (String key : new String[] {"bitcoin", "ethereum", "solana", "tron", "dogecoin"}) {
-			JsonObject entry = GsonHelper.getAsJsonObject(root, key);
-			if (entry.has("last_updated_at")) {
-				latest = Math.max(latest, entry.get("last_updated_at").getAsLong());
-			}
-		}
-		return latest;
 	}
 
 	private static ExchangeRateSnapshot withStaleStatus(ExchangeRateSnapshot snapshot) {
