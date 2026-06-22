@@ -1,7 +1,11 @@
 package dev.tatami.virtualcraft.client.screen.holographic;
 
 import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.math.BigDecimal;
 
 import dev.tatami.virtualcraft.currency.CryptoCurrency;
 import dev.tatami.virtualcraft.exchange.ExchangeRateSnapshot;
@@ -131,5 +135,61 @@ public final class HolographicShopClientCache {
 		preferences = null;
 		hasWalletSnapshot = false;
 		hasCatalogSnapshot = false;
+		synchronized (priceHistory) {
+			priceHistory.clear();
+		}
+	}
+
+	// ---- Price history for K-line chart ----
+
+	public record PricePoint(long timestampMs, BigDecimal price) {}
+
+	public record Candle(long periodStartMs, BigDecimal open, BigDecimal high, BigDecimal low, BigDecimal close) {
+		public boolean isUp() { return close.compareTo(open) >= 0; }
+	}
+
+	private static final int MAX_POINTS = 600;
+	private static final Map<CryptoCurrency, LinkedList<PricePoint>> priceHistory = new EnumMap<>(CryptoCurrency.class);
+
+	public static void recordPrice(CryptoCurrency currency, BigDecimal price) {
+		if (currency == null || price == null) return;
+		long now = System.currentTimeMillis();
+		synchronized (priceHistory) {
+			LinkedList<PricePoint> list = priceHistory.computeIfAbsent(currency, k -> new LinkedList<>());
+			list.addLast(new PricePoint(now, price));
+			while (list.size() > MAX_POINTS) {
+				list.removeFirst();
+			}
+		}
+	}
+
+	public static List<Candle> getCandles(CryptoCurrency currency, long periodMs) {
+		List<PricePoint> points;
+		synchronized (priceHistory) {
+			LinkedList<PricePoint> list = priceHistory.get(currency);
+			if (list == null || list.isEmpty()) return List.of();
+			points = new ArrayList<>(list);
+		}
+		List<Candle> candles = new ArrayList<>();
+		int i = 0;
+		while (i < points.size()) {
+			PricePoint first = points.get(i);
+			long periodStart = (first.timestampMs() / periodMs) * periodMs;
+			BigDecimal open = first.price();
+			BigDecimal high = first.price();
+			BigDecimal low = first.price();
+			BigDecimal close = first.price();
+			i++;
+			while (i < points.size()) {
+				PricePoint p = points.get(i);
+				if (((p.timestampMs() / periodMs) * periodMs) != periodStart) break;
+				if (p.price().compareTo(high) > 0) high = p.price();
+				if (p.price().compareTo(low) < 0) low = p.price();
+				close = p.price();
+				i++;
+			}
+			candles.add(new Candle(periodStart, open, high, low, close));
+		}
+		return candles;
 	}
 }

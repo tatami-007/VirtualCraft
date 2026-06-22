@@ -4,6 +4,7 @@ import static dev.tatami.virtualcraft.client.screen.holographic.HolographicTheme
 import static dev.tatami.virtualcraft.client.screen.holographic.HolographicTheme.AMBER;
 import static dev.tatami.virtualcraft.client.screen.holographic.HolographicTheme.CYAN;
 import static dev.tatami.virtualcraft.client.screen.holographic.HolographicTheme.GREEN;
+import static dev.tatami.virtualcraft.client.screen.holographic.HolographicTheme.RED;
 import static dev.tatami.virtualcraft.client.screen.holographic.HolographicTheme.HEADER_REFRESH_WIDTH_DP;
 import static dev.tatami.virtualcraft.client.screen.holographic.HolographicTheme.ICON_LARGE_DP;
 import static dev.tatami.virtualcraft.client.screen.holographic.HolographicTheme.ICON_SMALL_DP;
@@ -140,8 +141,6 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	private FrameLayout pickerOverlay;
 	private TextView headerValue;
 	private TextView headerStatus;
-	private TextView headerAddress;
-	private TextView headerTime;
 
 	private String walletAddress = "VC-UNKNOWN";
 	private ExchangeRateSnapshot exchangeSnapshot = ExchangeRateSnapshot.defaultSnapshot();
@@ -155,7 +154,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	private boolean pageTransitionPending;
 	// Visual order of the nav column — indexes the 1..6 keyboard shortcuts.
 	private static final Page[] NAV_ORDER = {
-			Page.WALLET, Page.CONVERT, Page.SHOP, Page.TRANSFER, Page.MINING, Page.CONTRACTS };
+			Page.WALLET, Page.CONVERT, Page.SHOP, Page.TRANSFER, Page.MINING, Page.CONTRACTS, Page.MARKET };
 	private int selectedOfferIndex;
 	private CryptoCurrency selectedWalletCurrency = CryptoCurrency.USDT;
 	private CryptoCurrency convertSourceCurrency = CryptoCurrency.USDT;
@@ -223,6 +222,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	private boolean refreshIncludeHeader;
 	private FocusTarget refreshFocusTarget = FocusTarget.NONE;
 	private boolean exchangeRefreshPending;
+	private long lastExchangeSyncRebuildMs;
 	private long exchangeRefreshStartedAtMs;
 	private Button headerRefreshButton;
 	private int exchangeRefreshRequestId;
@@ -470,14 +470,17 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	public void applyExchangeSync(ExchangeRateSnapshot snapshot) {
 		exchangeSnapshot = snapshot;
 		HolographicShopClientCache.storeExchange(snapshot);
-		// v24 tick-driven: if a refresh is pending, record the snapshot-arrived
-		// timestamp. The next ClientTickEvent.Post will call applyRefreshButtonState
-		// which promotes pending→success once the 300 ms min AMBER window elapsed.
-		// We don’t flip directly here to guarantee AMBER “同步中” is visible.
+		for (dev.tatami.virtualcraft.currency.CryptoCurrency c : dev.tatami.virtualcraft.currency.CryptoCurrency.values()) {
+			HolographicShopClientCache.recordPrice(c, snapshot.quoteToUsdt(c));
+		}
 		if (exchangeRefreshPending && exchangeRefreshSnapshotArrivedMs == 0L) {
 			exchangeRefreshSnapshotArrivedMs = System.currentTimeMillis();
 		}
-		requestRefresh(true, captureFocusTarget());
+		long now = System.currentTimeMillis();
+		if (exchangeRefreshPending || now - lastExchangeSyncRebuildMs >= 5000L) {
+			lastExchangeSyncRebuildMs = now;
+			requestRefresh(true, captureFocusTarget());
+		}
 	}
 
 	/**
@@ -580,40 +583,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		statusParams.setMargins(dp(8), 0, 0, 0);
 		header.addView(headerStatus, statusParams);
 
-		LinearLayout meta = vertical();
-		meta.setGravity(Gravity.END);
-		var metaParams = new LinearLayout.LayoutParams(dp(170), ViewGroup.LayoutParams.WRAP_CONTENT);
-		metaParams.setMargins(dp(12), 0, 0, 0);
-		header.addView(meta, metaParams);
-
-		headerAddress = bodyText("");
-		headerAddress.setGravity(Gravity.END);
-		// 用户要求：右上角地址不要“省略号”。bodyText 默认 setSingleLine(true)+ellipsize.END，
-		// 13 字符 "VC-XXXXXXXXXX" 装不下就裁成 "VC-38...1F6" 。查询 dp(170) meta
-		// 宽度 × 14sp 下单行戒是装不下，改为多行 wrap：取消单行限、取消省略号、最多 2 行。
-		headerAddress.setSingleLine(false);
-		headerAddress.setEllipsize(null);
-		headerAddress.setMaxLines(2);
-		// A1: clicking the wallet address copies it to the system clipboard so
-		// players can easily paste it elsewhere (web wallets, chat, etc.).
-		headerAddress.setOnClickListener(v -> {
-			if (walletAddress == null || walletAddress.isBlank()) {
-				return;
-			}
-			Minecraft mc = Minecraft.getInstance();
-			mc.keyboardHandler.setClipboard(walletAddress);
-			if (mc.player != null) {
-				mc.player.displayClientMessage(
-						net.minecraft.network.chat.Component.translatable(
-								"message.virtual_craft.wallet.address_copied"),
-						true);
-			}
-		});
-		headerTime = hintText("");
-		headerTime.setGravity(Gravity.END);
-		meta.addView(headerAddress);
-		meta.addView(headerTime);
-		return header;
+return header;
 	}
 
 	private void requestExchangeRefresh() {
@@ -651,8 +621,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		applyRefreshButtonState();
 		// 原用 shortWalletAddress() 主动取中间裁出 "VC-38...1F6" 省略号。用户明确要求不要省略号，
 		// 改走完整 displayWalletAddress（上文 onCreateView 里 headerAddress 已 setMaxLines(2)+不裁断）。
-		headerAddress.setText(displayWalletAddress());
-		headerTime.setText(TIME_FORMAT.format(Instant.ofEpochSecond(exchangeSnapshot.updatedAtEpochSeconds())));
+
 	}
 
 	/**
@@ -787,6 +756,9 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		navColumn.addView(navIconButton(miningIcon, "5  " + t("screen.virtual_craft.holographic_shop.page.mining"), Page.MINING), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
 		navColumn.addView(spacer(dp(6)));
 		navColumn.addView(navIconButton(contractsIcon, "6  " + t("screen.virtual_craft.holographic_shop.page.contracts"), Page.CONTRACTS), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
+		navColumn.addView(spacer(dp(6)));
+		ResourceLocation marketIcon = ResourceLocation.fromNamespaceAndPath("minecraft", "clock");
+		navColumn.addView(navIconButton(marketIcon, "7  " + t("screen.virtual_craft.holographic_shop.page.market"), Page.MARKET), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
 		navColumn.addView(spacer(dp(14)));
 		navColumn.addView(sectionHeader(t("screen.virtual_craft.holographic_shop.sidebar.portfolio"), null));
 
@@ -849,6 +821,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			case TRANSFER -> buildTransferContent();
 			case MINING -> buildMiningContent();
 			case CONTRACTS -> buildContractsContent();
+			case MARKET -> buildMarketContent();
 		}
 	}
 
@@ -871,6 +844,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			case TRANSFER -> buildTransferActions();
 			case MINING -> buildMiningActions();
 			case CONTRACTS -> buildContractsActions();
+			case MARKET -> buildMarketActions();
 		}
 	}
 
@@ -3662,7 +3636,262 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			case MINING -> miningSettlementCurrency;
 			case CONTRACTS -> CryptoCurrency.USDT;
 			case WALLET -> selectedWalletCurrency;
+			case MARKET -> marketSelectedCurrency;
 		};
+	}
+
+
+	// ---- MARKET page: K-line price chart ----
+
+	private CryptoCurrency marketSelectedCurrency = CryptoCurrency.BTC;
+	private static final long CANDLE_PERIOD_MS = 60_000L;
+
+	private void buildMarketContent() {
+		contentColumn.addView(sectionHeader(
+				t("screen.virtual_craft.holographic_shop.market.title"),
+				t("screen.virtual_craft.holographic_shop.market.subtitle")));
+		contentColumn.addView(spacer(dp(8)));
+
+		// Currency selector row
+		LinearLayout selectorRow = new LinearLayout(requireContext());
+		selectorRow.setOrientation(LinearLayout.HORIZONTAL);
+		selectorRow.setGravity(Gravity.CENTER_VERTICAL);
+		for (CryptoCurrency currency : new CryptoCurrency[]{
+				CryptoCurrency.BTC, CryptoCurrency.ETH, CryptoCurrency.SOL,
+				CryptoCurrency.DOGE, CryptoCurrency.TRX}) {
+			Button btn = navButton(currency.ticker(), null);
+			boolean selected = currency == marketSelectedCurrency;
+			btn.setTextColor(selected ? GREEN : TEXT_SOFT);
+			if (selected) {
+				ShapeDrawable bg = new ShapeDrawable();
+				bg.setCornerRadius(dp(6));
+				bg.setColor(0x30_00FF88);
+				btn.setBackground(bg);
+			}
+			CryptoCurrency captured = currency;
+			btn.setOnClickListener(v -> {
+				marketSelectedCurrency = captured;
+				requestRefresh(false, FocusTarget.NONE);
+			});
+			HolographicTheme.interactive(btn);
+			var btnParams = new LinearLayout.LayoutParams(0, dp(28), 1f);
+			btnParams.setMargins(dp(2), 0, dp(2), 0);
+			selectorRow.addView(btn, btnParams);
+		}
+		contentColumn.addView(selectorRow);
+		contentColumn.addView(spacer(dp(10)));
+
+		// Current price display
+		java.math.BigDecimal currentPrice = exchangeSnapshot.quoteToUsdt(marketSelectedCurrency);
+		TextView priceLabel = new TextView(requireContext());
+		priceLabel.setText(marketSelectedCurrency.ticker() + " / USDT");
+		priceLabel.setTextColor(TEXT_SOFT);
+		priceLabel.setTextSize(12f);
+		contentColumn.addView(priceLabel);
+
+		TextView priceValue = new TextView(requireContext());
+		priceValue.setText("$" + currentPrice.toPlainString());
+		priceValue.setTextColor(GREEN);
+		priceValue.setTextSize(22f);
+		contentColumn.addView(priceValue);
+		contentColumn.addView(spacer(dp(8)));
+
+		// K-line chart area
+		List<HolographicShopClientCache.Candle> candles =
+				HolographicShopClientCache.getCandles(marketSelectedCurrency, CANDLE_PERIOD_MS);
+
+		if (candles.isEmpty()) {
+			TextView waiting = bodyText(t("screen.virtual_craft.holographic_shop.market.waiting"));
+			waiting.setTextColor(TEXT_SOFT);
+			waiting.setGravity(Gravity.CENTER);
+			var waitParams = new LinearLayout.LayoutParams(
+					ViewGroup.LayoutParams.MATCH_PARENT, dp(180));
+			contentColumn.addView(waiting, waitParams);
+		} else {
+			contentColumn.addView(buildCandleChart(candles), new LinearLayout.LayoutParams(
+					ViewGroup.LayoutParams.MATCH_PARENT, dp(200)));
+		}
+		contentColumn.addView(spacer(dp(8)));
+
+		// Price stats row
+		if (!candles.isEmpty()) {
+			java.math.BigDecimal high = candles.stream()
+					.map(HolographicShopClientCache.Candle::high)
+					.max(java.math.BigDecimal::compareTo).orElse(java.math.BigDecimal.ZERO);
+			java.math.BigDecimal low = candles.stream()
+					.map(HolographicShopClientCache.Candle::low)
+					.min(java.math.BigDecimal::compareTo).orElse(java.math.BigDecimal.ZERO);
+
+			LinearLayout statsRow = new LinearLayout(requireContext());
+			statsRow.setOrientation(LinearLayout.HORIZONTAL);
+			statsRow.setGravity(Gravity.CENTER);
+
+			statsRow.addView(statChip(t("screen.virtual_craft.holographic_shop.market.high"), "$" + high.toPlainString(), GREEN));
+			statsRow.addView(spacer(dp(12)));
+			statsRow.addView(statChip(t("screen.virtual_craft.holographic_shop.market.low"), "$" + low.toPlainString(), RED));
+			statsRow.addView(spacer(dp(12)));
+			statsRow.addView(statChip(t("screen.virtual_craft.holographic_shop.market.candles"),
+					String.valueOf(candles.size()), CYAN));
+
+			contentColumn.addView(statsRow);
+		}
+	}
+
+	private View buildCandleChart(List<HolographicShopClientCache.Candle> candles) {
+		// Find price range
+		java.math.BigDecimal minPrice = candles.stream()
+				.map(HolographicShopClientCache.Candle::low)
+				.min(java.math.BigDecimal::compareTo).orElse(java.math.BigDecimal.ZERO);
+		java.math.BigDecimal maxPrice = candles.stream()
+				.map(HolographicShopClientCache.Candle::high)
+				.max(java.math.BigDecimal::compareTo).orElse(java.math.BigDecimal.ONE);
+		java.math.BigDecimal range = maxPrice.subtract(minPrice);
+		if (range.signum() == 0) range = java.math.BigDecimal.ONE;
+
+		FrameLayout chartFrame = new FrameLayout(requireContext());
+		ShapeDrawable chartBg = new ShapeDrawable();
+		chartBg.setCornerRadius(dp(6));
+		chartBg.setColor(0x20_FFFFFF);
+		chartBg.setStroke(1, WINDOW_STROKE);
+		chartFrame.setBackground(chartBg);
+		chartFrame.setPadding(dp(4), dp(8), dp(4), dp(8));
+
+		LinearLayout candleRow = new LinearLayout(requireContext());
+		candleRow.setOrientation(LinearLayout.HORIZONTAL);
+		candleRow.setGravity(Gravity.BOTTOM);
+
+		int chartHeight = dp(180);
+		int candleWidth = dp(6);
+		int gap = dp(2);
+		int maxCandles = 60;
+		int start = Math.max(0, candles.size() - maxCandles);
+
+		for (int i = start; i < candles.size(); i++) {
+			HolographicShopClientCache.Candle candle = candles.get(i);
+			boolean up = candle.isUp();
+			int color = up ? GREEN : RED;
+			java.math.BigDecimal bodyTop = up ? candle.close() : candle.open();
+			java.math.BigDecimal bodyBot = up ? candle.open() : candle.close();
+
+			// Normalize to chart height
+			double wickTopFrac = candle.high().subtract(minPrice).doubleValue() / range.doubleValue();
+			double wickBotFrac = candle.low().subtract(minPrice).doubleValue() / range.doubleValue();
+			double bodyTopFrac = bodyTop.subtract(minPrice).doubleValue() / range.doubleValue();
+			double bodyBotFrac = bodyBot.subtract(minPrice).doubleValue() / range.doubleValue();
+
+			int wickTopPx = (int)(wickTopFrac * chartHeight);
+			int wickBotPx = (int)(wickBotFrac * chartHeight);
+			int bodyTopPx = (int)(bodyTopFrac * chartHeight);
+			int bodyBotPx = (int)(bodyBotFrac * chartHeight);
+			int bodyH = Math.max(dp(1), bodyTopPx - bodyBotPx);
+
+			// Candle container (vertical from bottom)
+			FrameLayout candleFrame = new FrameLayout(requireContext());
+
+			// Wick (thin line from low to high)
+			View wick = new View(requireContext());
+			ShapeDrawable wickBg = new ShapeDrawable();
+			wickBg.setColor(color);
+			wick.setBackground(wickBg);
+			int wickH = Math.max(dp(1), wickTopPx - wickBotPx);
+			var wickParams = new FrameLayout.LayoutParams(dp(1), wickH);
+			wickParams.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
+			wickParams.bottomMargin = wickBotPx;
+			candleFrame.addView(wick, wickParams);
+
+			// Body (wider rect)
+			View body = new View(requireContext());
+			ShapeDrawable bodyBg = new ShapeDrawable();
+			bodyBg.setColor(color);
+			bodyBg.setCornerRadius(dp(1));
+			body.setBackground(bodyBg);
+			var bodyParams = new FrameLayout.LayoutParams(candleWidth, bodyH);
+			bodyParams.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
+			bodyParams.bottomMargin = bodyBotPx;
+			candleFrame.addView(body, bodyParams);
+
+			var frameParams = new LinearLayout.LayoutParams(candleWidth + gap, chartHeight);
+			candleRow.addView(candleFrame, frameParams);
+		}
+
+		chartFrame.addView(candleRow);
+
+		// Price labels overlay (left side)
+		LinearLayout priceLabels = new LinearLayout(requireContext());
+		priceLabels.setOrientation(LinearLayout.VERTICAL);
+		priceLabels.setGravity(Gravity.START);
+		var priceLabelsParams = new FrameLayout.LayoutParams(
+				ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT);
+		priceLabels.setPadding(dp(2), dp(4), 0, dp(4));
+
+		TextView highLabel = hintText("$" + maxPrice.toPlainString());
+		highLabel.setTextColor(0x80_FFFFFF);
+		highLabel.setTextSize(8f);
+		priceLabels.addView(highLabel, new LinearLayout.LayoutParams(
+				ViewGroup.LayoutParams.WRAP_CONTENT, 0, 1f));
+
+		TextView lowLabel = hintText("$" + minPrice.toPlainString());
+		lowLabel.setTextColor(0x80_FFFFFF);
+		lowLabel.setTextSize(8f);
+		lowLabel.setGravity(Gravity.BOTTOM);
+		priceLabels.addView(lowLabel, new LinearLayout.LayoutParams(
+				ViewGroup.LayoutParams.WRAP_CONTENT, 0, 1f));
+
+		chartFrame.addView(priceLabels, priceLabelsParams);
+
+		return chartFrame;
+	}
+
+	private View statChip(String label, String value, int valueColor) {
+		LinearLayout chip = vertical();
+		chip.setGravity(Gravity.CENTER);
+		TextView labelView = hintText(label);
+		labelView.setTextColor(TEXT_SOFT);
+		labelView.setTextSize(10f);
+		labelView.setGravity(Gravity.CENTER);
+		chip.addView(labelView);
+		TextView valueView = new TextView(requireContext());
+		valueView.setText(value);
+		valueView.setTextColor(valueColor);
+		valueView.setTextSize(12f);
+		valueView.setGravity(Gravity.CENTER);
+		chip.addView(valueView);
+		return chip;
+	}
+
+	private void buildMarketActions() {
+		actionColumn.addView(bodyText(t("screen.virtual_craft.holographic_shop.market.info")));
+		actionColumn.addView(spacer(dp(10)));
+
+		// Rate status
+		LinearLayout statusCard = card(PANEL_ROW, WINDOW_STROKE, 10f);
+		statusCard.setPadding(dp(10), dp(10), dp(10), dp(10));
+		statusCard.setOrientation(LinearLayout.VERTICAL);
+		TextView statusLabel = hintText(t("screen.virtual_craft.holographic_shop.rate_status_short"));
+		statusCard.addView(statusLabel);
+		statusCard.addView(spacer(dp(3)));
+		TextView statusValue = bodyText(rateStatusLabel());
+		statusValue.setTextColor(rateStatusColor());
+		statusCard.addView(statusValue);
+		actionColumn.addView(statusCard, new LinearLayout.LayoutParams(
+				ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+		actionColumn.addView(spacer(dp(8)));
+
+		// WebSocket indicator
+		boolean wsConnected = dev.tatami.virtualcraft.exchange.ExchangeRateService.isWebSocketConnected();
+		LinearLayout wsCard = card(PANEL_ROW, WINDOW_STROKE, 10f);
+		wsCard.setPadding(dp(10), dp(10), dp(10), dp(10));
+		wsCard.setOrientation(LinearLayout.VERTICAL);
+		TextView wsLabel = hintText("WebSocket");
+		wsCard.addView(wsLabel);
+		wsCard.addView(spacer(dp(3)));
+		TextView wsStatus = bodyText(wsConnected
+				? t("screen.virtual_craft.holographic_shop.market.ws_connected")
+				: t("screen.virtual_craft.holographic_shop.market.ws_disconnected"));
+		wsStatus.setTextColor(wsConnected ? GREEN : RED);
+		wsCard.addView(wsStatus);
+		actionColumn.addView(wsCard, new LinearLayout.LayoutParams(
+				ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 	}
 
 	private String actionTitle() {
@@ -3673,6 +3902,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			case TRANSFER -> t("screen.virtual_craft.holographic_shop.transfer.actions");
 			case MINING -> t("screen.virtual_craft.holographic_shop.mining.actions");
 			case CONTRACTS -> t("screen.virtual_craft.holographic_shop.contracts.actions");
+			case MARKET -> t("screen.virtual_craft.holographic_shop.market.actions");
 		};
 	}
 
@@ -3687,6 +3917,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			case TRANSFER -> transferCurrency.ticker();
 			case MINING -> miningSettlementCurrency.ticker();
 			case CONTRACTS -> t("screen.virtual_craft.holographic_shop.contracts.subtitle_short");
+					case MARKET -> "";
 		};
 	}
 

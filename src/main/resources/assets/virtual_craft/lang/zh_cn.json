@@ -461,5 +461,16 @@
   "block.virtual_craft.holographic_wall": "全息墙",
   "block.virtual_craft.circuit_floor": "电路地板",
   "screen.virtual_craft.mining_surveyor.tracking": "当前追踪",
+  "screen.virtual_craft.holographic_shop.page.market": "行情",
+  "screen.virtual_craft.holographic_shop.market.title": "市场行情",
+  "screen.virtual_craft.holographic_shop.market.subtitle": "实时价格走势",
+  "screen.virtual_craft.holographic_shop.market.actions": "行情信息",
+  "screen.virtual_craft.holographic_shop.market.waiting": "正在收集价格数据...",
+  "screen.virtual_craft.holographic_shop.market.high": "最高",
+  "screen.virtual_craft.holographic_shop.market.low": "最低",
+  "screen.virtual_craft.holographic_shop.market.candles": "蜡烛",
+  "screen.virtual_craft.holographic_shop.market.info": "价格数据通过 WebSocket 实时推送自币安。图表随新数据自动更新。",
+  "screen.virtual_craft.holographic_shop.market.ws_connected": "已连接",
+  "screen.virtual_craft.holographic_shop.market.ws_disconnected": "未连接",
   "message.virtual_craft.exchange.refresh_failed": "汇率刷新失败 - 无法连接服务器"
 }

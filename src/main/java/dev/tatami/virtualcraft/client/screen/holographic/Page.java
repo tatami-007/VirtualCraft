@@ -6,5 +6,6 @@ enum Page {
 	SHOP,
 	TRANSFER,
 	MINING,
-	CONTRACTS
+	CONTRACTS,
+	MARKET
 }

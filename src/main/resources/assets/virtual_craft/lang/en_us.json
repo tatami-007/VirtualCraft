@@ -461,5 +461,16 @@
   "block.virtual_craft.holographic_wall": "Holographic Wall",
   "block.virtual_craft.circuit_floor": "Circuit Floor",
   "screen.virtual_craft.mining_surveyor.tracking": "Tracking",
+  "screen.virtual_craft.holographic_shop.page.market": "Market",
+  "screen.virtual_craft.holographic_shop.market.title": "Market Overview",
+  "screen.virtual_craft.holographic_shop.market.subtitle": "Real-time Price Charts",
+  "screen.virtual_craft.holographic_shop.market.actions": "Market Info",
+  "screen.virtual_craft.holographic_shop.market.waiting": "Collecting price data...",
+  "screen.virtual_craft.holographic_shop.market.high": "HIGH",
+  "screen.virtual_craft.holographic_shop.market.low": "LOW",
+  "screen.virtual_craft.holographic_shop.market.candles": "CANDLES",
+  "screen.virtual_craft.holographic_shop.market.info": "Live prices from Binance via WebSocket. Charts update as new data arrives.",
+  "screen.virtual_craft.holographic_shop.market.ws_connected": "Connected",
+  "screen.virtual_craft.holographic_shop.market.ws_disconnected": "Disconnected",
   "message.virtual_craft.exchange.refresh_failed": "Exchange rate refresh failed - server unreachable"
 }
