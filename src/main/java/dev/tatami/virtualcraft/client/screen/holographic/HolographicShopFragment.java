@@ -484,7 +484,13 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		// without the 5s throttle that made it feel sluggish. A pending manual refresh
 		// still falls through to the normal rebuild path below.
 		if (currentPage == Page.MARKET && !exchangeRefreshPending) {
-			populateMarketDynamic();
+			if (root != null && !marketUpdateScheduled) {
+				marketUpdateScheduled = true;
+				root.post(() -> {
+					marketUpdateScheduled = false;
+					populateMarketDynamic();
+				});
+			}
 			return;
 		}
 		if (exchangeRefreshPending || now - lastExchangeSyncRebuildMs >= 5000L) {
@@ -770,24 +776,8 @@ return header;
 		ResourceLocation marketIcon = ResourceLocation.fromNamespaceAndPath("minecraft", "clock");
 		navColumn.addView(navIconButton(marketIcon, "7  " + t("screen.virtual_craft.holographic_shop.page.market"), Page.MARKET), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
 		navColumn.addView(spacer(dp(14)));
-		navColumn.addView(sectionHeader(t("screen.virtual_craft.holographic_shop.sidebar.portfolio"), null));
-
-		long totalUsdtMinor = CurrencyConversionService.totalWalletValueUsdtMinor(balances, exchangeSnapshot);
-		LinearLayout portfolioCard = card(PANEL_ROW, WINDOW_STROKE, 10f);
-		portfolioCard.setPadding(dp(10), dp(10), dp(10), dp(10));
-		// 不用 titleText（它硬编码 setMaxLines(1)+setEllipsize(END)，导致 “92590.55 U…”被截）。
-		// inline 创建 + setSingleLine(false)/setEllipsize(null)，长数字可 wrap 2 行完整显示。
-		TextView totalValue = new TextView(requireContext());
-		totalValue.setText(CryptoCurrency.USDT.formatCompact(totalUsdtMinor) + " USDT");
-		totalValue.setTextSize(15f);
-		totalValue.setTextColor(GREEN);
-		totalValue.setSingleLine(false);
-		totalValue.setEllipsize(null);
-		totalValue.setMaxLines(2);
-		portfolioCard.addView(totalValue);
-		navColumn.addView(portfolioCard, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
-		navColumn.addView(spacer(dp(10)));
+		// 资产总额只在顶部 header 的 USDT 药丸里展示一次（headerValue），侧栏不再重复一张
+		// “资产总览”卡片——既消除重复，也腾出垂直空间，避免底部“钱包地址/汇率状态”卡被裁。
 		LinearLayout metaCard = card(PANEL_ROW, WINDOW_STROKE, 10f);
 		metaCard.setPadding(dp(10), dp(10), dp(10), dp(10));
 		// label 与 value 原本字号仅差 1sp（hintText 12 vs bodyText 13），纵向密集时视觉层次模糊。
@@ -3663,6 +3653,10 @@ return header;
 	private LinearLayout marketChartHost;
 	private LinearLayout marketStatsHost;
 	private int marketChartHeightPx;
+	// Coalesces live MARKET repaints: applyExchangeSync runs on the Render thread, but
+	// ModernUI view mutations MUST happen on the UI thread, so we hop via root.post and
+	// keep at most one repaint queued at a time (the repaint is idempotent).
+	private boolean marketUpdateScheduled;
 
 	private void buildMarketContent() {
 		contentColumn.addView(sectionHeader(
