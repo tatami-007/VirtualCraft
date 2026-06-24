@@ -74,6 +74,7 @@ public final class VirtualCraftClient {
 	 */
 	public static void onClientLogout(ClientPlayerNetworkEvent.LoggingOut event) {
 		HolographicShopClientCache.invalidate();
+		dev.tatami.virtualcraft.client.screen.holographic.HolographicMarketData.invalidate();
 		HolographicIconCache.invalidate();
 	}
 

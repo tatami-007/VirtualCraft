@@ -471,12 +471,22 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		exchangeSnapshot = snapshot;
 		HolographicShopClientCache.storeExchange(snapshot);
 		for (dev.tatami.virtualcraft.currency.CryptoCurrency c : dev.tatami.virtualcraft.currency.CryptoCurrency.values()) {
-			HolographicShopClientCache.recordPrice(c, snapshot.quoteToUsdt(c));
+			java.math.BigDecimal price = snapshot.quoteToUsdt(c);
+			HolographicShopClientCache.recordPrice(c, price);
+			HolographicMarketData.updateLivePrice(c, price);
 		}
 		if (exchangeRefreshPending && exchangeRefreshSnapshotArrivedMs == 0L) {
 			exchangeRefreshSnapshotArrivedMs = System.currentTimeMillis();
 		}
 		long now = System.currentTimeMillis();
+		// On the MARKET (K-line) page we repaint just the live chart / price widgets in
+		// place on every tick — no full-screen rebuild — so the chart updates in real time
+		// without the 5s throttle that made it feel sluggish. A pending manual refresh
+		// still falls through to the normal rebuild path below.
+		if (currentPage == Page.MARKET && !exchangeRefreshPending) {
+			populateMarketDynamic();
+			return;
+		}
 		if (exchangeRefreshPending || now - lastExchangeSyncRebuildMs >= 5000L) {
 			lastExchangeSyncRebuildMs = now;
 			requestRefresh(true, captureFocusTarget());
@@ -3644,13 +3654,51 @@ return header;
 	// ---- MARKET page: K-line price chart ----
 
 	private CryptoCurrency marketSelectedCurrency = CryptoCurrency.BTC;
-	private static final long CANDLE_PERIOD_MS = 60_000L;
+	private HolographicMarketData.Interval marketInterval = HolographicMarketData.Interval.M1;
+
+	// Live-updatable MARKET hosts. The K-line page repaints ONLY these in place on
+	// every price tick (see applyExchangeSync) instead of tearing down and rebuilding
+	// the whole screen, which is what made the chart feel laggy / "refresh too slow".
+	private LinearLayout marketPriceHost;
+	private LinearLayout marketChartHost;
+	private LinearLayout marketStatsHost;
+	private int marketChartHeightPx;
 
 	private void buildMarketContent() {
 		contentColumn.addView(sectionHeader(
 				t("screen.virtual_craft.holographic_shop.market.title"),
 				t("screen.virtual_craft.holographic_shop.market.subtitle")));
-		contentColumn.addView(spacer(dp(8)));
+		contentColumn.addView(spacer(dp(6)));
+
+		// Interval (timeframe) selector — Binance / OKX style tab strip.
+		LinearLayout intervalRow = new LinearLayout(requireContext());
+		intervalRow.setOrientation(LinearLayout.HORIZONTAL);
+		intervalRow.setGravity(Gravity.CENTER_VERTICAL);
+		for (HolographicMarketData.Interval interval : HolographicMarketData.Interval.values()) {
+			boolean selected = interval == marketInterval;
+			Button btn = navButton(interval.code(), null);
+			btn.setTextSize(11f);
+			btn.setGravity(Gravity.CENTER);
+			btn.setTextColor(selected ? CYAN : TEXT_SOFT);
+			if (selected) {
+				ShapeDrawable bg = new ShapeDrawable();
+				bg.setCornerRadius(dp(6));
+				bg.setColor(0x30_22D3EE);
+				btn.setBackground(bg);
+			}
+			HolographicMarketData.Interval captured = interval;
+			btn.setOnClickListener(v -> {
+				marketInterval = captured;
+				HolographicMarketData.ensureHistory(marketSelectedCurrency, captured);
+				requestRefresh(false, FocusTarget.NONE);
+			});
+			HolographicTheme.interactive(btn);
+			var ivParams = new LinearLayout.LayoutParams(0, dp(26), 1f);
+			ivParams.setMargins(dp(1), 0, dp(1), 0);
+			intervalRow.addView(btn, ivParams);
+		}
+		contentColumn.addView(intervalRow);
+		contentColumn.addView(spacer(dp(6)));
 
 		// Currency selector row
 		LinearLayout selectorRow = new LinearLayout(requireContext());
@@ -3671,6 +3719,7 @@ return header;
 			CryptoCurrency captured = currency;
 			btn.setOnClickListener(v -> {
 				marketSelectedCurrency = captured;
+				HolographicMarketData.ensureHistory(captured, marketInterval);
 				requestRefresh(false, FocusTarget.NONE);
 			});
 			HolographicTheme.interactive(btn);
@@ -3679,71 +3728,145 @@ return header;
 			selectorRow.addView(btn, btnParams);
 		}
 		contentColumn.addView(selectorRow);
-		contentColumn.addView(spacer(dp(10)));
-
-		// Current price display
-		java.math.BigDecimal currentPrice = exchangeSnapshot.quoteToUsdt(marketSelectedCurrency);
-		TextView priceLabel = new TextView(requireContext());
-		priceLabel.setText(marketSelectedCurrency.ticker() + " / USDT");
-		priceLabel.setTextColor(TEXT_SOFT);
-		priceLabel.setTextSize(12f);
-		contentColumn.addView(priceLabel);
-
-		TextView priceValue = new TextView(requireContext());
-		priceValue.setText("$" + currentPrice.toPlainString());
-		priceValue.setTextColor(GREEN);
-		priceValue.setTextSize(22f);
-		contentColumn.addView(priceValue);
 		contentColumn.addView(spacer(dp(8)));
 
-		// K-line chart area
-		List<HolographicShopClientCache.Candle> candles =
-				HolographicShopClientCache.getCandles(marketSelectedCurrency, CANDLE_PERIOD_MS);
+		// Kick off the historical kline pull for the current pair / interval so the
+		// chart paints real candles immediately instead of slowly accreting them one
+		// per period from live ticks.
+		HolographicMarketData.ensureHistory(marketSelectedCurrency, marketInterval);
 
+		// Live price header (price + period change), repainted in place each tick.
+		marketPriceHost = vertical();
+		contentColumn.addView(marketPriceHost);
+		contentColumn.addView(spacer(dp(6)));
+
+		// Candlestick chart host.
+		marketChartHeightPx = dp(200);
+		marketChartHost = new LinearLayout(requireContext());
+		marketChartHost.setOrientation(LinearLayout.VERTICAL);
+		contentColumn.addView(marketChartHost, new LinearLayout.LayoutParams(
+				ViewGroup.LayoutParams.MATCH_PARENT, marketChartHeightPx));
+		contentColumn.addView(spacer(dp(8)));
+
+		// Stats host (high / low / amplitude).
+		marketStatsHost = new LinearLayout(requireContext());
+		marketStatsHost.setOrientation(LinearLayout.HORIZONTAL);
+		marketStatsHost.setGravity(Gravity.CENTER);
+		contentColumn.addView(marketStatsHost);
+
+		populateMarketDynamic();
+
+		// REST history arrives asynchronously; repaint a couple of times shortly after
+		// open so it shows up even if no fresh live tick happens to land first.
+		if (root != null) {
+			root.postDelayed(this::populateMarketDynamic, 600L);
+			root.postDelayed(this::populateMarketDynamic, 1600L);
+		}
+	}
+
+	/**
+	 * Repaints ONLY the live MARKET widgets (price header, candlestick chart, stats)
+	 * from the latest {@link HolographicMarketData} candles. Cheap enough to run on
+	 * every price tick, which is what gives the page its real-time, Binance-like feel
+	 * without the full-screen rebuild that previously throttled updates to every 5s.
+	 */
+	private void populateMarketDynamic() {
+		if (currentPage != Page.MARKET || marketChartHost == null || marketPriceHost == null) {
+			return;
+		}
+		List<HolographicMarketData.Candle> candles =
+				HolographicMarketData.getCandles(marketSelectedCurrency, marketInterval);
+
+		java.math.BigDecimal price = candles.isEmpty()
+				? exchangeSnapshot.quoteToUsdt(marketSelectedCurrency)
+				: candles.get(candles.size() - 1).close();
+		java.math.BigDecimal windowOpen = candles.isEmpty() ? price : candles.get(0).open();
+		java.math.BigDecimal change = price.subtract(windowOpen);
+		double pct = windowOpen.signum() == 0 ? 0.0
+				: change.doubleValue() / windowOpen.doubleValue() * 100.0;
+		boolean up = change.signum() >= 0;
+		int trendColor = up ? GREEN : RED;
+
+		// ---- price header ----
+		marketPriceHost.removeAllViews();
+		TextView pairLabel = new TextView(requireContext());
+		pairLabel.setText(marketSelectedCurrency.ticker() + " / USDT");
+		pairLabel.setTextColor(TEXT_SOFT);
+		pairLabel.setTextSize(12f);
+		marketPriceHost.addView(pairLabel);
+
+		TextView priceValue = new TextView(requireContext());
+		priceValue.setText("$" + fmtPrice(price));
+		priceValue.setTextColor(trendColor);
+		priceValue.setTextSize(24f);
+		marketPriceHost.addView(priceValue);
+
+		TextView changeValue = new TextView(requireContext());
+		String sign = up ? "+" : "";
+		changeValue.setText((up ? "\u25B2 " : "\u25BC ") + sign + fmtPrice(change)
+				+ "  (" + sign + String.format(java.util.Locale.US, "%.2f", pct) + "%)");
+		changeValue.setTextColor(trendColor);
+		changeValue.setTextSize(12f);
+		marketPriceHost.addView(changeValue);
+
+		// ---- chart ----
+		marketChartHost.removeAllViews();
 		if (candles.isEmpty()) {
 			TextView waiting = bodyText(t("screen.virtual_craft.holographic_shop.market.waiting"));
 			waiting.setTextColor(TEXT_SOFT);
 			waiting.setGravity(Gravity.CENTER);
-			var waitParams = new LinearLayout.LayoutParams(
-					ViewGroup.LayoutParams.MATCH_PARENT, dp(180));
-			contentColumn.addView(waiting, waitParams);
+			marketChartHost.addView(waiting, new LinearLayout.LayoutParams(
+					ViewGroup.LayoutParams.MATCH_PARENT, marketChartHeightPx));
 		} else {
-			contentColumn.addView(buildCandleChart(candles), new LinearLayout.LayoutParams(
-					ViewGroup.LayoutParams.MATCH_PARENT, dp(200)));
+			marketChartHost.addView(buildCandleChart(candles, marketChartHeightPx),
+					new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, marketChartHeightPx));
 		}
-		contentColumn.addView(spacer(dp(8)));
 
-		// Price stats row
+		// ---- stats ----
+		marketStatsHost.removeAllViews();
 		if (!candles.isEmpty()) {
 			java.math.BigDecimal high = candles.stream()
-					.map(HolographicShopClientCache.Candle::high)
+					.map(HolographicMarketData.Candle::high)
 					.max(java.math.BigDecimal::compareTo).orElse(java.math.BigDecimal.ZERO);
 			java.math.BigDecimal low = candles.stream()
-					.map(HolographicShopClientCache.Candle::low)
+					.map(HolographicMarketData.Candle::low)
 					.min(java.math.BigDecimal::compareTo).orElse(java.math.BigDecimal.ZERO);
+			double amp = low.signum() == 0 ? 0.0
+					: high.subtract(low).doubleValue() / low.doubleValue() * 100.0;
 
-			LinearLayout statsRow = new LinearLayout(requireContext());
-			statsRow.setOrientation(LinearLayout.HORIZONTAL);
-			statsRow.setGravity(Gravity.CENTER);
-
-			statsRow.addView(statChip(t("screen.virtual_craft.holographic_shop.market.high"), "$" + high.toPlainString(), GREEN));
-			statsRow.addView(spacer(dp(12)));
-			statsRow.addView(statChip(t("screen.virtual_craft.holographic_shop.market.low"), "$" + low.toPlainString(), RED));
-			statsRow.addView(spacer(dp(12)));
-			statsRow.addView(statChip(t("screen.virtual_craft.holographic_shop.market.candles"),
-					String.valueOf(candles.size()), CYAN));
-
-			contentColumn.addView(statsRow);
+			marketStatsHost.addView(statChip(t("screen.virtual_craft.holographic_shop.market.high"), "$" + fmtPrice(high), GREEN));
+			marketStatsHost.addView(spacer(dp(12)));
+			marketStatsHost.addView(statChip(t("screen.virtual_craft.holographic_shop.market.low"), "$" + fmtPrice(low), RED));
+			marketStatsHost.addView(spacer(dp(12)));
+			marketStatsHost.addView(statChip(t("screen.virtual_craft.holographic_shop.market.amplitude"),
+					String.format(java.util.Locale.US, "%.2f", amp) + "%", CYAN));
 		}
 	}
 
-	private View buildCandleChart(List<HolographicShopClientCache.Candle> candles) {
+	/** Adaptive price formatting with thousands separators, like a spot exchange ticker. */
+	private static String fmtPrice(java.math.BigDecimal value) {
+		java.math.BigDecimal abs = value.abs();
+		int digits;
+		if (abs.compareTo(java.math.BigDecimal.ONE) >= 0) {
+			digits = 2;
+		} else if (abs.compareTo(new java.math.BigDecimal("0.01")) >= 0) {
+			digits = 4;
+		} else {
+			digits = 6;
+		}
+		java.text.NumberFormat nf = java.text.NumberFormat.getNumberInstance(java.util.Locale.US);
+		nf.setMinimumFractionDigits(digits);
+		nf.setMaximumFractionDigits(digits);
+		return nf.format(value);
+	}
+
+	private View buildCandleChart(List<HolographicMarketData.Candle> candles, int chartHeightPx) {
 		// Find price range
 		java.math.BigDecimal minPrice = candles.stream()
-				.map(HolographicShopClientCache.Candle::low)
+				.map(HolographicMarketData.Candle::low)
 				.min(java.math.BigDecimal::compareTo).orElse(java.math.BigDecimal.ZERO);
 		java.math.BigDecimal maxPrice = candles.stream()
-				.map(HolographicShopClientCache.Candle::high)
+				.map(HolographicMarketData.Candle::high)
 				.max(java.math.BigDecimal::compareTo).orElse(java.math.BigDecimal.ONE);
 		java.math.BigDecimal range = maxPrice.subtract(minPrice);
 		if (range.signum() == 0) range = java.math.BigDecimal.ONE;
@@ -3754,20 +3877,39 @@ return header;
 		chartBg.setColor(0x20_FFFFFF);
 		chartBg.setStroke(1, WINDOW_STROKE);
 		chartFrame.setBackground(chartBg);
-		chartFrame.setPadding(dp(4), dp(8), dp(4), dp(8));
+		int padV = dp(8);
+		chartFrame.setPadding(dp(4), padV, dp(4), padV);
+
+		int chartHeight = chartHeightPx - padV * 2;
+
+		// Faint horizontal grid lines for readability (drawn behind the candles).
+		LinearLayout grid = new LinearLayout(requireContext());
+		grid.setOrientation(LinearLayout.VERTICAL);
+		for (int g = 0; g < 4; g++) {
+			View line = new View(requireContext());
+			ShapeDrawable ld = new ShapeDrawable();
+			ld.setColor(0x14_FFFFFF);
+			line.setBackground(ld);
+			grid.addView(line, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(1)));
+			if (g < 3) {
+				grid.addView(spacer(0), new LinearLayout.LayoutParams(
+						ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+			}
+		}
+		chartFrame.addView(grid, new FrameLayout.LayoutParams(
+				ViewGroup.LayoutParams.MATCH_PARENT, chartHeight));
 
 		LinearLayout candleRow = new LinearLayout(requireContext());
 		candleRow.setOrientation(LinearLayout.HORIZONTAL);
 		candleRow.setGravity(Gravity.BOTTOM);
 
-		int chartHeight = dp(180);
-		int candleWidth = dp(6);
-		int gap = dp(2);
+		int candleWidth = dp(5);
+		int gap = dp(1);
 		int maxCandles = 60;
 		int start = Math.max(0, candles.size() - maxCandles);
 
 		for (int i = start; i < candles.size(); i++) {
-			HolographicShopClientCache.Candle candle = candles.get(i);
+			HolographicMarketData.Candle candle = candles.get(i);
 			boolean up = candle.isUp();
 			int color = up ? GREEN : RED;
 			java.math.BigDecimal bodyTop = up ? candle.close() : candle.open();
@@ -3824,13 +3966,13 @@ return header;
 				ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT);
 		priceLabels.setPadding(dp(2), dp(4), 0, dp(4));
 
-		TextView highLabel = hintText("$" + maxPrice.toPlainString());
+		TextView highLabel = hintText("$" + fmtPrice(maxPrice));
 		highLabel.setTextColor(0x80_FFFFFF);
 		highLabel.setTextSize(8f);
 		priceLabels.addView(highLabel, new LinearLayout.LayoutParams(
 				ViewGroup.LayoutParams.WRAP_CONTENT, 0, 1f));
 
-		TextView lowLabel = hintText("$" + minPrice.toPlainString());
+		TextView lowLabel = hintText("$" + fmtPrice(minPrice));
 		lowLabel.setTextColor(0x80_FFFFFF);
 		lowLabel.setTextSize(8f);
 		lowLabel.setGravity(Gravity.BOTTOM);
