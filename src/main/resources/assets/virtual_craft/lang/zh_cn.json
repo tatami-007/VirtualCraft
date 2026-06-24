@@ -470,6 +470,7 @@
   "screen.virtual_craft.holographic_shop.market.low": "最低",
   "screen.virtual_craft.holographic_shop.market.candles": "蜡烛",
   "screen.virtual_craft.holographic_shop.market.amplitude": "振幅",
+  "screen.virtual_craft.holographic_shop.market.markets": "市场",
   "screen.virtual_craft.holographic_shop.market.info": "价格数据通过 WebSocket 实时推送自币安。图表随新数据自动更新。",
   "screen.virtual_craft.holographic_shop.market.ws_connected": "已连接",
   "screen.virtual_craft.holographic_shop.market.ws_disconnected": "未连接",

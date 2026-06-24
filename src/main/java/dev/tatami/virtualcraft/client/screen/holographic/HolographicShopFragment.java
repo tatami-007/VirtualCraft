@@ -154,7 +154,11 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	private boolean pageTransitionPending;
 	// Visual order of the nav column — indexes the 1..6 keyboard shortcuts.
 	private static final Page[] NAV_ORDER = {
-			Page.WALLET, Page.CONVERT, Page.SHOP, Page.TRANSFER, Page.MINING, Page.CONTRACTS, Page.MARKET };
+			Page.MARKET, Page.CONVERT, Page.CONTRACTS, Page.WALLET, Page.TRANSFER, Page.SHOP, Page.MINING };
+	// Trading pairs shown in the MARKET page selector + markets list.
+	private static final CryptoCurrency[] MARKET_PAIRS = {
+			CryptoCurrency.BTC, CryptoCurrency.ETH, CryptoCurrency.SOL,
+			CryptoCurrency.DOGE, CryptoCurrency.TRX };
 	private int selectedOfferIndex;
 	private CryptoCurrency selectedWalletCurrency = CryptoCurrency.USDT;
 	private CryptoCurrency convertSourceCurrency = CryptoCurrency.USDT;
@@ -748,33 +752,35 @@ return header;
 
 	private void refreshNav() {
 		navColumn.removeAllViews();
-		// v25 each nav tab carries a 16dp MC item icon as a visual anchor:
-		//   wallet  -> emerald            (gem = stored value)
-		//   convert -> ender pearl        (warp / swap motion)
-		//   shop    -> gold ingot         (universal commerce token)
-		//   transfer-> paper              (signed note / cheque)
-		//   mining  -> encrypted hash     (mod's own settlement voucher)
-		ResourceLocation walletIcon = ResourceLocation.fromNamespaceAndPath("minecraft", "emerald");
+		// v27 trading-first order (对标币安/欧易) with a 16dp static MC item icon per tab:
+		//   market   -> spyglass           (观察行情；clock 是动画物品取不到静态贴图)
+		//   convert  -> ender pearl        (warp / swap motion)
+		//   contracts-> writable book      (合约 / 签约)
+		//   wallet   -> emerald            (gem = stored value)
+		//   transfer -> paper              (signed note / cheque)
+		//   shop     -> gold ingot         (universal commerce token)
+		//   mining   -> encrypted hash     (mod's own settlement voucher)
+		ResourceLocation marketIcon = ResourceLocation.fromNamespaceAndPath("minecraft", "spyglass");
 		ResourceLocation convertIcon = ResourceLocation.fromNamespaceAndPath("minecraft", "ender_pearl");
-		ResourceLocation shopIcon = ResourceLocation.fromNamespaceAndPath("minecraft", "gold_ingot");
-		ResourceLocation transferIcon = ResourceLocation.fromNamespaceAndPath("minecraft", "paper");
-		ResourceLocation miningIcon = ResourceLocation.fromNamespaceAndPath("virtual_craft", "encrypted_hash_voucher");
 		ResourceLocation contractsIcon = ResourceLocation.fromNamespaceAndPath("minecraft", "writable_book");
+		ResourceLocation walletIcon = ResourceLocation.fromNamespaceAndPath("minecraft", "emerald");
+		ResourceLocation transferIcon = ResourceLocation.fromNamespaceAndPath("minecraft", "paper");
+		ResourceLocation shopIcon = ResourceLocation.fromNamespaceAndPath("minecraft", "gold_ingot");
+		ResourceLocation miningIcon = ResourceLocation.fromNamespaceAndPath("virtual_craft", "encrypted_hash_voucher");
 		LinearLayout.LayoutParams navParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32));
-		navColumn.addView(navIconButton(walletIcon, "1  " + t("screen.virtual_craft.holographic_shop.page.wallet"), Page.WALLET), navParams);
+		navColumn.addView(navIconButton(marketIcon, "1  " + t("screen.virtual_craft.holographic_shop.page.market"), Page.MARKET), navParams);
 		navColumn.addView(spacer(dp(6)));
 		navColumn.addView(navIconButton(convertIcon, "2  " + t("screen.virtual_craft.holographic_shop.page.convert"), Page.CONVERT), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
 		navColumn.addView(spacer(dp(6)));
-		navColumn.addView(navIconButton(shopIcon, "3  " + t("screen.virtual_craft.holographic_shop.page.shop"), Page.SHOP), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
+		navColumn.addView(navIconButton(contractsIcon, "3  " + t("screen.virtual_craft.holographic_shop.page.contracts"), Page.CONTRACTS), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
 		navColumn.addView(spacer(dp(6)));
-		navColumn.addView(navIconButton(transferIcon, "4  " + t("screen.virtual_craft.holographic_shop.page.transfer"), Page.TRANSFER), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
+		navColumn.addView(navIconButton(walletIcon, "4  " + t("screen.virtual_craft.holographic_shop.page.wallet"), Page.WALLET), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
 		navColumn.addView(spacer(dp(6)));
-		navColumn.addView(navIconButton(miningIcon, "5  " + t("screen.virtual_craft.holographic_shop.page.mining"), Page.MINING), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
+		navColumn.addView(navIconButton(transferIcon, "5  " + t("screen.virtual_craft.holographic_shop.page.transfer"), Page.TRANSFER), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
 		navColumn.addView(spacer(dp(6)));
-		navColumn.addView(navIconButton(contractsIcon, "6  " + t("screen.virtual_craft.holographic_shop.page.contracts"), Page.CONTRACTS), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
+		navColumn.addView(navIconButton(shopIcon, "6  " + t("screen.virtual_craft.holographic_shop.page.shop"), Page.SHOP), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
 		navColumn.addView(spacer(dp(6)));
-		ResourceLocation marketIcon = ResourceLocation.fromNamespaceAndPath("minecraft", "clock");
-		navColumn.addView(navIconButton(marketIcon, "7  " + t("screen.virtual_craft.holographic_shop.page.market"), Page.MARKET), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
+		navColumn.addView(navIconButton(miningIcon, "7  " + t("screen.virtual_craft.holographic_shop.page.mining"), Page.MINING), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
 		navColumn.addView(spacer(dp(14)));
 		// 资产总额只在顶部 header 的 USDT 药丸里展示一次（headerValue），侧栏不再重复一张
 		// “资产总览”卡片——既消除重复，也腾出垂直空间，避免底部“钱包地址/汇率状态”卡被裁。
@@ -3657,6 +3663,8 @@ return header;
 	// ModernUI view mutations MUST happen on the UI thread, so we hop via root.post and
 	// keep at most one repaint queued at a time (the repaint is idempotent).
 	private boolean marketUpdateScheduled;
+	// Binance-style markets list under the chart (one tappable row per pair), repainted live.
+	private LinearLayout marketListHost;
 
 	private void buildMarketContent() {
 		contentColumn.addView(sectionHeader(
@@ -3735,7 +3743,7 @@ return header;
 		contentColumn.addView(spacer(dp(6)));
 
 		// Candlestick chart host.
-		marketChartHeightPx = dp(200);
+		marketChartHeightPx = dp(220);
 		marketChartHost = new LinearLayout(requireContext());
 		marketChartHost.setOrientation(LinearLayout.VERTICAL);
 		contentColumn.addView(marketChartHost, new LinearLayout.LayoutParams(
@@ -3747,6 +3755,13 @@ return header;
 		marketStatsHost.setOrientation(LinearLayout.HORIZONTAL);
 		marketStatsHost.setGravity(Gravity.CENTER);
 		contentColumn.addView(marketStatsHost);
+
+		// Markets list (Binance-style): one tappable row per pair, repainted live.
+		contentColumn.addView(spacer(dp(14)));
+		contentColumn.addView(sectionHeader(t("screen.virtual_craft.holographic_shop.market.markets"), null));
+		contentColumn.addView(spacer(dp(6)));
+		marketListHost = vertical();
+		contentColumn.addView(marketListHost);
 
 		populateMarketDynamic();
 
@@ -3835,6 +3850,63 @@ return header;
 			marketStatsHost.addView(statChip(t("screen.virtual_craft.holographic_shop.market.amplitude"),
 					String.format(java.util.Locale.US, "%.2f", amp) + "%", CYAN));
 		}
+
+		// ---- markets list (tap a row to switch pair) ----
+		if (marketListHost != null) {
+			marketListHost.removeAllViews();
+			for (CryptoCurrency coin : MARKET_PAIRS) {
+				List<HolographicMarketData.Candle> cc =
+						HolographicMarketData.getCandles(coin, marketInterval);
+				java.math.BigDecimal cp = cc.isEmpty()
+						? exchangeSnapshot.quoteToUsdt(coin)
+						: cc.get(cc.size() - 1).close();
+				java.math.BigDecimal co = cc.isEmpty() ? cp : cc.get(0).open();
+				double cpct = co.signum() == 0 ? 0.0
+						: cp.subtract(co).doubleValue() / co.doubleValue() * 100.0;
+				marketListHost.addView(marketTickerRow(coin, cp, cpct));
+				marketListHost.addView(spacer(dp(6)));
+			}
+		}
+	}
+
+	/** A Binance-style markets-list row: icon · pair · last price · period change %. */
+	private View marketTickerRow(CryptoCurrency coin, java.math.BigDecimal price, double pct) {
+		boolean selected = coin == marketSelectedCurrency;
+		boolean up = pct >= 0;
+		LinearLayout row = card(selected ? PANEL_ACTIVE : PANEL_ROW, selected ? CYAN : WINDOW_STROKE, 10f);
+		row.setOrientation(LinearLayout.HORIZONTAL);
+		row.setGravity(Gravity.CENTER_VERTICAL);
+		row.setPadding(dp(10), dp(8), dp(10), dp(8));
+		row.setOnClickListener(v -> {
+			marketSelectedCurrency = coin;
+			HolographicMarketData.ensureHistory(coin, marketInterval);
+			requestRefresh(false, FocusTarget.NONE);
+		});
+		HolographicTheme.interactive(row);
+
+		row.addView(currencyIconView(coin, ICON_SMALL_DP));
+
+		TextView pair = bodyText(coin.ticker() + " / USDT");
+		pair.setTextColor(selected ? CYAN : TEXT);
+		pair.setMaxLines(1);
+		var pairParams = weighted(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+		pairParams.setMargins(dp(10), 0, dp(8), 0);
+		row.addView(pair, pairParams);
+
+		TextView priceView = bodyText("$" + fmtPrice(price));
+		priceView.setTextColor(TEXT);
+		priceView.setGravity(Gravity.END);
+		row.addView(priceView);
+
+		TextView pctView = new TextView(requireContext());
+		pctView.setText((up ? "+" : "") + String.format(java.util.Locale.US, "%.2f", pct) + "%");
+		pctView.setTextColor(up ? GREEN : RED);
+		pctView.setTextSize(12f);
+		pctView.setGravity(Gravity.END);
+		var pctParams = new LinearLayout.LayoutParams(dp(64), ViewGroup.LayoutParams.WRAP_CONTENT);
+		pctParams.setMargins(dp(10), 0, 0, 0);
+		row.addView(pctView, pctParams);
+		return row;
 	}
 
 	/** Adaptive price formatting with thousands separators, like a spot exchange ticker. */
