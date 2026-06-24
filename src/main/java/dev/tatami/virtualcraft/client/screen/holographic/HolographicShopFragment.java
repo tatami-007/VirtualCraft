@@ -3677,6 +3677,26 @@ return header;
 	private record MarketTrade(java.math.BigDecimal price, double amount, boolean buy, long time) {
 	}
 
+	// ---- K-line hover crosshair (Binance/OKX-style live readout) ----
+	// Hovered candle is tracked by ABSOLUTE index + a vertical fraction so the
+	// crosshair survives the per-tick chart rebuild (the chart is torn down and
+	// re-added every price tick; -1 means "not hovering").
+	private int marketHoverIndex = -1;
+	private float marketHoverYFrac = -1f;
+	private View marketCrossV;
+	private View marketCrossH;
+	private LinearLayout marketCrossCard;
+	// Chart geometry captured at build time so index<->pixel mapping stays correct
+	// when the crosshair is restored on a rebuild. All values are in the chart's
+	// content coordinate space (i.e. already inside the chart padding).
+	private int mcStart;
+	private int mcSpanPx;
+	private int mcCandleW;
+	private int mcContentH;
+	private List<HolographicMarketData.Candle> mcCandles;
+	private java.math.BigDecimal mcMin;
+	private java.math.BigDecimal mcRange;
+
 	private void buildMarketContent() {
 		contentColumn.addView(sectionHeader(
 				t("screen.virtual_craft.holographic_shop.market.title"),
@@ -3702,6 +3722,7 @@ return header;
 			HolographicMarketData.Interval captured = interval;
 			btn.setOnClickListener(v -> {
 				marketInterval = captured;
+				marketHoverIndex = -1;
 				HolographicMarketData.ensureHistory(marketSelectedCurrency, captured);
 				requestRefresh(false, FocusTarget.NONE);
 			});
@@ -3732,6 +3753,7 @@ return header;
 			CryptoCurrency captured = currency;
 			btn.setOnClickListener(v -> {
 				marketSelectedCurrency = captured;
+				marketHoverIndex = -1;
 				HolographicMarketData.ensureHistory(captured, marketInterval);
 				requestRefresh(false, FocusTarget.NONE);
 			});
@@ -3938,6 +3960,7 @@ return header;
 		row.setPadding(dp(10), dp(8), dp(10), dp(8));
 		row.setOnClickListener(v -> {
 			marketSelectedCurrency = coin;
+			marketHoverIndex = -1;
 			HolographicMarketData.ensureHistory(coin, marketInterval);
 			requestRefresh(false, FocusTarget.NONE);
 		});
@@ -4106,7 +4129,161 @@ return header;
 
 		chartFrame.addView(priceLabels, priceLabelsParams);
 
+		// ---- hover crosshair + live OHLC readout (Binance/OKX style) ----
+		// Capture the chart geometry (content-space) so the crosshair can be
+		// restored at the same candle after each per-tick rebuild.
+		mcStart = start;
+		mcSpanPx = candleWidth + gap;
+		mcCandleW = candleWidth;
+		mcContentH = chartHeight;
+		mcCandles = candles;
+		mcMin = minPrice;
+		mcRange = range;
+
+		marketCrossV = new View(requireContext());
+		ShapeDrawable vBg = new ShapeDrawable();
+		vBg.setColor(0x70_FFFFFF);
+		marketCrossV.setBackground(vBg);
+		marketCrossV.setVisibility(View.GONE);
+		var vParams = new FrameLayout.LayoutParams(dp(1), chartHeight);
+		vParams.gravity = Gravity.TOP | Gravity.LEFT;
+		chartFrame.addView(marketCrossV, vParams);
+
+		marketCrossH = new View(requireContext());
+		ShapeDrawable hBg = new ShapeDrawable();
+		hBg.setColor(0x70_FFFFFF);
+		marketCrossH.setBackground(hBg);
+		marketCrossH.setVisibility(View.GONE);
+		var hParams = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(1));
+		hParams.gravity = Gravity.TOP | Gravity.LEFT;
+		chartFrame.addView(marketCrossH, hParams);
+
+		marketCrossCard = new LinearLayout(requireContext());
+		marketCrossCard.setOrientation(LinearLayout.VERTICAL);
+		ShapeDrawable cardBg = new ShapeDrawable();
+		cardBg.setCornerRadius(dp(6));
+		cardBg.setColor(0xF0_141826);
+		cardBg.setStroke(1, WINDOW_STROKE);
+		marketCrossCard.setBackground(cardBg);
+		marketCrossCard.setPadding(dp(8), dp(5), dp(8), dp(5));
+		marketCrossCard.setVisibility(View.GONE);
+		var cardParams = new FrameLayout.LayoutParams(
+				ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+		cardParams.gravity = Gravity.TOP | Gravity.LEFT;
+		cardParams.leftMargin = dp(2);
+		cardParams.topMargin = dp(2);
+		chartFrame.addView(marketCrossCard, cardParams);
+
+		// Transparent glass pane on top: it is the deepest hovered view over the
+		// whole chart, so it reliably receives hover-move/exit (the candle child
+		// views would otherwise be the hover target). It consumes nothing.
+		View glass = new View(requireContext());
+		final int spanPx = candleWidth + gap;
+		final int contentH = chartHeight;
+		final int startIdx = start;
+		final int count = candles.size() - start;
+		glass.setOnHoverListener((v, ev) -> {
+			int a = ev.getAction();
+			if (a == MotionEvent.ACTION_HOVER_EXIT) {
+				marketHoverIndex = -1;
+				marketHoverYFrac = -1f;
+				updateMarketCrosshair();
+				return false;
+			}
+			int local = (int) Math.floor(ev.getX() / (double) spanPx);
+			if (local < 0 || local >= count) {
+				marketHoverIndex = -1;
+				updateMarketCrosshair();
+				return false;
+			}
+			marketHoverIndex = startIdx + local;
+			marketHoverYFrac = ev.getY() / (float) contentH;
+			updateMarketCrosshair();
+			return false;
+		});
+		chartFrame.addView(glass, new FrameLayout.LayoutParams(
+				ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+		updateMarketCrosshair();
 		return chartFrame;
+	}
+
+	/**
+	 * Repositions the crosshair lines and refreshes the OHLC readout card for the
+	 * currently hovered candle, or hides everything when not hovering. Called both
+	 * on hover-move and at the end of every chart rebuild (so the readout tracks
+	 * the live candle while the cursor holds still).
+	 */
+	private void updateMarketCrosshair() {
+		if (marketCrossV == null || marketCrossH == null || marketCrossCard == null || mcCandles == null) {
+			return;
+		}
+		if (marketHoverIndex < mcStart || marketHoverIndex >= mcCandles.size()) {
+			marketCrossV.setVisibility(View.GONE);
+			marketCrossH.setVisibility(View.GONE);
+			marketCrossCard.setVisibility(View.GONE);
+			return;
+		}
+		HolographicMarketData.Candle c = mcCandles.get(marketHoverIndex);
+		int local = marketHoverIndex - mcStart;
+		int xCenter = local * mcSpanPx + mcCandleW / 2;
+
+		FrameLayout.LayoutParams vp = (FrameLayout.LayoutParams) marketCrossV.getLayoutParams();
+		vp.leftMargin = xCenter;
+		vp.topMargin = 0;
+		vp.height = mcContentH;
+		marketCrossV.setLayoutParams(vp);
+		marketCrossV.setVisibility(View.VISIBLE);
+
+		float yf = Math.max(0f, Math.min(1f, marketHoverYFrac));
+		FrameLayout.LayoutParams hp = (FrameLayout.LayoutParams) marketCrossH.getLayoutParams();
+		hp.topMargin = (int) (yf * mcContentH);
+		marketCrossH.setLayoutParams(hp);
+		marketCrossH.setVisibility(View.VISIBLE);
+
+		java.math.BigDecimal priceAtY = mcMin.add(
+				mcRange.multiply(java.math.BigDecimal.valueOf(1.0 - yf)));
+		populateCrosshairCard(c, priceAtY);
+		marketCrossCard.setVisibility(View.VISIBLE);
+	}
+
+	/** Fills the crosshair readout card with the hovered candle's OHLC / change / volume. */
+	private void populateCrosshairCard(HolographicMarketData.Candle c, java.math.BigDecimal priceAtY) {
+		marketCrossCard.removeAllViews();
+		boolean up = c.isUp();
+		int col = up ? GREEN : RED;
+		double pct = c.open().signum() == 0 ? 0.0
+				: c.close().subtract(c.open()).doubleValue() / c.open().doubleValue() * 100.0;
+		String sign = pct >= 0 ? "+" : "";
+
+		TextView l1 = new TextView(requireContext());
+		l1.setSingleLine(true);
+		l1.setText(fmtCandleTime(c.openTime()) + "    " + sign
+				+ String.format(java.util.Locale.US, "%.2f", pct) + "%");
+		l1.setTextSize(9.5f);
+		l1.setTextColor(col);
+		marketCrossCard.addView(l1);
+
+		TextView l2 = new TextView(requireContext());
+		l2.setSingleLine(true);
+		l2.setText("O " + fmtPrice(c.open()) + "   H " + fmtPrice(c.high())
+				+ "   L " + fmtPrice(c.low()) + "   C " + fmtPrice(c.close()));
+		l2.setTextSize(9.5f);
+		l2.setTextColor(TEXT);
+		marketCrossCard.addView(l2);
+
+		TextView l3 = new TextView(requireContext());
+		l3.setSingleLine(true);
+		l3.setText("Vol " + fmtCompact(c.volume()) + "   @ $" + fmtPrice(priceAtY));
+		l3.setTextSize(9f);
+		l3.setTextColor(TEXT_SOFT);
+		marketCrossCard.addView(l3);
+	}
+
+	private String fmtCandleTime(long epochMillis) {
+		String pattern = marketInterval == HolographicMarketData.Interval.D1
+				? "yyyy-MM-dd" : "MM-dd HH:mm";
+		return new java.text.SimpleDateFormat(pattern).format(new java.util.Date(epochMillis));
 	}
 
 	/** Volume histogram aligned 1:1 with the candlestick chart's last 60 bars. */
