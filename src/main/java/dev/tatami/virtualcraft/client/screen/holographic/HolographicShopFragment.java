@@ -584,42 +584,13 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		titleBlock.addView(subtitle);
 		header.addView(titleBlock, weighted(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-		long nowMs = System.currentTimeMillis();
-		if (exchangeRefreshPending && nowMs - exchangeRefreshStartedAtMs > 6000L) {
-			exchangeRefreshPending = false;
-		}
-		if (exchangeRefreshSuccessUntilMs > 0L && nowMs >= exchangeRefreshSuccessUntilMs) {
-			exchangeRefreshSuccessUntilMs = 0L;
-		}
-		boolean refreshShowSuccess = exchangeRefreshSuccessUntilMs > nowMs && !exchangeRefreshPending;
-		String refreshKey;
-		int refreshAccent;
-		if (exchangeRefreshPending) {
-			refreshKey = "screen.virtual_craft.holographic_shop.refreshing";
-			refreshAccent = AMBER;
-		} else if (refreshShowSuccess) {
-			refreshKey = "screen.virtual_craft.holographic_shop.refresh_success";
-			refreshAccent = GREEN;
-		} else {
-			refreshKey = "screen.virtual_craft.holographic_shop.refresh";
-			refreshAccent = CYAN;
-		}
-		Button refreshButton = headerIconButton(t(refreshKey), refreshAccent, this::requestExchangeRefresh);
-		refreshButton.setTooltipText(t("screen.virtual_craft.holographic_shop.refresh_tooltip"));
-		headerRefreshButton = refreshButton;
-		var refreshParams = new LinearLayout.LayoutParams(dp(HEADER_REFRESH_WIDTH_DP), dp(30));
-		refreshParams.setMargins(0, 0, dp(10), 0);
-		header.addView(refreshButton, refreshParams);
-
+		// Prices stream in over WebSocket, so the header carries only the live USDT
+		// total now — the manual "刷新" button and the "实时" status chip were dropped
+		// as redundant (the total itself updates every tick).
 		headerValue = chip();
 		header.addView(headerValue, new LinearLayout.LayoutParams(dp(170), dp(30)));
 
-		headerStatus = chip();
-		var statusParams = new LinearLayout.LayoutParams(dp(96), dp(30));
-		statusParams.setMargins(dp(8), 0, 0, 0);
-		header.addView(headerStatus, statusParams);
-
-return header;
+		return header;
 	}
 
 	private void requestExchangeRefresh() {
@@ -646,18 +617,6 @@ return header;
 	private void refreshHeader() {
 		long totalUsdtMinor = CurrencyConversionService.totalWalletValueUsdtMinor(balances, exchangeSnapshot);
 		headerValue.setText(CryptoCurrency.USDT.formatCompact(totalUsdtMinor) + " USDT");
-		// v24: status chip stays on the real rate-status label even during a
-		// refresh — progress is now owned by the refresh button alone.
-		headerStatus.setText(rateStatusLabel());
-		headerStatus.setTextColor(rateStatusColor());
-		// v24 fix: header is built once in onCreateView; refreshHeader is the
-		// only update path the rebuild scheduler invokes. Re-apply the refresh
-		// button state here so click → “同步中” → “同步成功” → “刷新”
-		// transitions actually become visible on screen.
-		applyRefreshButtonState();
-		// 原用 shortWalletAddress() 主动取中间裁出 "VC-38...1F6" 省略号。用户明确要求不要省略号，
-		// 改走完整 displayWalletAddress（上文 onCreateView 里 headerAddress 已 setMaxLines(2)+不裁断）。
-
 	}
 
 	/**
