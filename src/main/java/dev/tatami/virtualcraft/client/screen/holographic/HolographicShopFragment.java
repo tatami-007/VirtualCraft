@@ -3772,7 +3772,8 @@ return header;
 		marketStatsHost = new LinearLayout(requireContext());
 		marketStatsHost.setOrientation(LinearLayout.HORIZONTAL);
 		marketStatsHost.setGravity(Gravity.CENTER);
-		contentColumn.addView(marketStatsHost);
+		contentColumn.addView(marketStatsHost, new LinearLayout.LayoutParams(
+				ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
 		// Order book + recent trades (Binance-style two-column depth panel).
 		contentColumn.addView(spacer(dp(12)));
@@ -3882,15 +3883,19 @@ return header;
 					.map(HolographicMarketData.Candle::volume)
 					.reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
 
-			marketStatsHost.addView(statChip(t("screen.virtual_craft.holographic_shop.market.high"), "$" + fmtPrice(high), GREEN));
-			marketStatsHost.addView(spacer(dp(10)));
-			marketStatsHost.addView(statChip(t("screen.virtual_craft.holographic_shop.market.low"), "$" + fmtPrice(low), RED));
-			marketStatsHost.addView(spacer(dp(10)));
+			// Even 4-up ticker bar. Each chip carries its own weight so the row fills
+			// the width; a plain spacer() here would be MATCH_PARENT-wide and shove the
+			// later chips off-screen (only HIGH would show).
+			marketStatsHost.addView(statChip(t("screen.virtual_craft.holographic_shop.market.high"), "$" + fmtPrice(high), GREEN),
+					weighted(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+			marketStatsHost.addView(statChip(t("screen.virtual_craft.holographic_shop.market.low"), "$" + fmtPrice(low), RED),
+					weighted(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 			marketStatsHost.addView(statChip(t("screen.virtual_craft.holographic_shop.market.amplitude"),
-					String.format(java.util.Locale.US, "%.2f", amp) + "%", CYAN));
-			marketStatsHost.addView(spacer(dp(10)));
+					String.format(java.util.Locale.US, "%.2f", amp) + "%", CYAN),
+					weighted(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 			marketStatsHost.addView(statChip(t("screen.virtual_craft.holographic_shop.market.vol24"),
-					fmtCompact(vol) + " " + marketSelectedCurrency.ticker(), TEXT));
+					fmtCompact(vol) + " " + marketSelectedCurrency.ticker(), TEXT),
+					weighted(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 		}
 
 		// ---- order book + recent trades ----
