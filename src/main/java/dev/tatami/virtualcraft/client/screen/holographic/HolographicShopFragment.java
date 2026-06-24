@@ -159,6 +159,9 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	private static final CryptoCurrency[] MARKET_PAIRS = {
 			CryptoCurrency.BTC, CryptoCurrency.ETH, CryptoCurrency.SOL,
 			CryptoCurrency.DOGE, CryptoCurrency.TRX };
+	// Minimum candles before the chart paints; below this we show the loading
+	// placeholder so a freshly-selected pair doesn't flash a lone live candle.
+	private static final int MARKET_MIN_CANDLES = 5;
 	private int selectedOfferIndex;
 	private CryptoCurrency selectedWalletCurrency = CryptoCurrency.USDT;
 	private CryptoCurrency convertSourceCurrency = CryptoCurrency.USDT;
@@ -3901,15 +3904,20 @@ return header;
 		// chart and crosshair flicker. Rebuild only when the candle set changes
 		// (pair/interval switch or a new candle) or at most ~every 700ms; between
 		// rebuilds we just reposition the crosshair so the readout stays live.
-		String chartKey = marketSelectedCurrency + "/" + marketInterval + "/" + candles.size();
+		// Treat a near-empty series as "not ready": when a pair is first selected it
+		// only has the single live-tick candle until the async REST history (150
+		// bars) lands, which otherwise flashes a lone left-aligned candle before
+		// snapping to the full chart. Show the loading placeholder until then.
+		boolean chartReady = candles.size() >= MARKET_MIN_CANDLES;
+		String chartKey = marketSelectedCurrency + "/" + marketInterval + "/"
+				+ (chartReady ? candles.size() : "loading");
 		long nowMs = System.currentTimeMillis();
-		boolean rebuildChart = candles.isEmpty()
-				|| !chartKey.equals(marketChartKey)
+		boolean rebuildChart = !chartKey.equals(marketChartKey)
 				|| (nowMs - marketChartLastBuilt) > 700L
 				|| marketChartHost.getChildCount() == 0;
 		if (rebuildChart) {
 			marketChartHost.removeAllViews();
-			if (candles.isEmpty()) {
+			if (!chartReady) {
 				TextView waiting = bodyText(t("screen.virtual_craft.holographic_shop.market.waiting"));
 				waiting.setTextColor(TEXT_SOFT);
 				waiting.setGravity(Gravity.CENTER);
@@ -3921,7 +3929,7 @@ return header;
 			}
 			if (marketVolumeHost != null) {
 				marketVolumeHost.removeAllViews();
-				if (!candles.isEmpty()) {
+				if (chartReady) {
 					marketVolumeHost.addView(buildVolumeChart(candles, dp(46)),
 							new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(46)));
 				}
@@ -4291,38 +4299,24 @@ return header;
 		int idx = (marketHoverIndex >= 0 && marketHoverIndex < candles.size())
 				? marketHoverIndex : candles.size() - 1;
 		HolographicMarketData.Candle c = candles.get(idx);
-		boolean up = c.isUp();
-		int col = up ? GREEN : RED;
+		int col = c.isUp() ? GREEN : RED;
 		double pct = c.open().signum() == 0 ? 0.0
 				: c.close().subtract(c.open()).doubleValue() / c.open().doubleValue() * 100.0;
 		String sign = pct >= 0 ? "+" : "";
 
-		TextView time = new TextView(requireContext());
-		time.setSingleLine(true);
-		time.setText(fmtCandleTime(c.openTime()));
-		time.setTextSize(9.5f);
-		time.setTextColor(TEXT_DIM);
-		var timeLp = new LinearLayout.LayoutParams(
-				ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-		timeLp.setMargins(0, 0, dp(8), 0);
-		marketLegendHost.addView(time, timeLp);
-
-		TextView ohlc = new TextView(requireContext());
-		ohlc.setSingleLine(true);
-		ohlc.setEllipsize(TextUtils.TruncateAt.END);
-		ohlc.setText("O " + fmtPrice(c.open()) + "  H " + fmtPrice(c.high())
-				+ "  L " + fmtPrice(c.low()) + "  C " + fmtPrice(c.close()));
-		ohlc.setTextSize(9.5f);
-		ohlc.setTextColor(col);
-		marketLegendHost.addView(ohlc, weighted(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-
-		TextView right = new TextView(requireContext());
-		right.setSingleLine(true);
-		right.setText(sign + String.format(java.util.Locale.US, "%.2f", pct)
+		// One multi-line TextView (wraps to 2 lines on narrow panels) so the full
+		// OHLC is always visible — a single fixed row got truncated with an ellipsis.
+		TextView legend = new TextView(requireContext());
+		legend.setText(fmtCandleTime(c.openTime())
+				+ "   O " + fmtPrice(c.open()) + "  H " + fmtPrice(c.high())
+				+ "  L " + fmtPrice(c.low()) + "  C " + fmtPrice(c.close())
+				+ "   " + sign + String.format(java.util.Locale.US, "%.2f", pct)
 				+ "%  Vol " + fmtCompact(c.volume()));
-		right.setTextSize(9.5f);
-		right.setTextColor(col);
-		marketLegendHost.addView(right);
+		legend.setTextSize(9.5f);
+		legend.setTextColor(col);
+		legend.setMaxLines(2);
+		marketLegendHost.addView(legend, new LinearLayout.LayoutParams(
+				ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 	}
 
 	private String fmtCandleTime(long epochMillis) {
