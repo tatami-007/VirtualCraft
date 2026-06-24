@@ -3090,6 +3090,46 @@ return header;
 	}
 
 	/**
+	 * Flat Binance/OKX-style segmented control track: one subtle rounded surface
+	 * holding equal-weight {@link #segmentTab} children. Replaces the old row of
+	 * individually-outlined pill buttons, which read as bulky default controls.
+	 */
+	private LinearLayout segmentTrack() {
+		LinearLayout track = new LinearLayout(requireContext());
+		track.setOrientation(LinearLayout.HORIZONTAL);
+		track.setGravity(Gravity.CENTER_VERTICAL);
+		ShapeDrawable bg = new ShapeDrawable();
+		bg.setCornerRadius(dp(8));
+		bg.setColor(0x14_FFFFFF);
+		track.setBackground(bg);
+		track.setPadding(dp(2), dp(2), dp(2), dp(2));
+		return track;
+	}
+
+	/** A single segment: filled accent tint + accent text when active, plain text otherwise. */
+	private TextView segmentTab(String text, boolean selected, int accent, Runnable onClick) {
+		TextView tab = new TextView(requireContext());
+		tab.setText(text);
+		tab.setSingleLine(true);
+		tab.setGravity(Gravity.CENTER);
+		tab.setTextSize(11f);
+		tab.setTextColor(selected ? accent : TEXT_SOFT);
+		if (selected) {
+			ShapeDrawable bg = new ShapeDrawable();
+			bg.setCornerRadius(dp(6));
+			// Low-alpha tint derived from the accent so the active tab "glows".
+			bg.setColor((accent & 0x00FFFFFF) | 0x33000000);
+			tab.setBackground(bg);
+		}
+		tab.setOnClickListener(v -> onClick.run());
+		HolographicTheme.interactive(tab);
+		var lp = new LinearLayout.LayoutParams(0, dp(24), 1f);
+		lp.setMargins(dp(1), 0, dp(1), 0);
+		tab.setLayoutParams(lp);
+		return tab;
+	}
+
+	/**
 	 * v25 nav tab with an MC item icon prefix. Each tab now reads as a tactile
 	 * "page badge" because the 16dp item sprite (emerald / ender pearl / gold
 	 * ingot / paper / hash voucher) is instantly recognizable — it drops the
@@ -3685,7 +3725,15 @@ return header;
 	private float marketHoverYFrac = -1f;
 	private View marketCrossV;
 	private View marketCrossH;
-	private LinearLayout marketCrossCard;
+	// Live OHLC readout row placed ABOVE the chart (Binance-style legend) so it
+	// never covers the candles. Shows the hovered candle while hovering, else the
+	// latest (live) candle.
+	private LinearLayout marketLegendHost;
+	// The candlestick chart is expensive to rebuild and doing it on every price
+	// tick made the candles/crosshair flicker. Throttle the heavy chart+volume
+	// rebuild; the cheap widgets (price/stats/book/legend) still update every tick.
+	private String marketChartKey;
+	private long marketChartLastBuilt;
 	// Chart geometry captured at build time so index<->pixel mapping stays correct
 	// when the crosshair is restored on a rebuild. All values are in the chart's
 	// content coordinate space (i.e. already inside the chart padding).
@@ -3703,66 +3751,38 @@ return header;
 				t("screen.virtual_craft.holographic_shop.market.subtitle")));
 		contentColumn.addView(spacer(dp(6)));
 
-		// Interval (timeframe) selector — Binance / OKX style tab strip.
-		LinearLayout intervalRow = new LinearLayout(requireContext());
-		intervalRow.setOrientation(LinearLayout.HORIZONTAL);
-		intervalRow.setGravity(Gravity.CENTER_VERTICAL);
+		// Interval (timeframe) selector — flat Binance/OKX segmented tab strip.
+		LinearLayout intervalRow = segmentTrack();
 		for (HolographicMarketData.Interval interval : HolographicMarketData.Interval.values()) {
 			boolean selected = interval == marketInterval;
-			Button btn = navButton(interval.code(), null);
-			btn.setTextSize(11f);
-			btn.setGravity(Gravity.CENTER);
-			btn.setTextColor(selected ? CYAN : TEXT_SOFT);
-			if (selected) {
-				ShapeDrawable bg = new ShapeDrawable();
-				bg.setCornerRadius(dp(6));
-				bg.setColor(0x30_22D3EE);
-				btn.setBackground(bg);
-			}
 			HolographicMarketData.Interval captured = interval;
-			btn.setOnClickListener(v -> {
+			intervalRow.addView(segmentTab(interval.code(), selected, CYAN, () -> {
 				marketInterval = captured;
 				marketHoverIndex = -1;
 				HolographicMarketData.ensureHistory(marketSelectedCurrency, captured);
 				requestRefresh(false, FocusTarget.NONE);
-			});
-			HolographicTheme.interactive(btn);
-			var ivParams = new LinearLayout.LayoutParams(0, dp(26), 1f);
-			ivParams.setMargins(dp(1), 0, dp(1), 0);
-			intervalRow.addView(btn, ivParams);
+			}));
 		}
-		contentColumn.addView(intervalRow);
+		contentColumn.addView(intervalRow, new LinearLayout.LayoutParams(
+				ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 		contentColumn.addView(spacer(dp(6)));
 
-		// Currency selector row
-		LinearLayout selectorRow = new LinearLayout(requireContext());
-		selectorRow.setOrientation(LinearLayout.HORIZONTAL);
-		selectorRow.setGravity(Gravity.CENTER_VERTICAL);
+		// Currency selector — same flat segmented style.
+		LinearLayout selectorRow = segmentTrack();
 		for (CryptoCurrency currency : new CryptoCurrency[]{
 				CryptoCurrency.BTC, CryptoCurrency.ETH, CryptoCurrency.SOL,
 				CryptoCurrency.DOGE, CryptoCurrency.TRX}) {
-			Button btn = navButton(currency.ticker(), null);
 			boolean selected = currency == marketSelectedCurrency;
-			btn.setTextColor(selected ? GREEN : TEXT_SOFT);
-			if (selected) {
-				ShapeDrawable bg = new ShapeDrawable();
-				bg.setCornerRadius(dp(6));
-				bg.setColor(0x30_00FF88);
-				btn.setBackground(bg);
-			}
 			CryptoCurrency captured = currency;
-			btn.setOnClickListener(v -> {
+			selectorRow.addView(segmentTab(currency.ticker(), selected, GREEN, () -> {
 				marketSelectedCurrency = captured;
 				marketHoverIndex = -1;
 				HolographicMarketData.ensureHistory(captured, marketInterval);
 				requestRefresh(false, FocusTarget.NONE);
-			});
-			HolographicTheme.interactive(btn);
-			var btnParams = new LinearLayout.LayoutParams(0, dp(28), 1f);
-			btnParams.setMargins(dp(2), 0, dp(2), 0);
-			selectorRow.addView(btn, btnParams);
+			}));
 		}
-		contentColumn.addView(selectorRow);
+		contentColumn.addView(selectorRow, new LinearLayout.LayoutParams(
+				ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 		contentColumn.addView(spacer(dp(8)));
 
 		// Kick off the historical kline pull for the current pair / interval so the
@@ -3774,6 +3794,14 @@ return header;
 		marketPriceHost = vertical();
 		contentColumn.addView(marketPriceHost);
 		contentColumn.addView(spacer(dp(6)));
+
+		// OHLC legend row above the chart (so the hover readout never covers candles).
+		marketLegendHost = new LinearLayout(requireContext());
+		marketLegendHost.setOrientation(LinearLayout.HORIZONTAL);
+		marketLegendHost.setGravity(Gravity.CENTER_VERTICAL);
+		contentColumn.addView(marketLegendHost, new LinearLayout.LayoutParams(
+				ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+		contentColumn.addView(spacer(dp(4)));
 
 		// Candlestick chart host.
 		marketChartHeightPx = dp(220);
@@ -3868,26 +3896,40 @@ return header;
 		changeValue.setTextSize(12f);
 		marketPriceHost.addView(changeValue);
 
-		// ---- chart ----
-		marketChartHost.removeAllViews();
-		if (candles.isEmpty()) {
-			TextView waiting = bodyText(t("screen.virtual_craft.holographic_shop.market.waiting"));
-			waiting.setTextColor(TEXT_SOFT);
-			waiting.setGravity(Gravity.CENTER);
-			marketChartHost.addView(waiting, new LinearLayout.LayoutParams(
-					ViewGroup.LayoutParams.MATCH_PARENT, marketChartHeightPx));
-		} else {
-			marketChartHost.addView(buildCandleChart(candles, marketChartHeightPx),
-					new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, marketChartHeightPx));
-		}
-
-		// ---- volume sub-chart ----
-		if (marketVolumeHost != null) {
-			marketVolumeHost.removeAllViews();
-			if (!candles.isEmpty()) {
-				marketVolumeHost.addView(buildVolumeChart(candles, dp(46)),
-						new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(46)));
+		// ---- chart + volume (throttled rebuild) ----
+		// Rebuilding the 60-bar candle/volume views on every price tick made the
+		// chart and crosshair flicker. Rebuild only when the candle set changes
+		// (pair/interval switch or a new candle) or at most ~every 700ms; between
+		// rebuilds we just reposition the crosshair so the readout stays live.
+		String chartKey = marketSelectedCurrency + "/" + marketInterval + "/" + candles.size();
+		long nowMs = System.currentTimeMillis();
+		boolean rebuildChart = candles.isEmpty()
+				|| !chartKey.equals(marketChartKey)
+				|| (nowMs - marketChartLastBuilt) > 700L
+				|| marketChartHost.getChildCount() == 0;
+		if (rebuildChart) {
+			marketChartHost.removeAllViews();
+			if (candles.isEmpty()) {
+				TextView waiting = bodyText(t("screen.virtual_craft.holographic_shop.market.waiting"));
+				waiting.setTextColor(TEXT_SOFT);
+				waiting.setGravity(Gravity.CENTER);
+				marketChartHost.addView(waiting, new LinearLayout.LayoutParams(
+						ViewGroup.LayoutParams.MATCH_PARENT, marketChartHeightPx));
+			} else {
+				marketChartHost.addView(buildCandleChart(candles, marketChartHeightPx),
+						new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, marketChartHeightPx));
 			}
+			if (marketVolumeHost != null) {
+				marketVolumeHost.removeAllViews();
+				if (!candles.isEmpty()) {
+					marketVolumeHost.addView(buildVolumeChart(candles, dp(46)),
+							new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(46)));
+				}
+			}
+			marketChartKey = chartKey;
+			marketChartLastBuilt = nowMs;
+		} else {
+			updateMarketCrosshair();
 		}
 
 		// ---- stats (24h high / low / amplitude / volume) ----
@@ -3948,6 +3990,9 @@ return header;
 				marketListHost.addView(spacer(dp(6)));
 			}
 		}
+
+		// ---- OHLC legend (live; tracks hovered candle, else the latest) ----
+		updateMarketLegend();
 	}
 
 	/** A Binance-style markets-list row: icon · pair · last price · period change %. */
@@ -4158,22 +4203,6 @@ return header;
 		hParams.gravity = Gravity.TOP | Gravity.LEFT;
 		chartFrame.addView(marketCrossH, hParams);
 
-		marketCrossCard = new LinearLayout(requireContext());
-		marketCrossCard.setOrientation(LinearLayout.VERTICAL);
-		ShapeDrawable cardBg = new ShapeDrawable();
-		cardBg.setCornerRadius(dp(6));
-		cardBg.setColor(0xF0_141826);
-		cardBg.setStroke(1, WINDOW_STROKE);
-		marketCrossCard.setBackground(cardBg);
-		marketCrossCard.setPadding(dp(8), dp(5), dp(8), dp(5));
-		marketCrossCard.setVisibility(View.GONE);
-		var cardParams = new FrameLayout.LayoutParams(
-				ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-		cardParams.gravity = Gravity.TOP | Gravity.LEFT;
-		cardParams.leftMargin = dp(2);
-		cardParams.topMargin = dp(2);
-		chartFrame.addView(marketCrossCard, cardParams);
-
 		// Transparent glass pane on top: it is the deepest hovered view over the
 		// whole chart, so it reliably receives hover-move/exit (the candle child
 		// views would otherwise be the hover target). It consumes nothing.
@@ -4209,22 +4238,21 @@ return header;
 	}
 
 	/**
-	 * Repositions the crosshair lines and refreshes the OHLC readout card for the
-	 * currently hovered candle, or hides everything when not hovering. Called both
-	 * on hover-move and at the end of every chart rebuild (so the readout tracks
-	 * the live candle while the cursor holds still).
+	 * Repositions the crosshair lines for the hovered candle (or hides them when
+	 * not hovering), then refreshes the legend. Called on hover-move and after a
+	 * chart rebuild so the crosshair survives the per-tick repaint.
 	 */
 	private void updateMarketCrosshair() {
-		if (marketCrossV == null || marketCrossH == null || marketCrossCard == null || mcCandles == null) {
+		if (marketCrossV == null || marketCrossH == null || mcCandles == null) {
+			updateMarketLegend();
 			return;
 		}
 		if (marketHoverIndex < mcStart || marketHoverIndex >= mcCandles.size()) {
 			marketCrossV.setVisibility(View.GONE);
 			marketCrossH.setVisibility(View.GONE);
-			marketCrossCard.setVisibility(View.GONE);
+			updateMarketLegend();
 			return;
 		}
-		HolographicMarketData.Candle c = mcCandles.get(marketHoverIndex);
 		int local = marketHoverIndex - mcStart;
 		int xCenter = local * mcSpanPx + mcCandleW / 2;
 
@@ -4241,43 +4269,60 @@ return header;
 		marketCrossH.setLayoutParams(hp);
 		marketCrossH.setVisibility(View.VISIBLE);
 
-		java.math.BigDecimal priceAtY = mcMin.add(
-				mcRange.multiply(java.math.BigDecimal.valueOf(1.0 - yf)));
-		populateCrosshairCard(c, priceAtY);
-		marketCrossCard.setVisibility(View.VISIBLE);
+		updateMarketLegend();
 	}
 
-	/** Fills the crosshair readout card with the hovered candle's OHLC / change / volume. */
-	private void populateCrosshairCard(HolographicMarketData.Candle c, java.math.BigDecimal priceAtY) {
-		marketCrossCard.removeAllViews();
+	/**
+	 * Refreshes the OHLC legend row above the chart. While hovering it shows the
+	 * hovered candle; otherwise it shows the latest (live) candle. Reads the
+	 * current candle list so the values stay live even when the chart rebuild is
+	 * throttled.
+	 */
+	private void updateMarketLegend() {
+		if (marketLegendHost == null) {
+			return;
+		}
+		marketLegendHost.removeAllViews();
+		List<HolographicMarketData.Candle> candles =
+				HolographicMarketData.getCandles(marketSelectedCurrency, marketInterval);
+		if (candles.isEmpty()) {
+			return;
+		}
+		int idx = (marketHoverIndex >= 0 && marketHoverIndex < candles.size())
+				? marketHoverIndex : candles.size() - 1;
+		HolographicMarketData.Candle c = candles.get(idx);
 		boolean up = c.isUp();
 		int col = up ? GREEN : RED;
 		double pct = c.open().signum() == 0 ? 0.0
 				: c.close().subtract(c.open()).doubleValue() / c.open().doubleValue() * 100.0;
 		String sign = pct >= 0 ? "+" : "";
 
-		TextView l1 = new TextView(requireContext());
-		l1.setSingleLine(true);
-		l1.setText(fmtCandleTime(c.openTime()) + "    " + sign
-				+ String.format(java.util.Locale.US, "%.2f", pct) + "%");
-		l1.setTextSize(9.5f);
-		l1.setTextColor(col);
-		marketCrossCard.addView(l1);
+		TextView time = new TextView(requireContext());
+		time.setSingleLine(true);
+		time.setText(fmtCandleTime(c.openTime()));
+		time.setTextSize(9.5f);
+		time.setTextColor(TEXT_DIM);
+		var timeLp = new LinearLayout.LayoutParams(
+				ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+		timeLp.setMargins(0, 0, dp(8), 0);
+		marketLegendHost.addView(time, timeLp);
 
-		TextView l2 = new TextView(requireContext());
-		l2.setSingleLine(true);
-		l2.setText("O " + fmtPrice(c.open()) + "   H " + fmtPrice(c.high())
-				+ "   L " + fmtPrice(c.low()) + "   C " + fmtPrice(c.close()));
-		l2.setTextSize(9.5f);
-		l2.setTextColor(TEXT);
-		marketCrossCard.addView(l2);
+		TextView ohlc = new TextView(requireContext());
+		ohlc.setSingleLine(true);
+		ohlc.setEllipsize(TextUtils.TruncateAt.END);
+		ohlc.setText("O " + fmtPrice(c.open()) + "  H " + fmtPrice(c.high())
+				+ "  L " + fmtPrice(c.low()) + "  C " + fmtPrice(c.close()));
+		ohlc.setTextSize(9.5f);
+		ohlc.setTextColor(col);
+		marketLegendHost.addView(ohlc, weighted(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-		TextView l3 = new TextView(requireContext());
-		l3.setSingleLine(true);
-		l3.setText("Vol " + fmtCompact(c.volume()) + "   @ $" + fmtPrice(priceAtY));
-		l3.setTextSize(9f);
-		l3.setTextColor(TEXT_SOFT);
-		marketCrossCard.addView(l3);
+		TextView right = new TextView(requireContext());
+		right.setSingleLine(true);
+		right.setText(sign + String.format(java.util.Locale.US, "%.2f", pct)
+				+ "%  Vol " + fmtCompact(c.volume()));
+		right.setTextSize(9.5f);
+		right.setTextColor(col);
+		marketLegendHost.addView(right);
 	}
 
 	private String fmtCandleTime(long epochMillis) {
