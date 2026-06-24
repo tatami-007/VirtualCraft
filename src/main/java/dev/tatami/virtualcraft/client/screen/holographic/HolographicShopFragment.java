@@ -137,6 +137,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	 * 复用——仅 shop 列表需要，创建一次、复用多次。
 	 */
 	private FrameLayout shopTooltipOverlay;
+	private FrameLayout actionShell;
 	private FrameLayout contentFrame;
 	private FrameLayout pickerOverlay;
 	private TextView headerValue;
@@ -154,7 +155,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	private boolean pageTransitionPending;
 	// Visual order of the nav column — indexes the 1..6 keyboard shortcuts.
 	private static final Page[] NAV_ORDER = {
-			Page.MARKET, Page.CONVERT, Page.CONTRACTS, Page.WALLET, Page.TRANSFER, Page.SHOP, Page.MINING };
+			Page.WALLET, Page.MARKET, Page.CONVERT, Page.CONTRACTS, Page.TRANSFER, Page.SHOP, Page.MINING };
 	// Trading pairs shown in the MARKET page selector + markets list.
 	private static final CryptoCurrency[] MARKET_PAIRS = {
 			CryptoCurrency.BTC, CryptoCurrency.ETH, CryptoCurrency.SOL,
@@ -394,7 +395,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		root.addView(shopTooltipOverlay, new FrameLayout.LayoutParams(
 				ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
-		FrameLayout actionShell = new FrameLayout(requireContext());
+		actionShell = new FrameLayout(requireContext());
 		actionShell.setBackground(HolographicTheme.acrylic(PANEL_ALT, WINDOW_STROKE, 10f));
 		// action 右栏 dp(236)→dp(280)，给 quickAmount 按钮 + help text 多个中文字空间。
 		body.addView(actionShell, new LinearLayout.LayoutParams(dp(280), ViewGroup.LayoutParams.MATCH_PARENT));
@@ -835,6 +836,15 @@ return header;
 	}
 
 	private void buildActionPage() {
+		// MARKET has no side action panel (Binance-style full-width chart); hide the
+		// whole shell so the content area takes the freed width.
+		if (actionShell != null) {
+			actionShell.setVisibility(currentPage == Page.MARKET ? View.GONE : View.VISIBLE);
+		}
+		if (currentPage == Page.MARKET) {
+			actionColumn.removeAllViews();
+			return;
+		}
 		actionColumn.removeAllViews();
 		// Drop references to the previous page's live-update views so a stale slider drag
 		// can never write into a recycled card.
@@ -853,7 +863,7 @@ return header;
 			case TRANSFER -> buildTransferActions();
 			case MINING -> buildMiningActions();
 			case CONTRACTS -> buildContractsActions();
-			case MARKET -> buildMarketActions();
+			case MARKET -> { /* no side panel — full-width chart */ }
 		}
 	}
 
@@ -4620,41 +4630,6 @@ return header;
 		valueView.setGravity(Gravity.CENTER);
 		chip.addView(valueView);
 		return chip;
-	}
-
-	private void buildMarketActions() {
-		actionColumn.addView(bodyText(t("screen.virtual_craft.holographic_shop.market.info")));
-		actionColumn.addView(spacer(dp(10)));
-
-		// Rate status
-		LinearLayout statusCard = card(PANEL_ROW, WINDOW_STROKE, 10f);
-		statusCard.setPadding(dp(10), dp(10), dp(10), dp(10));
-		statusCard.setOrientation(LinearLayout.VERTICAL);
-		TextView statusLabel = hintText(t("screen.virtual_craft.holographic_shop.rate_status_short"));
-		statusCard.addView(statusLabel);
-		statusCard.addView(spacer(dp(3)));
-		TextView statusValue = bodyText(rateStatusLabel());
-		statusValue.setTextColor(rateStatusColor());
-		statusCard.addView(statusValue);
-		actionColumn.addView(statusCard, new LinearLayout.LayoutParams(
-				ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-		actionColumn.addView(spacer(dp(8)));
-
-		// WebSocket indicator
-		boolean wsConnected = dev.tatami.virtualcraft.exchange.ExchangeRateService.isWebSocketConnected();
-		LinearLayout wsCard = card(PANEL_ROW, WINDOW_STROKE, 10f);
-		wsCard.setPadding(dp(10), dp(10), dp(10), dp(10));
-		wsCard.setOrientation(LinearLayout.VERTICAL);
-		TextView wsLabel = hintText("WebSocket");
-		wsCard.addView(wsLabel);
-		wsCard.addView(spacer(dp(3)));
-		TextView wsStatus = bodyText(wsConnected
-				? t("screen.virtual_craft.holographic_shop.market.ws_connected")
-				: t("screen.virtual_craft.holographic_shop.market.ws_disconnected"));
-		wsStatus.setTextColor(wsConnected ? GREEN : RED);
-		wsCard.addView(wsStatus);
-		actionColumn.addView(wsCard, new LinearLayout.LayoutParams(
-				ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 	}
 
 	private String actionTitle() {
