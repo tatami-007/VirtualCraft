@@ -365,8 +365,9 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		navColumn = vertical();
 		navColumn.setPadding(dp(12), dp(12), dp(12), dp(12));
 		navColumn.setBackground(HolographicTheme.acrylic(PANEL_ALT, WINDOW_STROKE, 10f));
-		// nav 侧栏 dp(126)→dp(146)，给钱包地址 5+…+3 足够一行宽。
-		body.addView(navColumn, new LinearLayout.LayoutParams(dp(146), ViewGroup.LayoutParams.MATCH_PARENT));
+		// nav 侧栏宽度：要容下底部「VC-XXXXXXXXXX」13 字完整地址单行不省略。
+		// 列内 padding dp(12)*2 + 卡片 padding dp(8)*2 后，内容净宽 ≈ dp(130)，刚好够。
+		body.addView(navColumn, new LinearLayout.LayoutParams(dp(170), ViewGroup.LayoutParams.MATCH_PARENT));
 
 		contentFrame = new FrameLayout(requireContext());
 		contentFrame.setBackground(HolographicTheme.acrylic(PANEL, WINDOW_STROKE, 10f));
@@ -762,7 +763,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		// 资产总额只在顶部 header 的 USDT 药丸里展示一次（headerValue），侧栏不再重复一张
 		// “资产总览”卡片——既消除重复，也腾出垂直空间，避免底部“钱包地址/汇率状态”卡被裁。
 		LinearLayout metaCard = card(PANEL_ROW, WINDOW_STROKE, 10f);
-		metaCard.setPadding(dp(10), dp(10), dp(10), dp(10));
+		metaCard.setPadding(dp(8), dp(10), dp(8), dp(10));
 		// label 与 value 原本字号仅差 1sp（hintText 12 vs bodyText 13），纵向密集时视觉层次模糊。
 		// 把 value 提到 14sp 并在 label-value 之间加 dp(3) spacer，节奏明显更舒服。
 		metaCard.addView(hintText(t("screen.virtual_craft.holographic_shop.wallet.address_label")));
@@ -771,8 +772,10 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		// on a single line — the 13-char "VC-XXXXXXXXXX" fits at this size, and a
 		// 2-line wrap looked awkward in the narrow sidebar.
 		TextView addressValue = bodyText(displayWalletAddress());
-		addressValue.setTextSize(13f);
+		addressValue.setTextSize(12f);
 		addressValue.setSingleLine(true);
+		// No ellipsis — the column is sized so the full 13-char address fits.
+		addressValue.setEllipsize(null);
 		metaCard.addView(addressValue);
 		navColumn.addView(metaCard, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 	}
@@ -4080,9 +4083,9 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		candleRow.setOrientation(LinearLayout.HORIZONTAL);
 		candleRow.setGravity(Gravity.BOTTOM);
 
-		int candleWidth = dp(5);
 		int gap = dp(1);
-		int maxCandles = 60;
+		int candleWidth = candleWidthPx(gap);
+		int maxCandles = MARKET_VISIBLE_CANDLES;
 		int start = Math.max(0, candles.size() - maxCandles);
 
 		for (int i = start; i < candles.size(); i++) {
@@ -4301,6 +4304,26 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		return new java.text.SimpleDateFormat(pattern).format(new java.util.Date(epochMillis));
 	}
 
+	// Number of candles drawn (and volume bars, kept 1:1). Binance shows a dense
+	// tape, so we render a fixed count and stretch each candle to fill the chart's
+	// measured width — see candleWidthPx.
+	private static final int MARKET_VISIBLE_CANDLES = 60;
+
+	/**
+	 * Width of one candle body so MARKET_VISIBLE_CANDLES candles (plus 1px gaps)
+	 * exactly fill the chart host's measured width. Falls back to a fixed dp(5)
+	 * before the host has been laid out (width 0 on first build), which the next
+	 * ~700ms rebuild corrects. Shared by the candle and volume charts so the two
+	 * stay column-aligned.
+	 */
+	private int candleWidthPx(int gap) {
+		int avail = marketChartHost != null ? marketChartHost.getWidth() : 0;
+		if (avail <= 0) {
+			return dp(5);
+		}
+		return Math.max(dp(2), (avail - MARKET_VISIBLE_CANDLES * gap) / MARKET_VISIBLE_CANDLES);
+	}
+
 	/** Volume histogram aligned 1:1 with the candlestick chart's last 60 bars. */
 	private View buildVolumeChart(List<HolographicMarketData.Candle> candles, int heightPx) {
 		FrameLayout frame = new FrameLayout(requireContext());
@@ -4313,9 +4336,9 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		frame.setPadding(dp(4), padV, dp(4), padV);
 		int h = heightPx - padV * 2;
 
-		int candleWidth = dp(5);
 		int gap = dp(1);
-		int maxCandles = 60;
+		int candleWidth = candleWidthPx(gap);
+		int maxCandles = MARKET_VISIBLE_CANDLES;
 		int start = Math.max(0, candles.size() - maxCandles);
 		double maxVol = 0;
 		for (int i = start; i < candles.size(); i++) {
