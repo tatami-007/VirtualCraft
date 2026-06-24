@@ -487,6 +487,18 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			exchangeRefreshSnapshotArrivedMs = System.currentTimeMillis();
 		}
 		long now = System.currentTimeMillis();
+		// Live total: the wallet's USDT value moves with the market, so repaint just
+		// the header total on every tick (cheap, coalesced) on whatever page is open
+		// — same realtime cadence as the chart, Binance-style.
+		if (root != null && headerValue != null && !headerUpdateScheduled) {
+			headerUpdateScheduled = true;
+			root.post(() -> {
+				headerUpdateScheduled = false;
+				if (headerValue != null) {
+					refreshHeader();
+				}
+			});
+		}
 		// On the MARKET (K-line) page we repaint just the live chart / price widgets in
 		// place on every tick — no full-screen rebuild — so the chart updates in real time
 		// without the 5s throttle that made it feel sluggish. A pending manual refresh
@@ -772,13 +784,15 @@ return header;
 		ResourceLocation shopIcon = ResourceLocation.fromNamespaceAndPath("minecraft", "gold_ingot");
 		ResourceLocation miningIcon = ResourceLocation.fromNamespaceAndPath("virtual_craft", "encrypted_hash_voucher");
 		LinearLayout.LayoutParams navParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32));
-		navColumn.addView(navIconButton(marketIcon, "1  " + t("screen.virtual_craft.holographic_shop.page.market"), Page.MARKET), navParams);
+		// Nav order: Wallet first, then trading pages. Keep in sync with NAV_ORDER
+		// (which maps the 1..N keyboard shortcuts).
+		navColumn.addView(navIconButton(walletIcon, "1  " + t("screen.virtual_craft.holographic_shop.page.wallet"), Page.WALLET), navParams);
 		navColumn.addView(spacer(dp(6)));
-		navColumn.addView(navIconButton(convertIcon, "2  " + t("screen.virtual_craft.holographic_shop.page.convert"), Page.CONVERT), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
+		navColumn.addView(navIconButton(marketIcon, "2  " + t("screen.virtual_craft.holographic_shop.page.market"), Page.MARKET), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
 		navColumn.addView(spacer(dp(6)));
-		navColumn.addView(navIconButton(contractsIcon, "3  " + t("screen.virtual_craft.holographic_shop.page.contracts"), Page.CONTRACTS), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
+		navColumn.addView(navIconButton(convertIcon, "3  " + t("screen.virtual_craft.holographic_shop.page.convert"), Page.CONVERT), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
 		navColumn.addView(spacer(dp(6)));
-		navColumn.addView(navIconButton(walletIcon, "4  " + t("screen.virtual_craft.holographic_shop.page.wallet"), Page.WALLET), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
+		navColumn.addView(navIconButton(contractsIcon, "4  " + t("screen.virtual_craft.holographic_shop.page.contracts"), Page.CONTRACTS), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
 		navColumn.addView(spacer(dp(6)));
 		navColumn.addView(navIconButton(transferIcon, "5  " + t("screen.virtual_craft.holographic_shop.page.transfer"), Page.TRANSFER), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
 		navColumn.addView(spacer(dp(6)));
@@ -794,23 +808,13 @@ return header;
 		// 把 value 提到 14sp 并在 label-value 之间加 dp(3) spacer，节奏明显更舒服。
 		metaCard.addView(hintText(t("screen.virtual_craft.holographic_shop.wallet.address_label")));
 		metaCard.addView(spacer(dp(3)));
-		// 地址显示策略：sidebar metaCard 位置宽裕，不再用 shortWalletAddress() 的 5+…+3 缩写，
-		// 改画完整 13 字符 "VC-XXXXXXXXXX"。允许 wrap 到 2 行（bodyText 默认 setSingleLine 覆盖），
-		// 这样字号 14sp 下 dp(126) 带不下也不会用 "…" 截断，而是自然换行。
-		// header 区的 headerAddress 仍用 shortWalletAddress（那里空间小，代变试缩写可接受）。
+		// Your VirtualCraft receive address (used by 转账 to send you funds). Keep it
+		// on a single line — the 13-char "VC-XXXXXXXXXX" fits at this size, and a
+		// 2-line wrap looked awkward in the narrow sidebar.
 		TextView addressValue = bodyText(displayWalletAddress());
-		addressValue.setTextSize(14f);
-		addressValue.setSingleLine(false);
-		addressValue.setEllipsize(null);
-		addressValue.setMaxLines(2);
+		addressValue.setTextSize(13f);
+		addressValue.setSingleLine(true);
 		metaCard.addView(addressValue);
-		metaCard.addView(spacer(dp(8)));
-		metaCard.addView(hintText(t("screen.virtual_craft.holographic_shop.rate_status_short")));
-		metaCard.addView(spacer(dp(3)));
-		TextView rateValue = bodyText(rateStatusLabel());
-		rateValue.setTextSize(14f);
-		rateValue.setTextColor(rateStatusColor());
-		metaCard.addView(rateValue);
 		navColumn.addView(metaCard, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 	}
 
@@ -3716,6 +3720,9 @@ return header;
 	// ModernUI view mutations MUST happen on the UI thread, so we hop via root.post and
 	// keep at most one repaint queued at a time (the repaint is idempotent).
 	private boolean marketUpdateScheduled;
+	// Coalesces the per-tick live header (total USDT) repaint so the wallet value
+	// tracks the market in real time on every page, not just MARKET.
+	private boolean headerUpdateScheduled;
 	// Binance-style markets list under the chart (one tappable row per pair), repainted live.
 	private LinearLayout marketListHost;
 	// Volume histogram beneath the candles, and the order-book + recent-trades panel.
