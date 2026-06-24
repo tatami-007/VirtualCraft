@@ -18,6 +18,7 @@ import org.joml.Matrix4f;
 
 import dev.tatami.virtualcraft.mining.MiningSurveyTarget;
 import dev.tatami.virtualcraft.mining.MiningSurveyTargetData;
+import dev.tatami.virtualcraft.network.MiningSurveyorActionPayload;
 import dev.tatami.virtualcraft.registry.ModItems;
 import dev.tatami.virtualcraft.util.OreClusterFinder;
 import dev.tatami.virtualcraft.util.ShapeMerger;
@@ -37,6 +38,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.client.event.RenderGuiLayerEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
+import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class MiningSurveyorHighlighter {
 	private static final int MAX_RENDERED_ORES = 128;
@@ -83,6 +85,11 @@ public final class MiningSurveyorHighlighter {
 	private List<AABB> cachedBoxes = List.of();
 	private List<CachedEdge> cachedEdges = List.of();
 	private long lastFullScanTick;
+	// Once the tracked vein is fully mined out we remember its anchor so the HUD
+	// locator chip is suppressed immediately (rather than flashing the stale
+	// server snapshot over the empty hole) while the lock-release round-trips.
+	private BlockPos depletedOrigin;
+	private boolean depletionClearSent;
 
 	public void renderInGame(PoseStack poseStack) {
 		Minecraft minecraft = Minecraft.getInstance();
@@ -103,6 +110,11 @@ public final class MiningSurveyorHighlighter {
 		}
 
 		BlockPos origin = targetPos.get();
+		if (origin.equals(depletedOrigin)) {
+			// Vein already mined out; the lock-release is in flight. Don't re-scan
+			// the empty hole every frame.
+			return;
+		}
 		if (!shouldRenderWorldHighlight(player, origin)) {
 			return;
 		}
@@ -122,6 +134,9 @@ public final class MiningSurveyorHighlighter {
 				clearCache();
 				return;
 			}
+			// A live vein exists for this anchor, so it is no longer depleted.
+			depletedOrigin = null;
+			depletionClearSent = false;
 			rebuildGeometry(cachedCluster);
 		} else {
 			List<BlockPos> valid = new ArrayList<>(cachedCluster.size());
@@ -147,7 +162,7 @@ public final class MiningSurveyorHighlighter {
 			if (shrunk) {
 				cachedCluster = valid;
 				if (cachedCluster.isEmpty()) {
-					clearCache();
+					handleVeinDepleted();
 					return;
 				}
 				rebuildGeometry(cachedCluster);
@@ -183,6 +198,11 @@ public final class MiningSurveyorHighlighter {
 		}
 
 		BlockPos pos = targetPos.get();
+		if (pos.equals(depletedOrigin)) {
+			// Vein mined out — suppress the stale locator chip instead of reverting
+			// to the server snapshot count.
+			return;
+		}
 		MiningSurveyTarget surveyTarget = MiningSurveyorClientState.target().orElseGet(() -> stack.isEmpty()
 				? MiningSurveyTarget.defaultTarget()
 				: MiningSurveyTargetData.lockedTarget(stack));
@@ -415,6 +435,24 @@ public final class MiningSurveyorHighlighter {
 		bufferSource.endBatch(SURVEY_LINES);
 
 		poseStack.popPose();
+	}
+
+	/**
+	 * The locked vein was just mined out. Remember its anchor so the locator chip
+	 * stops echoing the stale snapshot, and release the server-side lock once so
+	 * the highlight and chip clear cleanly instead of lingering over empty rock.
+	 */
+	private void handleVeinDepleted() {
+		BlockPos depleted = cachedOrigin;
+		clearCache();
+		if (depleted == null) {
+			return;
+		}
+		depletedOrigin = depleted;
+		if (!depletionClearSent) {
+			depletionClearSent = true;
+			PacketDistributor.sendToServer(new MiningSurveyorActionPayload("", true));
+		}
 	}
 
 	private void clearCache() {
