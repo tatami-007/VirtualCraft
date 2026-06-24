@@ -3665,6 +3665,17 @@ return header;
 	private boolean marketUpdateScheduled;
 	// Binance-style markets list under the chart (one tappable row per pair), repainted live.
 	private LinearLayout marketListHost;
+	// Volume histogram beneath the candles, and the order-book + recent-trades panel.
+	private LinearLayout marketVolumeHost;
+	private LinearLayout marketBookHost;
+	// Rolling synthetic trade tape for the active pair (the sim has no real trade feed,
+	// so a print is appended whenever the live price moves; cleared on pair switch).
+	private final java.util.ArrayDeque<MarketTrade> marketTrades = new java.util.ArrayDeque<>();
+	private CryptoCurrency marketTradesCurrency;
+	private java.math.BigDecimal lastTradePrice;
+
+	private record MarketTrade(java.math.BigDecimal price, double amount, boolean buy, long time) {
+	}
 
 	private void buildMarketContent() {
 		contentColumn.addView(sectionHeader(
@@ -3748,13 +3759,29 @@ return header;
 		marketChartHost.setOrientation(LinearLayout.VERTICAL);
 		contentColumn.addView(marketChartHost, new LinearLayout.LayoutParams(
 				ViewGroup.LayoutParams.MATCH_PARENT, marketChartHeightPx));
+		contentColumn.addView(spacer(dp(4)));
+
+		// Volume sub-chart (Binance-style histogram aligned under the candles).
+		marketVolumeHost = new LinearLayout(requireContext());
+		marketVolumeHost.setOrientation(LinearLayout.VERTICAL);
+		contentColumn.addView(marketVolumeHost, new LinearLayout.LayoutParams(
+				ViewGroup.LayoutParams.MATCH_PARENT, dp(46)));
 		contentColumn.addView(spacer(dp(8)));
 
-		// Stats host (high / low / amplitude).
+		// Stats host (24h high / low / amplitude / volume).
 		marketStatsHost = new LinearLayout(requireContext());
 		marketStatsHost.setOrientation(LinearLayout.HORIZONTAL);
 		marketStatsHost.setGravity(Gravity.CENTER);
 		contentColumn.addView(marketStatsHost);
+
+		// Order book + recent trades (Binance-style two-column depth panel).
+		contentColumn.addView(spacer(dp(12)));
+		contentColumn.addView(sectionHeader(t("screen.virtual_craft.holographic_shop.market.depth"), null));
+		contentColumn.addView(spacer(dp(6)));
+		marketBookHost = new LinearLayout(requireContext());
+		marketBookHost.setOrientation(LinearLayout.HORIZONTAL);
+		contentColumn.addView(marketBookHost, new LinearLayout.LayoutParams(
+				ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
 		// Markets list (Binance-style): one tappable row per pair, repainted live.
 		contentColumn.addView(spacer(dp(14)));
@@ -3831,7 +3858,16 @@ return header;
 					new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, marketChartHeightPx));
 		}
 
-		// ---- stats ----
+		// ---- volume sub-chart ----
+		if (marketVolumeHost != null) {
+			marketVolumeHost.removeAllViews();
+			if (!candles.isEmpty()) {
+				marketVolumeHost.addView(buildVolumeChart(candles, dp(46)),
+						new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(46)));
+			}
+		}
+
+		// ---- stats (24h high / low / amplitude / volume) ----
 		marketStatsHost.removeAllViews();
 		if (!candles.isEmpty()) {
 			java.math.BigDecimal high = candles.stream()
@@ -3842,13 +3878,31 @@ return header;
 					.min(java.math.BigDecimal::compareTo).orElse(java.math.BigDecimal.ZERO);
 			double amp = low.signum() == 0 ? 0.0
 					: high.subtract(low).doubleValue() / low.doubleValue() * 100.0;
+			java.math.BigDecimal vol = candles.stream()
+					.map(HolographicMarketData.Candle::volume)
+					.reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
 
 			marketStatsHost.addView(statChip(t("screen.virtual_craft.holographic_shop.market.high"), "$" + fmtPrice(high), GREEN));
-			marketStatsHost.addView(spacer(dp(12)));
+			marketStatsHost.addView(spacer(dp(10)));
 			marketStatsHost.addView(statChip(t("screen.virtual_craft.holographic_shop.market.low"), "$" + fmtPrice(low), RED));
-			marketStatsHost.addView(spacer(dp(12)));
+			marketStatsHost.addView(spacer(dp(10)));
 			marketStatsHost.addView(statChip(t("screen.virtual_craft.holographic_shop.market.amplitude"),
 					String.format(java.util.Locale.US, "%.2f", amp) + "%", CYAN));
+			marketStatsHost.addView(spacer(dp(10)));
+			marketStatsHost.addView(statChip(t("screen.virtual_craft.holographic_shop.market.vol24"),
+					fmtCompact(vol) + " " + marketSelectedCurrency.ticker(), TEXT));
+		}
+
+		// ---- order book + recent trades ----
+		if (marketBookHost != null) {
+			marketBookHost.removeAllViews();
+			recordTrade(price, up);
+			View book = buildOrderBook(price, up);
+			var bookParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+			bookParams.setMargins(0, 0, dp(6), 0);
+			marketBookHost.addView(book, bookParams);
+			marketBookHost.addView(buildRecentTrades(),
+					new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 		}
 
 		// ---- markets list (tap a row to switch pair) ----
@@ -4048,6 +4102,286 @@ return header;
 		chartFrame.addView(priceLabels, priceLabelsParams);
 
 		return chartFrame;
+	}
+
+	/** Volume histogram aligned 1:1 with the candlestick chart's last 60 bars. */
+	private View buildVolumeChart(List<HolographicMarketData.Candle> candles, int heightPx) {
+		FrameLayout frame = new FrameLayout(requireContext());
+		ShapeDrawable bg = new ShapeDrawable();
+		bg.setCornerRadius(dp(6));
+		bg.setColor(0x20_FFFFFF);
+		bg.setStroke(1, WINDOW_STROKE);
+		frame.setBackground(bg);
+		int padV = dp(4);
+		frame.setPadding(dp(4), padV, dp(4), padV);
+		int h = heightPx - padV * 2;
+
+		int candleWidth = dp(5);
+		int gap = dp(1);
+		int maxCandles = 60;
+		int start = Math.max(0, candles.size() - maxCandles);
+		double maxVol = 0;
+		for (int i = start; i < candles.size(); i++) {
+			maxVol = Math.max(maxVol, candles.get(i).volume().doubleValue());
+		}
+		if (maxVol <= 0) {
+			maxVol = 1;
+		}
+
+		LinearLayout row = new LinearLayout(requireContext());
+		row.setOrientation(LinearLayout.HORIZONTAL);
+		row.setGravity(Gravity.BOTTOM);
+		for (int i = start; i < candles.size(); i++) {
+			HolographicMarketData.Candle c = candles.get(i);
+			int color = c.isUp() ? 0x80_22C55E : 0x80_FF4D4F;
+			int barH = Math.max(dp(1), (int) (c.volume().doubleValue() / maxVol * h));
+			FrameLayout cell = new FrameLayout(requireContext());
+			View bar = new View(requireContext());
+			ShapeDrawable bd = new ShapeDrawable();
+			bd.setColor(color);
+			bar.setBackground(bd);
+			var bp = new FrameLayout.LayoutParams(candleWidth, barH);
+			bp.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
+			cell.addView(bar, bp);
+			row.addView(cell, new LinearLayout.LayoutParams(candleWidth + gap, h));
+		}
+		frame.addView(row, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, h));
+		return frame;
+	}
+
+	/**
+	 * Appends a synthetic trade print to the rolling tape whenever the live price
+	 * moves. The sim has no real per-trade feed, so amounts are deterministic
+	 * pseudo-noise scaled to the pair's price magnitude. Tape resets on pair switch.
+	 */
+	private void recordTrade(java.math.BigDecimal price, boolean up) {
+		if (marketTradesCurrency != marketSelectedCurrency) {
+			marketTrades.clear();
+			marketTradesCurrency = marketSelectedCurrency;
+			lastTradePrice = null;
+		}
+		if (price == null || price.signum() <= 0) {
+			return;
+		}
+		if (lastTradePrice != null && price.compareTo(lastTradePrice) == 0) {
+			return;
+		}
+		double m = price.doubleValue();
+		double scale = m > 5000 ? 0.6 : m > 100 ? 12 : m > 1 ? 200 : 20000;
+		double amt = scale * (0.03 + pseudo(System.nanoTime()));
+		marketTrades.addFirst(new MarketTrade(price, amt, up, System.currentTimeMillis()));
+		while (marketTrades.size() > 30) {
+			marketTrades.removeLast();
+		}
+		lastTradePrice = price;
+	}
+
+	/** Binance-style order book: 8 ask levels, the spread/last row, then 8 bid levels. */
+	private View buildOrderBook(java.math.BigDecimal mid, boolean up) {
+		LinearLayout col = card(PANEL_ROW, WINDOW_STROKE, 10f);
+		col.setOrientation(LinearLayout.VERTICAL);
+		col.setPadding(dp(8), dp(8), dp(8), dp(8));
+
+		TextView title = hintText(t("screen.virtual_craft.holographic_shop.market.order_book"));
+		title.setTextColor(TEXT_SOFT);
+		title.setTextSize(11f);
+		col.addView(title);
+		col.addView(spacer(dp(4)));
+		col.addView(bookLabels());
+		col.addView(spacer(dp(2)));
+
+		double m = mid == null ? 0.0 : mid.doubleValue();
+		if (m <= 0) {
+			return col;
+		}
+		int levels = 8;
+		long seedBase = (long) Math.floor(m * 100.0);
+		double tick = Math.max(m * 0.0005, m > 1 ? 0.01 : 0.000001);
+		double scale = m > 5000 ? 2.2 : m > 100 ? 35 : m > 1 ? 600 : 50000;
+		double[] askSizes = new double[levels + 1];
+		double[] bidSizes = new double[levels + 1];
+		double[] askCum = new double[levels + 1];
+		double[] bidCum = new double[levels + 1];
+		double ac = 0;
+		double bc = 0;
+		for (int i = 1; i <= levels; i++) {
+			askSizes[i] = scale * (0.12 + pseudo(seedBase + i * 7L));
+			ac += askSizes[i];
+			askCum[i] = ac;
+			bidSizes[i] = scale * (0.12 + pseudo(seedBase - i * 7L));
+			bc += bidSizes[i];
+			bidCum[i] = bc;
+		}
+		double maxCum = Math.max(Math.max(ac, bc), 1e-9);
+
+		for (int i = levels; i >= 1; i--) {
+			col.addView(depthRow(java.math.BigDecimal.valueOf(m + tick * i), askSizes[i], askCum[i] / maxCum, true));
+		}
+		TextView spread = new TextView(requireContext());
+		spread.setSingleLine(true);
+		spread.setText("$" + fmtPrice(mid));
+		spread.setTextColor(up ? GREEN : RED);
+		spread.setTextSize(13f);
+		spread.setPadding(0, dp(3), 0, dp(3));
+		col.addView(spread);
+		for (int i = 1; i <= levels; i++) {
+			col.addView(depthRow(java.math.BigDecimal.valueOf(m - tick * i), bidSizes[i], bidCum[i] / maxCum, false));
+		}
+		return col;
+	}
+
+	/** One order-book level: a depth-proportional tint bar with price + size overlaid. */
+	private View depthRow(java.math.BigDecimal price, double size, double frac, boolean ask) {
+		int rowH = dp(15);
+		FrameLayout row = new FrameLayout(requireContext());
+
+		LinearLayout bar = new LinearLayout(requireContext());
+		bar.setOrientation(LinearLayout.HORIZONTAL);
+		double f = Math.max(0.0, Math.min(1.0, frac));
+		if (f < 1.0) {
+			bar.addView(new View(requireContext()), new LinearLayout.LayoutParams(0, rowH, (float) (1.0 - f)));
+		}
+		View fill = new View(requireContext());
+		ShapeDrawable fd = new ShapeDrawable();
+		fd.setColor(ask ? 0x22_FF4D4F : 0x22_22C55E);
+		fill.setBackground(fd);
+		bar.addView(fill, new LinearLayout.LayoutParams(0, rowH, (float) Math.max(0.0001, f)));
+		row.addView(bar, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, rowH));
+
+		LinearLayout text = new LinearLayout(requireContext());
+		text.setOrientation(LinearLayout.HORIZONTAL);
+		text.setGravity(Gravity.CENTER_VERTICAL);
+		TextView p = new TextView(requireContext());
+		p.setSingleLine(true);
+		p.setText(fmtPrice(price));
+		p.setTextSize(9.5f);
+		p.setTextColor(ask ? RED : GREEN);
+		text.addView(p, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+		TextView s = new TextView(requireContext());
+		s.setSingleLine(true);
+		s.setText(fmtAmount(size));
+		s.setTextSize(9.5f);
+		s.setTextColor(TEXT_SOFT);
+		s.setGravity(Gravity.END);
+		text.addView(s, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+		row.addView(text, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, rowH));
+		return row;
+	}
+
+	private View bookLabels() {
+		LinearLayout labels = new LinearLayout(requireContext());
+		labels.setOrientation(LinearLayout.HORIZONTAL);
+		TextView lp = hintText(t("screen.virtual_craft.holographic_shop.market.col_price"));
+		lp.setTextSize(9f);
+		labels.addView(lp, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+		TextView ls = hintText(t("screen.virtual_craft.holographic_shop.market.col_amount"));
+		ls.setTextSize(9f);
+		ls.setGravity(Gravity.END);
+		labels.addView(ls, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+		return labels;
+	}
+
+	/** Binance-style recent-trades tape (newest first) for the active pair. */
+	private View buildRecentTrades() {
+		LinearLayout col = card(PANEL_ROW, WINDOW_STROKE, 10f);
+		col.setOrientation(LinearLayout.VERTICAL);
+		col.setPadding(dp(8), dp(8), dp(8), dp(8));
+
+		TextView title = hintText(t("screen.virtual_craft.holographic_shop.market.recent_trades"));
+		title.setTextColor(TEXT_SOFT);
+		title.setTextSize(11f);
+		col.addView(title);
+		col.addView(spacer(dp(4)));
+
+		LinearLayout labels = new LinearLayout(requireContext());
+		labels.setOrientation(LinearLayout.HORIZONTAL);
+		TextView lp = hintText(t("screen.virtual_craft.holographic_shop.market.col_price"));
+		lp.setTextSize(9f);
+		labels.addView(lp, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+		TextView ls = hintText(t("screen.virtual_craft.holographic_shop.market.col_amount"));
+		ls.setTextSize(9f);
+		ls.setGravity(Gravity.END);
+		labels.addView(ls, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+		TextView lt = hintText(t("screen.virtual_craft.holographic_shop.market.col_time"));
+		lt.setTextSize(9f);
+		lt.setGravity(Gravity.END);
+		labels.addView(lt, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+		col.addView(labels);
+		col.addView(spacer(dp(2)));
+
+		if (marketTrades.isEmpty()) {
+			TextView empty = hintText("\u2014");
+			empty.setTextSize(9.5f);
+			col.addView(empty);
+			return col;
+		}
+		java.text.SimpleDateFormat tf = new java.text.SimpleDateFormat("HH:mm:ss");
+		int shown = 0;
+		for (MarketTrade tr : marketTrades) {
+			if (shown++ >= 16) {
+				break;
+			}
+			LinearLayout row = new LinearLayout(requireContext());
+			row.setOrientation(LinearLayout.HORIZONTAL);
+			TextView p = new TextView(requireContext());
+			p.setSingleLine(true);
+			p.setText(fmtPrice(tr.price()));
+			p.setTextSize(9.5f);
+			p.setTextColor(tr.buy() ? GREEN : RED);
+			row.addView(p, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+			TextView a = new TextView(requireContext());
+			a.setSingleLine(true);
+			a.setText(fmtAmount(tr.amount()));
+			a.setTextSize(9.5f);
+			a.setTextColor(TEXT_SOFT);
+			a.setGravity(Gravity.END);
+			row.addView(a, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+			TextView ti = new TextView(requireContext());
+			ti.setSingleLine(true);
+			ti.setText(tf.format(new java.util.Date(tr.time())));
+			ti.setTextSize(9.5f);
+			ti.setTextColor(TEXT_DIM);
+			ti.setGravity(Gravity.END);
+			row.addView(ti, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+			col.addView(row, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(15)));
+		}
+		return col;
+	}
+
+	/** Compact magnitude formatting (K / M / B), like an exchange's 24h volume ticker. */
+	private static String fmtCompact(java.math.BigDecimal value) {
+		double v = value.doubleValue();
+		double a = Math.abs(v);
+		if (a >= 1_000_000_000.0) {
+			return String.format(java.util.Locale.US, "%.2fB", v / 1_000_000_000.0);
+		}
+		if (a >= 1_000_000.0) {
+			return String.format(java.util.Locale.US, "%.2fM", v / 1_000_000.0);
+		}
+		if (a >= 1_000.0) {
+			return String.format(java.util.Locale.US, "%.2fK", v / 1_000.0);
+		}
+		return String.format(java.util.Locale.US, "%.2f", v);
+	}
+
+	private static String fmtAmount(double v) {
+		double a = Math.abs(v);
+		if (a >= 1000.0) {
+			return String.format(java.util.Locale.US, "%.1f", v);
+		}
+		if (a >= 1.0) {
+			return String.format(java.util.Locale.US, "%.3f", v);
+		}
+		return String.format(java.util.Locale.US, "%.5f", v);
+	}
+
+	/** Deterministic [0,1) pseudo-noise (SplitMix64) for synthesizing book/trade sizes. */
+	private static double pseudo(long seed) {
+		long x = seed * 6364136223846793005L + 1442695040888963407L;
+		x ^= (x >>> 29);
+		x *= 0xBF58476D1CE4E5B9L;
+		x ^= (x >>> 32);
+		return (x >>> 11) / (double) (1L << 53);
 	}
 
 	private View statChip(String label, String value, int valueColor) {

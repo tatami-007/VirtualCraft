@@ -73,11 +73,16 @@ public final class HolographicMarketData {
 		}
 	}
 
-	public record Candle(long openTime, BigDecimal open, BigDecimal high, BigDecimal low, BigDecimal close) {
+	public record Candle(long openTime, BigDecimal open, BigDecimal high, BigDecimal low, BigDecimal close, BigDecimal volume) {
 		public boolean isUp() {
 			return close.compareTo(open) >= 0;
 		}
 	}
+
+	// Base notional folded into the live candle's volume on every price tick, plus a
+	// movement-proportional component, so the volume sub-chart breathes with price
+	// action even though the sim has no real per-trade size feed.
+	private static final BigDecimal LIVE_VOLUME_BASE = new BigDecimal("0.35");
 
 	private static final String KLINES_REST = "https://data-api.binance.vision/api/v3/klines";
 	private static final int HISTORY_LIMIT = 150;
@@ -186,7 +191,8 @@ public final class HolographicMarketData {
 			BigDecimal high = new BigDecimal(row.get(2).getAsString());
 			BigDecimal low = new BigDecimal(row.get(3).getAsString());
 			BigDecimal close = new BigDecimal(row.get(4).getAsString());
-			out.add(new Candle(openTime, open, high, low, close));
+			BigDecimal volume = row.size() > 5 ? new BigDecimal(row.get(5).getAsString()) : BigDecimal.ZERO;
+			out.add(new Candle(openTime, open, high, low, close, volume));
 		}
 		return out;
 	}
@@ -226,15 +232,26 @@ public final class HolographicMarketData {
 				if (last != null && last.openTime() == periodStart) {
 					BigDecimal high = price.max(last.high());
 					BigDecimal low = price.min(last.low());
-					list.set(list.size() - 1, new Candle(periodStart, last.open(), high, low, price));
+					list.set(list.size() - 1, new Candle(periodStart, last.open(), high, low, price,
+							last.volume().add(liveVolumeStep(last.close(), price))));
 				} else if (last == null || periodStart > last.openTime()) {
 					BigDecimal open = last != null ? last.close() : price;
-					list.add(new Candle(periodStart, open, open.max(price), open.min(price), price));
+					list.add(new Candle(periodStart, open, open.max(price), open.min(price), price,
+							liveVolumeStep(open, price)));
 					trim(list);
 				}
 			}
 			version(key).incrementAndGet();
 		}
+	}
+
+	/** Synthetic per-tick volume increment: a base plus a component scaled by price movement. */
+	private static BigDecimal liveVolumeStep(BigDecimal from, BigDecimal price) {
+		if (from == null || from.signum() <= 0) {
+			return LIVE_VOLUME_BASE;
+		}
+		double move = Math.abs(price.subtract(from).doubleValue()) / from.doubleValue();
+		return LIVE_VOLUME_BASE.add(new BigDecimal(move * 120.0).abs());
 	}
 
 	private static void trim(List<Candle> list) {
