@@ -25,16 +25,16 @@ public final class HolographicTheme {
 	// -- Backdrop layers (Win11 Light Acrylic, no real blur) ------------
 	// 放弃真模糊后，面板 alpha 提到 90-96%，利用顶部高光线 + 深青描边
 	// 来保持“玻璃边”视觉，不再带全屏 blur shader。
-	public static final int OVERLAY = 0x40081422;          // 轻遮罩，注意力聚焦到 GUI
-	public static final int WINDOW = 0xF2F7FBFE;           // 94% 主窗体（原 72%）
+	public static final int OVERLAY = 0x66081422;          // 轻遮罩，注意力聚焦到 GUI
+	public static final int WINDOW = 0xB0F7FBFE;           // 94% 主窗体（原 72%）
 	public static final int WINDOW_STROKE = 0x4A7E94B0;    // 30% 浅青描边
 	public static final int WINDOW_HIGHLIGHT = 0x66FFFFFF; // 40% 白亮光泽线，亚克力“玻璃边”关键
 	// Liquid-glass(液态玻璃)调参：体渐变上亮下沉的幅度 + 左上斜向扫光强度。
 	// 纯靠 ModernUI 的 GradientDrawable 合成，不依赖任何 backdrop blur/折射 shader。
 	private static final int LIQUID_DEEP = 0x0A1626;       // 渐变下沉混入的深岩蓝（仅取 RGB）
-	private static final float LIQUID_TOP_LIGHTEN = 0.16f; // 顶部向白提亮比例
-	private static final float LIQUID_BOTTOM_DEEPEN = 0.10f; // 底部向深岩蓝下沉比例
-	private static final int LIQUID_SHEEN_HI = 0x42FFFFFF;  // 左上角扫光起点（26% 白）
+	private static final float LIQUID_TOP_LIGHTEN = 0.10f; // 顶部向白提亮比例
+	private static final float LIQUID_BOTTOM_DEEPEN = 0.06f; // 底部向深岩蓝下沉比例
+	private static final int LIQUID_SHEEN_HI = 0x2EFFFFFF;  // 左上角扫光起点（26% 白）
 	private static final int LIQUID_SHEEN_LO = 0x00FFFFFF;  // 扫光淡出到全透明
 
 	// -- Win11 Mica 云母风（专给 tooltip/弹出卡用，比 Acrylic 更白更微妙）------
@@ -43,13 +43,13 @@ public final class HolographicTheme {
 	public static final int MICA_STROKE    = 0x40C8CED6;   // 25% 浅灰蓝薄描边（柔和不刺眼）
 	public static final int MICA_INNER     = 0xCCFFFFFF;   // 80% 白色顶部高光线（"玻璃边"反光）
 	public static final int MICA_SHADOW    = 0x35000000;   // 21% 黑色外阴影（悬浮投影感）
-	public static final int PANEL = 0xF5FFFFFF;            // 96%（原 76%）
-	public static final int PANEL_ALT = 0xEEE8F1F8;        // 93%（原 69%）
-	public static final int PANEL_SOFT = 0xE8F0F8FE;       // 91%（原 63%）
-	public static final int PANEL_ACTIVE = 0xF2F2F9FF;     // 95%（原 88%）
-	public static final int PANEL_BUTTON = 0xF2FFFFFF;     // 95%（原 80%）
-	public static final int PANEL_ROW = 0xF5FFFFFF;        // 96%（原 80%）
-	public static final int PANEL_PICKER = 0xF0F8FBFF;     // 94%（原 84%）
+	public static final int PANEL = 0xC2FFFFFF;            // 96%（原 76%）
+	public static final int PANEL_ALT = 0xB8E8F1F8;        // 93%（原 69%）
+	public static final int PANEL_SOFT = 0xB0F0F8FE;       // 91%（原 63%）
+	public static final int PANEL_ACTIVE = 0xCEF2F9FF;     // 95%（原 88%）
+	public static final int PANEL_BUTTON = 0xCCFFFFFF;     // 95%（原 80%）
+	public static final int PANEL_ROW = 0xC2FFFFFF;        // 96%（原 80%）
+	public static final int PANEL_PICKER = 0xCEF8FBFF;     // 94%（原 84%）
 	public static final int ACCENT_LINE = 0x2A0EA5E9;      // 青色点缀（不动）
 	public static final int PICKER_SCRIM = 0x60081422;     // picker 下面全屏遮罩
 

@@ -439,7 +439,9 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 
 	@Override
 	public boolean shouldBlurBackground() {
-		return false;
+		// Real frosted glass: let ModernUI gaussian-blur the game backdrop so the
+		// translucent panels actually show a blurred scene through them.
+		return true;
 	}
 
 	@Override
