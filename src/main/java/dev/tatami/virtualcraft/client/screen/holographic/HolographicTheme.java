@@ -6,6 +6,7 @@ import java.time.format.DateTimeFormatter;
 import dev.tatami.virtualcraft.currency.CryptoCurrency;
 import icyllis.modernui.animation.ValueAnimator;
 import icyllis.modernui.graphics.drawable.Drawable;
+import icyllis.modernui.graphics.drawable.GradientDrawable;
 import icyllis.modernui.graphics.drawable.LayerDrawable;
 import icyllis.modernui.graphics.drawable.ShapeDrawable;
 import icyllis.modernui.view.MotionEvent;
@@ -28,6 +29,13 @@ public final class HolographicTheme {
 	public static final int WINDOW = 0xF2F7FBFE;           // 94% 主窗体（原 72%）
 	public static final int WINDOW_STROKE = 0x4A7E94B0;    // 30% 浅青描边
 	public static final int WINDOW_HIGHLIGHT = 0x66FFFFFF; // 40% 白亮光泽线，亚克力“玻璃边”关键
+	// Liquid-glass(液态玻璃)调参：体渐变上亮下沉的幅度 + 左上斜向扫光强度。
+	// 纯靠 ModernUI 的 GradientDrawable 合成，不依赖任何 backdrop blur/折射 shader。
+	private static final int LIQUID_DEEP = 0x0A1626;       // 渐变下沉混入的深岩蓝（仅取 RGB）
+	private static final float LIQUID_TOP_LIGHTEN = 0.16f; // 顶部向白提亮比例
+	private static final float LIQUID_BOTTOM_DEEPEN = 0.10f; // 底部向深岩蓝下沉比例
+	private static final int LIQUID_SHEEN_HI = 0x42FFFFFF;  // 左上角扫光起点（26% 白）
+	private static final int LIQUID_SHEEN_LO = 0x00FFFFFF;  // 扫光淡出到全透明
 
 	// -- Win11 Mica 云母风（专给 tooltip/弹出卡用，比 Acrylic 更白更微妙）------
 	// Mica vs Acrylic：Mica 几乎不透明（98%）、描边极淡、双层高光制造"悬浮"分层感。
@@ -93,17 +101,49 @@ public final class HolographicTheme {
 	 * 当前以双层全描边代替。
 	 */
 	public static Drawable acrylic(int fill, int stroke, float radiusPx) {
-		ShapeDrawable base = new ShapeDrawable();
-		base.setCornerRadius(radiusPx);
-		base.setColor(fill);
+		// 1) 玻璃体——垂直渐变(顶亮→中色→底沉)，制造“透光的厚玻璃”体积感，
+		//    保留原 1px 描边作为玻璃硬边。
+		int top = blendKeepAlpha(fill, 0xFFFFFF, LIQUID_TOP_LIGHTEN);
+		int bottom = blendKeepAlpha(fill, LIQUID_DEEP, LIQUID_BOTTOM_DEEPEN);
+		GradientDrawable body = new GradientDrawable(
+				GradientDrawable.Orientation.TOP_BOTTOM, new int[] { top, fill, bottom });
+		body.setCornerRadius(radiusPx);
 		if (stroke != 0) {
-			base.setStroke(1, stroke);
+			body.setStroke(1, stroke);
 		}
-		ShapeDrawable highlight = new ShapeDrawable();
-		highlight.setCornerRadius(radiusPx);
-		highlight.setColor(0);
-		highlight.setStroke(1, WINDOW_HIGHLIGHT);
-		return new LayerDrawable(new Drawable[] { base, highlight });
+		// 2) 斜向扫光——从左上向中心淡出的白色高光，模拟玻璃面反射的那道光，
+		//    内缩 1px 落在描边内侧。
+		GradientDrawable sheen = new GradientDrawable(
+				GradientDrawable.Orientation.TL_BR,
+				new int[] { LIQUID_SHEEN_HI, LIQUID_SHEEN_LO, LIQUID_SHEEN_LO });
+		sheen.setCornerRadius(radiusPx);
+		// 3) 顶部亮边——保留原“玻璃边”反光线。
+		ShapeDrawable edge = new ShapeDrawable();
+		edge.setCornerRadius(radiusPx);
+		edge.setColor(0);
+		edge.setStroke(1, WINDOW_HIGHLIGHT);
+		LayerDrawable layers = new LayerDrawable(new Drawable[] { body, sheen, edge });
+		layers.setLayerInset(1, 1, 1, 1, 1);
+		return layers;
+	}
+
+	/**
+	 * Linearly blend an ARGB color's RGB channels toward a target RGB while
+	 * keeping the original alpha — used to derive the liquid-glass gradient
+	 * stops from a single fill color.
+	 */
+	private static int blendKeepAlpha(int argb, int rgbTarget, float t) {
+		int a = (argb >>> 24) & 0xFF;
+		int r = (argb >> 16) & 0xFF;
+		int g = (argb >> 8) & 0xFF;
+		int b = argb & 0xFF;
+		int tr = (rgbTarget >> 16) & 0xFF;
+		int tg = (rgbTarget >> 8) & 0xFF;
+		int tb = rgbTarget & 0xFF;
+		r = Math.round(r + (tr - r) * t);
+		g = Math.round(g + (tg - g) * t);
+		b = Math.round(b + (tb - b) * t);
+		return (a << 24) | (r << 16) | (g << 8) | b;
 	}
 
 	/**
