@@ -62,4 +62,16 @@ public final class ModBlocks {
 					.strength(1.5f, 6.0f)
 					.sound(SoundType.STONE)
 					.requiresCorrectToolForDrops()));
+	public static final DeferredBlock<Block> VIRTUAL_COBBLESTONE = REGISTRY.register("virtual_cobblestone",
+			() -> new Block(BlockBehaviour.Properties.of()
+					.mapColor(MapColor.COLOR_CYAN)
+					.strength(2.0f, 6.0f)
+					.sound(SoundType.STONE)
+					.requiresCorrectToolForDrops()));
+	public static final DeferredBlock<Block> VIRTUAL_ROCK = REGISTRY.register("virtual_rock",
+			() -> new Block(BlockBehaviour.Properties.of()
+					.mapColor(MapColor.TERRACOTTA_CYAN)
+					.strength(1.8f, 6.0f)
+					.sound(SoundType.STONE)
+					.requiresCorrectToolForDrops()));
 }

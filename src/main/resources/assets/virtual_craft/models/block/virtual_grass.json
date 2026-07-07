@@ -1,6 +1,8 @@
 {
-  "parent": "minecraft:block/cube_all",
+  "parent": "minecraft:block/cube_bottom_top",
   "textures": {
-    "all": "virtual_craft:block/virtual_grass"
+    "top": "virtual_craft:block/virtual_grass_top",
+    "side": "virtual_craft:block/virtual_grass",
+    "bottom": "virtual_craft:block/virtual_dirt"
   }
 }

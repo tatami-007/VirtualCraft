@@ -66,6 +66,8 @@ public final class ModItems {
 	public static final DeferredItem<Item> VIRTUAL_GRASS = block(ModBlocks.VIRTUAL_GRASS);
 	public static final DeferredItem<Item> VIRTUAL_DIRT = block(ModBlocks.VIRTUAL_DIRT);
 	public static final DeferredItem<Item> VIRTUAL_STONE = block(ModBlocks.VIRTUAL_STONE);
+	public static final DeferredItem<Item> VIRTUAL_COBBLESTONE = block(ModBlocks.VIRTUAL_COBBLESTONE);
+	public static final DeferredItem<Item> VIRTUAL_ROCK = block(ModBlocks.VIRTUAL_ROCK);
 	public static final DeferredItem<Item> HOLOGRAPHIC_WALL = block(ModBlocks.HOLOGRAPHIC_WALL);
 	public static final DeferredItem<Item> ENERGY_PYLON = block(ModBlocks.ENERGY_PYLON);
 	public static final DeferredItem<Item> CRYPTO_BTC = REGISTRY.register(CryptoCurrency.BTC.itemName(), () -> new Item(new Item.Properties().stacksTo(CryptoCurrency.BTC.stackLimit())));

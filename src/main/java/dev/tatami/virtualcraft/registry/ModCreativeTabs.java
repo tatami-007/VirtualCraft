@@ -69,6 +69,8 @@ public final class ModCreativeTabs {
 				tabData.accept(ModItems.VIRTUAL_GRASS.get());
 				tabData.accept(ModItems.VIRTUAL_DIRT.get());
 				tabData.accept(ModItems.VIRTUAL_STONE.get());
+				tabData.accept(ModItems.VIRTUAL_COBBLESTONE.get());
+				tabData.accept(ModItems.VIRTUAL_ROCK.get());
 			}).build());
 }
 

@@ -6,7 +6,7 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "virtual_craft:virtual_stone"
+          "name": "virtual_craft:virtual_cobblestone"
         }
       ],
       "conditions": [

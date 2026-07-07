@@ -485,5 +485,7 @@
   "biome.virtual_craft.virtual_plains": "Virtual Plains",
   "block.virtual_craft.virtual_grass": "Virtual Grass",
   "block.virtual_craft.virtual_dirt": "Virtual Dirt",
-  "block.virtual_craft.virtual_stone": "Virtual Stone"
+  "block.virtual_craft.virtual_stone": "Virtual Stone",
+  "block.virtual_craft.virtual_cobblestone": "Virtual Cobblestone",
+  "block.virtual_craft.virtual_rock": "Virtual Rock"
 }
