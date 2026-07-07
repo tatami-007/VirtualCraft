@@ -38,7 +38,8 @@ public class VirtualWorldChunkGenerator extends NoiseBasedChunkGenerator {
 			Blocks.MYCELIUM, Blocks.SAND, Blocks.RED_SAND, Blocks.GRAVEL,
 			Blocks.SNOW_BLOCK, Blocks.POWDER_SNOW, Blocks.MUD,
 			Blocks.DIRT_PATH, Blocks.FARMLAND, Blocks.CLAY,
-			Blocks.SANDSTONE, Blocks.RED_SANDSTONE);
+			Blocks.SANDSTONE, Blocks.RED_SANDSTONE,
+			Blocks.STONE, Blocks.DEEPSLATE, Blocks.TUFF);
 
 	public VirtualWorldChunkGenerator(BiomeSource biomeSource, Holder<NoiseGeneratorSettings> settings) {
 		super(biomeSource, settings);

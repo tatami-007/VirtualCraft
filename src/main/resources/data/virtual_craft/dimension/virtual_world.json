@@ -3,8 +3,8 @@
   "generator": {
     "type": "virtual_craft:virtual_world",
     "biome_source": {
-      "type": "minecraft:multi_noise",
-      "preset": "minecraft:overworld"
+      "type": "minecraft:fixed",
+      "biome": "virtual_craft:virtual_plains"
     },
     "settings": "minecraft:overworld"
   }

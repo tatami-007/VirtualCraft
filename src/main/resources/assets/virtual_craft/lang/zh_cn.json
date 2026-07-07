@@ -481,5 +481,6 @@
   "screen.virtual_craft.holographic_shop.market.info": "价格数据通过 WebSocket 实时推送自币安。图表随新数据自动更新。",
   "screen.virtual_craft.holographic_shop.market.ws_connected": "已连接",
   "screen.virtual_craft.holographic_shop.market.ws_disconnected": "未连接",
-  "message.virtual_craft.exchange.refresh_failed": "汇率刷新失败 - 无法连接服务器"
+  "message.virtual_craft.exchange.refresh_failed": "汇率刷新失败 - 无法连接服务器",
+  "biome.virtual_craft.virtual_plains": "虚拟平原"
 }

@@ -481,5 +481,6 @@
   "screen.virtual_craft.holographic_shop.market.info": "Live prices from Binance via WebSocket. Charts update as new data arrives.",
   "screen.virtual_craft.holographic_shop.market.ws_connected": "Connected",
   "screen.virtual_craft.holographic_shop.market.ws_disconnected": "Disconnected",
-  "message.virtual_craft.exchange.refresh_failed": "Exchange rate refresh failed - server unreachable"
+  "message.virtual_craft.exchange.refresh_failed": "Exchange rate refresh failed - server unreachable",
+  "biome.virtual_craft.virtual_plains": "Virtual Plains"
 }
