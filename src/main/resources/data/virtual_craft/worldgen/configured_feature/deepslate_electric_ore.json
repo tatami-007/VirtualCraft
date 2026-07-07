@@ -6,13 +6,8 @@
     "targets": [
       {
         "target": {
-          "predicate_type": "blockstate_match",
-          "block_state": {
-            "Name": "minecraft:deepslate",
-            "Properties": {
-              "axis": "y"
-            }
-          }
+          "predicate_type": "block_match",
+          "block": "virtual_craft:virtual_stone"
         },
         "state": {
           "Name": "virtual_craft:deepslate_electric_ore"

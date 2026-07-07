@@ -66,6 +66,11 @@ public final class ModItems {
 	public static final DeferredItem<Item> VIRTUAL_GRASS = block(ModBlocks.VIRTUAL_GRASS);
 	public static final DeferredItem<Item> VIRTUAL_DIRT = block(ModBlocks.VIRTUAL_DIRT);
 	public static final DeferredItem<Item> VIRTUAL_STONE = block(ModBlocks.VIRTUAL_STONE);
+	public static final DeferredItem<Item> VIRTUAL_SILVER_ORE = block(ModBlocks.VIRTUAL_SILVER_ORE);
+	public static final DeferredItem<Item> VIRTUAL_ALUMINUM_ORE = block(ModBlocks.VIRTUAL_ALUMINUM_ORE);
+	public static final DeferredItem<Item> VIRTUAL_GOLD_ORE = block(ModBlocks.VIRTUAL_GOLD_ORE);
+	public static final DeferredItem<Item> VIRTUAL_TITANIUM_ORE = block(ModBlocks.VIRTUAL_TITANIUM_ORE);
+	public static final DeferredItem<Item> VIRTUAL_CHROMIUM_ORE = block(ModBlocks.VIRTUAL_CHROMIUM_ORE);
 	public static final DeferredItem<Item> VIRTUAL_COBBLESTONE = block(ModBlocks.VIRTUAL_COBBLESTONE);
 	public static final DeferredItem<Item> VIRTUAL_ROCK = block(ModBlocks.VIRTUAL_ROCK);
 	public static final DeferredItem<Item> HOLOGRAPHIC_WALL = block(ModBlocks.HOLOGRAPHIC_WALL);

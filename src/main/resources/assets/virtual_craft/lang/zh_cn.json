@@ -487,5 +487,10 @@
   "block.virtual_craft.virtual_dirt": "虚拟泥土",
   "block.virtual_craft.virtual_stone": "虚拟石头",
   "block.virtual_craft.virtual_cobblestone": "虚拟圆石",
-  "block.virtual_craft.virtual_rock": "虚拟岩石"
+  "block.virtual_craft.virtual_rock": "虚拟岩石",
+  "block.virtual_craft.virtual_silver_ore": "虚拟银矿石",
+  "block.virtual_craft.virtual_aluminum_ore": "虚拟铝矿石",
+  "block.virtual_craft.virtual_gold_ore": "虚拟金矿石",
+  "block.virtual_craft.virtual_titanium_ore": "虚拟铛矿石",
+  "block.virtual_craft.virtual_chromium_ore": "虚拟铬矿石"
 }

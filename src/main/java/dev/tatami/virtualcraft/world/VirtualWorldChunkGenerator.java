@@ -6,6 +6,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import dev.tatami.virtualcraft.registry.ModBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.StructureManager;
 import net.minecraft.world.level.block.Block;
@@ -19,8 +20,6 @@ import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.blending.Blender;
 import net.minecraft.world.level.biome.BiomeSource;
 
-import java.util.Set;
-
 /**
  * Wraps the vanilla noise-based chunk generator and replaces surface blocks
  * with sci-fi themed blocks after terrain generation.
@@ -33,14 +32,6 @@ public class VirtualWorldChunkGenerator extends NoiseBasedChunkGenerator {
 					NoiseGeneratorSettings.CODEC.fieldOf("settings").forGetter(NoiseBasedChunkGenerator::generatorSettings)
 			).apply(instance, VirtualWorldChunkGenerator::new));
 
-	private static final Set<Block> SURFACE_REPLACEABLE = Set.of(
-			Blocks.GRASS_BLOCK, Blocks.DIRT, Blocks.COARSE_DIRT, Blocks.PODZOL,
-			Blocks.MYCELIUM, Blocks.SAND, Blocks.RED_SAND, Blocks.GRAVEL,
-			Blocks.SNOW_BLOCK, Blocks.POWDER_SNOW, Blocks.MUD,
-			Blocks.DIRT_PATH, Blocks.FARMLAND, Blocks.CLAY,
-			Blocks.SANDSTONE, Blocks.RED_SANDSTONE,
-			Blocks.STONE, Blocks.DEEPSLATE, Blocks.TUFF);
-
 	public VirtualWorldChunkGenerator(BiomeSource biomeSource, Holder<NoiseGeneratorSettings> settings) {
 		super(biomeSource, settings);
 	}
@@ -48,34 +39,47 @@ public class VirtualWorldChunkGenerator extends NoiseBasedChunkGenerator {
 	@Override
 	public void buildSurface(WorldGenRegion region, StructureManager structureManager, RandomState randomState, ChunkAccess chunk) {
 		super.buildSurface(region, structureManager, randomState, chunk);
-		replaceSurfaceBlocks(chunk);
+		replaceVanillaBlocks(chunk);
 	}
 
-	private void replaceSurfaceBlocks(ChunkAccess chunk) {
+	private void replaceVanillaBlocks(ChunkAccess chunk) {
 		BlockState grass = ModBlocks.VIRTUAL_GRASS.get().defaultBlockState();
 		BlockState dirt = ModBlocks.VIRTUAL_DIRT.get().defaultBlockState();
+		BlockState stone = ModBlocks.VIRTUAL_STONE.get().defaultBlockState();
 		int minY = chunk.getMinBuildHeight();
 		int maxY = chunk.getMaxBuildHeight();
 		BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
 
 		for (int x = 0; x < 16; x++) {
 			for (int z = 0; z < 16; z++) {
+				int depth = -1;
+				boolean underWater = false;
 				for (int y = maxY - 1; y >= minY; y--) {
 					pos.set(chunk.getPos().getMinBlockX() + x, y, chunk.getPos().getMinBlockZ() + z);
 					BlockState state = chunk.getBlockState(pos);
-					if (state.isAir() || !state.getFluidState().isEmpty()) {
+					if (state.isAir()) {
+						depth = -1;
+						underWater = false;
 						continue;
 					}
-					if (SURFACE_REPLACEABLE.contains(state.getBlock())) {
-						chunk.setBlockState(pos, grass, false);
-						for (int d = 1; d <= 3 && y - d >= minY; d++) {
-							pos.setY(y - d);
-							if (SURFACE_REPLACEABLE.contains(chunk.getBlockState(pos).getBlock())) {
-								chunk.setBlockState(pos, dirt, false);
-							}
-						}
+					if (!state.getFluidState().isEmpty()) {
+						depth = -1;
+						underWater = true;
+						continue;
 					}
-					break;
+					Block block = state.getBlock();
+					if (block == Blocks.BEDROCK || !"minecraft".equals(BuiltInRegistries.BLOCK.getKey(block).getNamespace())) {
+						depth = depth < 0 ? 4 : depth + 1;
+						continue;
+					}
+					depth = depth < 0 ? 0 : depth + 1;
+					if (depth == 0) {
+						chunk.setBlockState(pos, underWater ? dirt : grass, false);
+					} else if (depth <= 3) {
+						chunk.setBlockState(pos, dirt, false);
+					} else {
+						chunk.setBlockState(pos, stone, false);
+					}
 				}
 			}
 		}

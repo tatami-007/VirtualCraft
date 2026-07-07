@@ -68,6 +68,36 @@ public final class ModBlocks {
 					.strength(2.0f, 6.0f)
 					.sound(SoundType.STONE)
 					.requiresCorrectToolForDrops()));
+	public static final DeferredBlock<Block> VIRTUAL_SILVER_ORE = REGISTRY.register("virtual_silver_ore",
+			() -> new Block(BlockBehaviour.Properties.of()
+					.mapColor(MapColor.COLOR_CYAN)
+					.strength(3.0f, 6.0f)
+					.sound(SoundType.STONE)
+					.requiresCorrectToolForDrops()));
+	public static final DeferredBlock<Block> VIRTUAL_ALUMINUM_ORE = REGISTRY.register("virtual_aluminum_ore",
+			() -> new Block(BlockBehaviour.Properties.of()
+					.mapColor(MapColor.COLOR_CYAN)
+					.strength(3.0f, 6.0f)
+					.sound(SoundType.STONE)
+					.requiresCorrectToolForDrops()));
+	public static final DeferredBlock<Block> VIRTUAL_GOLD_ORE = REGISTRY.register("virtual_gold_ore",
+			() -> new Block(BlockBehaviour.Properties.of()
+					.mapColor(MapColor.COLOR_CYAN)
+					.strength(3.0f, 6.0f)
+					.sound(SoundType.STONE)
+					.requiresCorrectToolForDrops()));
+	public static final DeferredBlock<Block> VIRTUAL_TITANIUM_ORE = REGISTRY.register("virtual_titanium_ore",
+			() -> new Block(BlockBehaviour.Properties.of()
+					.mapColor(MapColor.COLOR_CYAN)
+					.strength(3.0f, 6.0f)
+					.sound(SoundType.STONE)
+					.requiresCorrectToolForDrops()));
+	public static final DeferredBlock<Block> VIRTUAL_CHROMIUM_ORE = REGISTRY.register("virtual_chromium_ore",
+			() -> new Block(BlockBehaviour.Properties.of()
+					.mapColor(MapColor.COLOR_CYAN)
+					.strength(3.0f, 6.0f)
+					.sound(SoundType.STONE)
+					.requiresCorrectToolForDrops()));
 	public static final DeferredBlock<Block> VIRTUAL_ROCK = REGISTRY.register("virtual_rock",
 			() -> new Block(BlockBehaviour.Properties.of()
 					.mapColor(MapColor.TERRACOTTA_CYAN)

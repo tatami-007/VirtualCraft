@@ -487,5 +487,10 @@
   "block.virtual_craft.virtual_dirt": "Virtual Dirt",
   "block.virtual_craft.virtual_stone": "Virtual Stone",
   "block.virtual_craft.virtual_cobblestone": "Virtual Cobblestone",
-  "block.virtual_craft.virtual_rock": "Virtual Rock"
+  "block.virtual_craft.virtual_rock": "Virtual Rock",
+  "block.virtual_craft.virtual_silver_ore": "Virtual Silver Ore",
+  "block.virtual_craft.virtual_aluminum_ore": "Virtual Aluminum Ore",
+  "block.virtual_craft.virtual_gold_ore": "Virtual Gold Ore",
+  "block.virtual_craft.virtual_titanium_ore": "Virtual Titanium Ore",
+  "block.virtual_craft.virtual_chromium_ore": "Virtual Chromium Ore"
 }

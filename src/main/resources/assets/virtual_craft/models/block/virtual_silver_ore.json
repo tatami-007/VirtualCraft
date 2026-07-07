@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "virtual_craft:block/virtual_silver_ore"
+  }
+}

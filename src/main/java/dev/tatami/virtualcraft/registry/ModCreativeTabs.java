@@ -71,6 +71,11 @@ public final class ModCreativeTabs {
 				tabData.accept(ModItems.VIRTUAL_STONE.get());
 				tabData.accept(ModItems.VIRTUAL_COBBLESTONE.get());
 				tabData.accept(ModItems.VIRTUAL_ROCK.get());
+				tabData.accept(ModItems.VIRTUAL_SILVER_ORE.get());
+				tabData.accept(ModItems.VIRTUAL_ALUMINUM_ORE.get());
+				tabData.accept(ModItems.VIRTUAL_GOLD_ORE.get());
+				tabData.accept(ModItems.VIRTUAL_TITANIUM_ORE.get());
+				tabData.accept(ModItems.VIRTUAL_CHROMIUM_ORE.get());
 			}).build());
 }
 
