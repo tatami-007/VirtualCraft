@@ -482,5 +482,8 @@
   "screen.virtual_craft.holographic_shop.market.ws_connected": "已连接",
   "screen.virtual_craft.holographic_shop.market.ws_disconnected": "未连接",
   "message.virtual_craft.exchange.refresh_failed": "汇率刷新失败 - 无法连接服务器",
-  "biome.virtual_craft.virtual_plains": "虚拟平原"
+  "biome.virtual_craft.virtual_plains": "虚拟平原",
+  "block.virtual_craft.virtual_grass": "虚拟草方块",
+  "block.virtual_craft.virtual_dirt": "虚拟泥土",
+  "block.virtual_craft.virtual_stone": "虚拟石头"
 }

@@ -45,4 +45,21 @@ public final class ModBlocks {
 	public static final DeferredBlock<Block> CIRCUIT_FLOOR = REGISTRY.register("circuit_floor", CircuitFloorBlock::new);
 	public static final DeferredBlock<Block> HOLOGRAPHIC_WALL = REGISTRY.register("holographic_wall", HolographicWallBlock::new);
 	public static final DeferredBlock<Block> ENERGY_PYLON = REGISTRY.register("energy_pylon", EnergyPylonBlock::new);
+	// === 虚拟世界地表方块(暂用旧版贴图) ===
+	public static final DeferredBlock<Block> VIRTUAL_GRASS = REGISTRY.register("virtual_grass",
+			() -> new Block(BlockBehaviour.Properties.of()
+					.mapColor(MapColor.COLOR_GREEN)
+					.strength(0.6f)
+					.sound(SoundType.GRASS)));
+	public static final DeferredBlock<Block> VIRTUAL_DIRT = REGISTRY.register("virtual_dirt",
+			() -> new Block(BlockBehaviour.Properties.of()
+					.mapColor(MapColor.DIRT)
+					.strength(0.5f)
+					.sound(SoundType.GRAVEL)));
+	public static final DeferredBlock<Block> VIRTUAL_STONE = REGISTRY.register("virtual_stone",
+			() -> new Block(BlockBehaviour.Properties.of()
+					.mapColor(MapColor.COLOR_CYAN)
+					.strength(1.5f, 6.0f)
+					.sound(SoundType.STONE)
+					.requiresCorrectToolForDrops()));
 }

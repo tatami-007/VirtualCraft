@@ -66,6 +66,9 @@ public final class ModCreativeTabs {
 				tabData.accept(ModItems.CIRCUIT_FLOOR.get());
 				tabData.accept(ModItems.HOLOGRAPHIC_WALL.get());
 				tabData.accept(ModItems.ENERGY_PYLON.get());
+				tabData.accept(ModItems.VIRTUAL_GRASS.get());
+				tabData.accept(ModItems.VIRTUAL_DIRT.get());
+				tabData.accept(ModItems.VIRTUAL_STONE.get());
 			}).build());
 }
 

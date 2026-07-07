@@ -52,7 +52,8 @@ public class VirtualWorldChunkGenerator extends NoiseBasedChunkGenerator {
 	}
 
 	private void replaceSurfaceBlocks(ChunkAccess chunk) {
-		BlockState circuitFloor = ModBlocks.CIRCUIT_FLOOR.get().defaultBlockState();
+		BlockState grass = ModBlocks.VIRTUAL_GRASS.get().defaultBlockState();
+		BlockState dirt = ModBlocks.VIRTUAL_DIRT.get().defaultBlockState();
 		int minY = chunk.getMinBuildHeight();
 		int maxY = chunk.getMaxBuildHeight();
 		BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
@@ -66,7 +67,13 @@ public class VirtualWorldChunkGenerator extends NoiseBasedChunkGenerator {
 						continue;
 					}
 					if (SURFACE_REPLACEABLE.contains(state.getBlock())) {
-						chunk.setBlockState(pos, circuitFloor, false);
+						chunk.setBlockState(pos, grass, false);
+						for (int d = 1; d <= 3 && y - d >= minY; d++) {
+							pos.setY(y - d);
+							if (SURFACE_REPLACEABLE.contains(chunk.getBlockState(pos).getBlock())) {
+								chunk.setBlockState(pos, dirt, false);
+							}
+						}
 					}
 					break;
 				}
