@@ -4087,7 +4087,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 
 		int gap = dp(1);
 		int candleWidth = candleWidthPx(gap);
-		int maxCandles = marketVisibleCandles();
+		int maxCandles = MARKET_VISIBLE_CANDLES;
 		int start = Math.max(0, candles.size() - maxCandles);
 
 		for (int i = start; i < candles.size(); i++) {
@@ -4306,24 +4306,13 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		return new java.text.SimpleDateFormat(pattern).format(new java.util.Date(epochMillis));
 	}
 
-	/**
-	 * Number of candles drawn (and volume bars, kept 1:1), per selected interval.
-	 * Binance-style: short timeframes show a dense tape of thin candles while
-	 * long timeframes show fewer, wider bars.
-	 */
-	private int marketVisibleCandles() {
-		return switch (marketInterval) {
-			case M1 -> 96;
-			case M5 -> 80;
-			case M15 -> 64;
-			case H1 -> 48;
-			case H4 -> 36;
-			case D1 -> 24;
-		};
-	}
+	// Number of candles drawn (and volume bars, kept 1:1). Binance shows a dense
+	// tape, so we render a fixed count and stretch each candle to fill the chart's
+	// measured width — see candleWidthPx.
+	private static final int MARKET_VISIBLE_CANDLES = 60;
 
 	/**
-	 * Width of one candle body so marketVisibleCandles() candles (plus 1px gaps)
+	 * Width of one candle body so MARKET_VISIBLE_CANDLES candles (plus 1px gaps)
 	 * exactly fill the chart host's measured width. Falls back to a fixed dp(5)
 	 * before the host has been laid out (width 0 on first build), which the next
 	 * ~700ms rebuild corrects. Shared by the candle and volume charts so the two
@@ -4334,11 +4323,10 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		if (avail <= 0) {
 			return dp(5);
 		}
-		int count = marketVisibleCandles();
-		return Math.max(dp(2), (avail - count * gap) / count);
+		return Math.max(dp(2), (avail - MARKET_VISIBLE_CANDLES * gap) / MARKET_VISIBLE_CANDLES);
 	}
 
-	/** Volume histogram aligned 1:1 with the candlestick chart's visible bars. */
+	/** Volume histogram aligned 1:1 with the candlestick chart's last 60 bars. */
 	private View buildVolumeChart(List<HolographicMarketData.Candle> candles, int heightPx) {
 		FrameLayout frame = new FrameLayout(requireContext());
 		ShapeDrawable bg = new ShapeDrawable();
@@ -4352,7 +4340,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 
 		int gap = dp(1);
 		int candleWidth = candleWidthPx(gap);
-		int maxCandles = marketVisibleCandles();
+		int maxCandles = MARKET_VISIBLE_CANDLES;
 		int start = Math.max(0, candles.size() - maxCandles);
 		double maxVol = 0;
 		for (int i = start; i < candles.size(); i++) {
