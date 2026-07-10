@@ -3,6 +3,7 @@ package dev.tatami.virtualcraft.client.screen.holographic;
 import dev.tatami.virtualcraft.VirtualCraft;
 import icyllis.modernui.R;
 import icyllis.modernui.core.Context;
+import icyllis.modernui.util.ColorStateList;
 import icyllis.modernui.view.MotionEvent;
 import icyllis.modernui.widget.SeekBar;
 
@@ -45,6 +46,9 @@ public class HoloSeekBar extends SeekBar {
 		// style 内置 focusable + clickable + SliderThumbDrawable + 5dp padding。
 		super(context, null, null, R.style.Widget_Material3_SeekBar_Slider);
 		setUserAnimationEnabled(true);
+		setProgressTintList(ColorStateList.valueOf(HolographicTheme.CYAN));
+		setProgressBackgroundTintList(ColorStateList.valueOf(0x335F7C96));
+		setThumbTintList(ColorStateList.valueOf(HolographicTheme.CYAN));
 		// 阻止 ScrollView 在 fragment 首次 layout 时把页面自动滚到滑条位置。
 		// 之前一旦启用 Material3 style 就出现"contentScroll 也滚不动"，
 		// 是 ScrollView.requestChildFocus → scrollToDescendant 把整页定位卡死。

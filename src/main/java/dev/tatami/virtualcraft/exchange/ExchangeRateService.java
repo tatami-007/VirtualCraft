@@ -37,7 +37,6 @@ public final class ExchangeRateService {
 	private static final int HTTP_FALLBACK_INTERVAL_TICKS = 1200;
 	private static final int BROADCAST_THROTTLE_TICKS = 20;
 	private static final long STALE_AFTER_SECONDS = 120L;
-	private static final long MANUAL_REFRESH_COOLDOWN_SECONDS = 5L;
 	private static final long WS_RECONNECT_INTERVAL_MS = 10_000L;
 
 	private static final String BINANCE_REST = "https://data-api.binance.vision/api/v3/ticker/price";
@@ -52,8 +51,6 @@ public final class ExchangeRateService {
 	private static volatile ExchangeRateSnapshot currentSnapshot = ExchangeRateSnapshot.defaultSnapshot();
 	private static volatile boolean refreshInFlight;
 	private static volatile int nextHttpRefreshTick;
-	private static volatile long lastManualRefreshEpochSeconds;
-	private static volatile boolean lastRefreshFailed;
 
 	private static volatile WebSocket activeWebSocket;
 	private static volatile boolean wsConnected;
@@ -96,24 +93,8 @@ public final class ExchangeRateService {
 		}
 	}
 
-	public static boolean canManualRefresh() {
-		return Instant.now().getEpochSecond() - lastManualRefreshEpochSeconds >= MANUAL_REFRESH_COOLDOWN_SECONDS;
-	}
-
-	public static boolean didLastRefreshFail() {
-		return lastRefreshFailed;
-	}
-
 	public static boolean isWebSocketConnected() {
 		return wsConnected;
-	}
-
-	public static ExchangeRateSnapshot refreshNow(MinecraftServer server) {
-		lastManualRefreshEpochSeconds = Instant.now().getEpochSecond();
-		if (!wsConnected) {
-			connectWebSocket();
-		}
-		return refreshLiveRates(server);
 	}
 
 	public static void shutdown() {
@@ -141,7 +122,6 @@ public final class ExchangeRateService {
 					.thenAccept(ws -> {
 						activeWebSocket = ws;
 						wsConnected = true;
-						lastRefreshFailed = false;
 						VirtualCraft.LOGGER.info("Connected to Binance WebSocket for real-time prices");
 					})
 					.exceptionally(ex -> {
@@ -202,7 +182,6 @@ public final class ExchangeRateService {
 									copy, Instant.now().getEpochSecond(), ExchangeRateSnapshot.SourceStatus.LIVE);
 							currentSnapshot = fresh;
 							pendingBroadcast = fresh;
-							lastRefreshFailed = false;
 						}
 					}
 				}
@@ -251,7 +230,6 @@ public final class ExchangeRateService {
 			try {
 				ExchangeRateSnapshot liveSnapshot = fetchFromBinanceRest();
 				currentSnapshot = withStaleStatus(liveSnapshot);
-				lastRefreshFailed = false;
 				saveCache(liveSnapshot);
 				synchronized (livePrices) {
 					for (CryptoCurrency c : CryptoCurrency.values()) {
@@ -261,7 +239,6 @@ public final class ExchangeRateService {
 				pendingBroadcast = withStaleStatus(liveSnapshot);
 				VirtualCraft.LOGGER.info("Loaded live crypto exchange rates via Binance REST");
 			} catch (Exception exception) {
-				lastRefreshFailed = true;
 				if (logErrors) {
 					VirtualCraft.LOGGER.warn("Failed to fetch exchange rates", exception);
 				}
@@ -269,25 +246,6 @@ public final class ExchangeRateService {
 				refreshInFlight = false;
 			}
 		});
-	}
-
-	private static ExchangeRateSnapshot refreshLiveRates(MinecraftServer server) {
-		try {
-			ExchangeRateSnapshot liveSnapshot = fetchFromBinanceRest();
-			currentSnapshot = withStaleStatus(liveSnapshot);
-			lastRefreshFailed = false;
-			saveCache(liveSnapshot);
-			synchronized (livePrices) {
-				for (CryptoCurrency c : CryptoCurrency.values()) {
-					livePrices.put(c, liveSnapshot.quoteToUsdt(c));
-				}
-			}
-			VirtualCraft.LOGGER.info("Loaded live crypto exchange rates via Binance REST (manual)");
-		} catch (Exception exception) {
-			lastRefreshFailed = true;
-			VirtualCraft.LOGGER.warn("Failed to fetch exchange rates", exception);
-		}
-		return withStaleStatus(currentSnapshot);
 	}
 
 	private static ExchangeRateSnapshot fetchFromBinanceRest() throws IOException, InterruptedException {

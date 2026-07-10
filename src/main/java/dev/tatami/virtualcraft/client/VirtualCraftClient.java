@@ -11,7 +11,6 @@ import dev.tatami.virtualcraft.client.screen.ElectricCondenserScreen;
 import dev.tatami.virtualcraft.client.screen.SideConfigScreen;
 import dev.tatami.virtualcraft.client.binding.BoundMachineHighlighter;
 import dev.tatami.virtualcraft.client.screen.holographic.HolographicShopClientCache;
-import dev.tatami.virtualcraft.client.screen.holographic.HolographicShopFragment;
 import dev.tatami.virtualcraft.client.screen.PowMinerScreen;
 import dev.tatami.virtualcraft.client.screen.holographic.HolographicIconCache;
 import dev.tatami.virtualcraft.registry.ModMenuTypes;
@@ -78,16 +77,8 @@ public final class VirtualCraftClient {
 		HolographicIconCache.invalidate();
 	}
 
-	/**
-	 * Drives the Holographic Shop refresh button’s time-based state machine
-	 * (idle “刷新” / pending “同步中” / success “同步成功”).
-	 * ModernUI’s View.postDelayed doesn’t reliably fire on the Minecraft
-	 * render thread, so we tick at 20 Hz here instead. tickActiveRefreshButton
-	 * cheaply early-outs when no refresh state is active.
-	 */
 	public static void onClientTick(ClientTickEvent.Post event) {
 		HolographicIconCache.tickCurrencyPrewarm();
-		HolographicShopFragment.tickActiveRefreshButton();
 	}
 }
 

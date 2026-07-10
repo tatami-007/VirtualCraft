@@ -50,7 +50,6 @@ public record WalletActionPayload(int menuId, Action action, String primaryCurre
 		WITHDRAW_EMERALDS,
 		CONVERT,
 		TRANSFER,
-		REFRESH_RATES,
 		SETTLE_MINING
 	}
 
@@ -120,22 +119,6 @@ public record WalletActionPayload(int menuId, Action action, String primaryCurre
 					CryptoCurrency.byId(payload.primaryCurrencyId).ifPresent(currency ->
 							transfer(player, menuId, currency, payload.amountMinor, payload.targetPlayer, payload.memo, currentSnapshot));
 					syncTerminalState(context, menuId, player, currentSnapshot);
-				}
-				case REFRESH_RATES -> {
-					if (!ExchangeRateService.canManualRefresh()) {
-						player.displayClientMessage(Component.translatable("message.virtual_craft.exchange.cooldown"), true);
-						syncTerminalState(context, menuId, player, currentSnapshot);
-						return;
-					}
-					ExchangeRateSnapshot refreshedSnapshot = ExchangeRateService.refreshNow(player.server);
-
-								if (ExchangeRateService.didLastRefreshFail()) {
-									player.displayClientMessage(Component.translatable("message.virtual_craft.exchange.refresh_failed").withStyle(net.minecraft.ChatFormatting.RED), true);
-								} else {
-									player.displayClientMessage(Component.translatable("message.virtual_craft.exchange.refreshed"), true);
-								}
-
-					syncTerminalState(context, menuId, player, refreshedSnapshot);
 				}
 				case SETTLE_MINING -> {
 					CryptoCurrency.byId(payload.primaryCurrencyId).ifPresent(currency -> settleMining(player, currency, payload.amountMinor, currentSnapshot));

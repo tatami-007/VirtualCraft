@@ -2,6 +2,8 @@ package dev.tatami.virtualcraft.client.screen.holographic;
 
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Map;
+import java.util.WeakHashMap;
 
 import dev.tatami.virtualcraft.currency.CryptoCurrency;
 import icyllis.modernui.animation.ValueAnimator;
@@ -25,10 +27,10 @@ public final class HolographicTheme {
 	// -- Backdrop layers (Win11 Light Acrylic, no real blur) ------------
 	// 放弃真模糊后，面板 alpha 提到 90-96%，利用顶部高光线 + 深青描边
 	// 来保持“玻璃边”视觉，不再带全屏 blur shader。
-	public static final int OVERLAY = 0x66081422;          // 轻遮罩，注意力聚焦到 GUI
-	public static final int WINDOW = 0xB0F7FBFE;           // 94% 主窗体（原 72%）
-	public static final int WINDOW_STROKE = 0x4A7E94B0;    // 30% 浅青描边
-	public static final int WINDOW_HIGHLIGHT = 0x66FFFFFF; // 40% 白亮光泽线，亚克力“玻璃边”关键
+	public static final int OVERLAY = 0x68081422;
+	public static final int WINDOW = 0xE8F5FAFD;
+	public static final int WINDOW_STROKE = 0x547E94B0;
+	public static final int WINDOW_HIGHLIGHT = 0x80FFFFFF;
 	// Liquid-glass(液态玻璃)调参：体渐变上亮下沉的幅度 + 左上斜向扫光强度。
 	// 纯靠 ModernUI 的 GradientDrawable 合成，不依赖任何 backdrop blur/折射 shader。
 	private static final int LIQUID_DEEP = 0x0A1626;       // 渐变下沉混入的深岩蓝（仅取 RGB）
@@ -43,13 +45,13 @@ public final class HolographicTheme {
 	public static final int MICA_STROKE    = 0x40C8CED6;   // 25% 浅灰蓝薄描边（柔和不刺眼）
 	public static final int MICA_INNER     = 0xCCFFFFFF;   // 80% 白色顶部高光线（"玻璃边"反光）
 	public static final int MICA_SHADOW    = 0x35000000;   // 21% 黑色外阴影（悬浮投影感）
-	public static final int PANEL = 0xC2FFFFFF;            // 96%（原 76%）
-	public static final int PANEL_ALT = 0xB8E8F1F8;        // 93%（原 69%）
-	public static final int PANEL_SOFT = 0xB0F0F8FE;       // 91%（原 63%）
-	public static final int PANEL_ACTIVE = 0xCEF2F9FF;     // 95%（原 88%）
-	public static final int PANEL_BUTTON = 0xCCFFFFFF;     // 95%（原 80%）
-	public static final int PANEL_ROW = 0xC2FFFFFF;        // 96%（原 80%）
-	public static final int PANEL_PICKER = 0xCEF8FBFF;     // 94%（原 84%）
+	public static final int PANEL = 0xDDFBFDFF;
+	public static final int PANEL_ALT = 0xD5EAF2F8;
+	public static final int PANEL_SOFT = 0xC9F1F7FB;
+	public static final int PANEL_ACTIVE = 0xE8E8F6FF;
+	public static final int PANEL_BUTTON = 0xE5FBFDFE;
+	public static final int PANEL_ROW = 0xE2FFFFFF;
+	public static final int PANEL_PICKER = 0xF5F8FBFD;
 	public static final int ACCENT_LINE = 0x2A0EA5E9;      // 青色点缀（不动）
 	public static final int PICKER_SCRIM = 0x60081422;     // picker 下面全屏遮罩
 
@@ -60,24 +62,22 @@ public final class HolographicTheme {
 	public static final int RED = 0xFFDC2626;
 
 	// -- Typography -------------------------------------------------------
-	public static final int TEXT = 0xFF163047;
-	public static final int TEXT_DIM = 0xFF5F7C96;
-	public static final int TEXT_SOFT = 0xFF8AA0B4;
+	public static final int TEXT = 0xFF102A3D;
+	public static final int TEXT_DIM = 0xFF4E6A80;
+	public static final int TEXT_SOFT = 0xFF788FA2;
 
 	// -- Spacing & sizing in dp ------------------------------------------
 	// 图标尺寸目标对齐 16px texture 的整数倍缩放，减少非整数倍产生的锯齿感：
 	// SMALL=20 (接近 2x)，LARGE=32 (精准 2x，但视觉比原 28 更舒服)。
 	public static final int ICON_SMALL_DP = 20;
 	public static final int ICON_LARGE_DP = 32;
-	// v25 icon-only refresh: ↻ (idle) / ⟳ (syncing) / ✓ (success). The 92dp
-	// width that used to hold "同步成功" is now wasted whitespace, so shrink to
-	// 40dp — the glyph itself reads the state, the full description lives in
-	// the hover tooltip via setTooltipText.
-	public static final int HEADER_REFRESH_WIDTH_DP = 72;
 	public static final int MAX_ACTIVITY_ROWS = 4;
 	// 12sp 字体 + dp(6)*2 padding 至少需要 dp(30) 才能完整显示；
 	// 原值 26 低于行高导致 quickAmount 按钮文字被裁成空白椭圆。
 	public static final int QUICK_BUTTON_HEIGHT_DP = 32;
+	public static final int CONTROL_HEIGHT_DP = 36;
+	public static final int PRIMARY_BUTTON_HEIGHT_DP = 40;
+	public static final int NAV_HEIGHT_DP = 38;
 
 	public static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter
 			.ofPattern("MM-dd HH:mm")
@@ -227,9 +227,10 @@ public final class HolographicTheme {
 	// These rely on ModernUI's frame-driven ValueAnimator (NOT View.postDelayed,
 	// which is unreliable on Minecraft's render thread) so they animate smoothly.
 
-	private static final float PRESS_SCALE = 0.97f;
-	private static final float HOVER_ALPHA = 0.78f;
-	private static final float PRESS_ALPHA = 0.55f;
+	private static final float PRESS_SCALE = 0.985f;
+	private static final float HOVER_ALPHA = 0.92f;
+	private static final float PRESS_ALPHA = 0.78f;
+	private static final Map<View, ValueAnimator> RUNNING_ANIMATIONS = new WeakHashMap<>();
 
 	/**
 	 * Wires hover + press feedback onto any clickable view. Hover dims the
@@ -240,6 +241,9 @@ public final class HolographicTheme {
 	public static void interactive(View view) {
 		final boolean[] state = new boolean[2];
 		view.setOnHoverListener((v, event) -> {
+			if (!v.isEnabled()) {
+				return false;
+			}
 			int action = event.getAction();
 			if (action == MotionEvent.ACTION_HOVER_ENTER) {
 				state[0] = true;
@@ -251,6 +255,9 @@ public final class HolographicTheme {
 			return false;
 		});
 		view.setOnTouchListener((v, event) -> {
+			if (!v.isEnabled()) {
+				return false;
+			}
 			int action = event.getAction();
 			if (action == MotionEvent.ACTION_DOWN) {
 				state[1] = true;
@@ -283,8 +290,12 @@ public final class HolographicTheme {
 		}
 		view.setPivotX(view.getWidth() / 2f);
 		view.setPivotY(view.getHeight() / 2f);
+		ValueAnimator previous = RUNNING_ANIMATIONS.remove(view);
+		if (previous != null) {
+			previous.cancel();
+		}
 		ValueAnimator anim = ValueAnimator.ofFloat(0f, 1f);
-		anim.setDuration(90);
+		anim.setDuration(140);
 		anim.addUpdateListener(a -> {
 			float f = (float) a.getAnimatedValue();
 			view.setAlpha(fromAlpha + (targetAlpha - fromAlpha) * f);
@@ -292,19 +303,57 @@ public final class HolographicTheme {
 			view.setScaleX(scale);
 			view.setScaleY(scale);
 		});
+		RUNNING_ANIMATIONS.put(view, anim);
 		anim.start();
 	}
 
 	/** Fade + slide-in used when a page's content tree is (re)built on tab switch. */
 	public static void enterTransition(View view) {
 		view.setAlpha(0f);
-		view.setTranslationX(14f);
+		view.setTranslationY(10f);
 		ValueAnimator anim = ValueAnimator.ofFloat(0f, 1f);
-		anim.setDuration(160);
+		anim.setDuration(210);
 		anim.addUpdateListener(a -> {
 			float f = (float) a.getAnimatedValue();
-			view.setAlpha(f);
-			view.setTranslationX((1f - f) * 14f);
+			float eased = 1f - (1f - f) * (1f - f);
+			view.setAlpha(eased);
+			view.setTranslationY((1f - eased) * 10f);
+		});
+		anim.start();
+	}
+
+	/** Soft scale/fade used once when the terminal window opens. */
+	public static void enterWindow(View view) {
+		view.setAlpha(0f);
+		view.setScaleX(0.985f);
+		view.setScaleY(0.985f);
+		ValueAnimator anim = ValueAnimator.ofFloat(0f, 1f);
+		anim.setDuration(240);
+		anim.addUpdateListener(a -> {
+			float f = (float) a.getAnimatedValue();
+			float eased = 1f - (1f - f) * (1f - f);
+			view.setAlpha(eased);
+			float scale = 0.985f + 0.015f * eased;
+			view.setScaleX(scale);
+			view.setScaleY(scale);
+		});
+		anim.start();
+	}
+
+	/** Scale/fade a picker card from its visual centre without moving layout bounds. */
+	public static void popIn(View view) {
+		view.setAlpha(0f);
+		view.setScaleX(0.97f);
+		view.setScaleY(0.97f);
+		ValueAnimator anim = ValueAnimator.ofFloat(0f, 1f);
+		anim.setDuration(180);
+		anim.addUpdateListener(a -> {
+			float f = (float) a.getAnimatedValue();
+			float eased = 1f - (1f - f) * (1f - f);
+			view.setAlpha(eased);
+			float scale = 0.97f + 0.03f * eased;
+			view.setScaleX(scale);
+			view.setScaleY(scale);
 		});
 		anim.start();
 	}

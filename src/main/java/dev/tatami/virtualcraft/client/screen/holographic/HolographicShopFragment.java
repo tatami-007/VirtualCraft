@@ -3,12 +3,13 @@ package dev.tatami.virtualcraft.client.screen.holographic;
 import static dev.tatami.virtualcraft.client.screen.holographic.HolographicTheme.ACCENT_LINE;
 import static dev.tatami.virtualcraft.client.screen.holographic.HolographicTheme.AMBER;
 import static dev.tatami.virtualcraft.client.screen.holographic.HolographicTheme.CYAN;
+import static dev.tatami.virtualcraft.client.screen.holographic.HolographicTheme.CONTROL_HEIGHT_DP;
 import static dev.tatami.virtualcraft.client.screen.holographic.HolographicTheme.GREEN;
 import static dev.tatami.virtualcraft.client.screen.holographic.HolographicTheme.RED;
-import static dev.tatami.virtualcraft.client.screen.holographic.HolographicTheme.HEADER_REFRESH_WIDTH_DP;
 import static dev.tatami.virtualcraft.client.screen.holographic.HolographicTheme.ICON_LARGE_DP;
 import static dev.tatami.virtualcraft.client.screen.holographic.HolographicTheme.ICON_SMALL_DP;
 import static dev.tatami.virtualcraft.client.screen.holographic.HolographicTheme.MAX_ACTIVITY_ROWS;
+import static dev.tatami.virtualcraft.client.screen.holographic.HolographicTheme.NAV_HEIGHT_DP;
 import static dev.tatami.virtualcraft.client.screen.holographic.HolographicTheme.OVERLAY;
 import static dev.tatami.virtualcraft.client.screen.holographic.HolographicTheme.PANEL;
 import static dev.tatami.virtualcraft.client.screen.holographic.HolographicTheme.PANEL_ACTIVE;
@@ -18,6 +19,7 @@ import static dev.tatami.virtualcraft.client.screen.holographic.HolographicTheme
 import static dev.tatami.virtualcraft.client.screen.holographic.HolographicTheme.PANEL_ROW;
 import static dev.tatami.virtualcraft.client.screen.holographic.HolographicTheme.PANEL_SOFT;
 import static dev.tatami.virtualcraft.client.screen.holographic.HolographicTheme.PICKER_SCRIM;
+import static dev.tatami.virtualcraft.client.screen.holographic.HolographicTheme.PRIMARY_BUTTON_HEIGHT_DP;
 import static dev.tatami.virtualcraft.client.screen.holographic.HolographicTheme.QUICK_BUTTON_HEIGHT_DP;
 import static dev.tatami.virtualcraft.client.screen.holographic.HolographicTheme.TEXT;
 import static dev.tatami.virtualcraft.client.screen.holographic.HolographicTheme.TEXT_DIM;
@@ -55,7 +57,9 @@ import icyllis.modernui.graphics.drawable.ImageDrawable;
 import icyllis.modernui.graphics.drawable.ShapeDrawable;
 import icyllis.modernui.mc.MuiScreen;
 import icyllis.modernui.mc.ScreenCallback;
+import icyllis.modernui.text.Editable;
 import icyllis.modernui.text.TextUtils;
+import icyllis.modernui.text.TextWatcher;
 import icyllis.modernui.view.Gravity;
 import icyllis.modernui.view.KeyEvent;
 import icyllis.modernui.view.LayoutInflater;
@@ -127,6 +131,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	private dev.tatami.virtualcraft.network.SyncWalletPreferencesPayload.MiningStatsEntry miningStatsCache = dev.tatami.virtualcraft.network.SyncWalletPreferencesPayload.MiningStatsEntry.EMPTY;
 
 	private FrameLayout root;
+	private LinearLayout terminalWindow;
 	private LinearLayout navColumn;
 	private LinearLayout contentColumn;
 	private LinearLayout actionColumn;
@@ -141,7 +146,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	private FrameLayout contentFrame;
 	private FrameLayout pickerOverlay;
 	private TextView headerValue;
-	private TextView headerStatus;
+	private TextView headerPage;
 
 	private String walletAddress = "VC-UNKNOWN";
 	private ExchangeRateSnapshot exchangeSnapshot = ExchangeRateSnapshot.defaultSnapshot();
@@ -191,6 +196,13 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	private EditText transferMemoInput;
 	private EditText shopSearchInput;
 	private EditText miningAmountInput;
+	private final EnumMap<FocusTarget, HoloSeekBar> amountSliders = new EnumMap<>(FocusTarget.class);
+	private HoloSeekBar shopQuantitySlider;
+	private HoloSeekBar miningQuantitySlider;
+	private TextView shopQuantityValue;
+	private LinearLayout shopCatalogList;
+	private TextView convertPreviewValue;
+	private TextView miningPreviewValue;
 	/**
 	 * Text overrides scheduled for the next {@link #stashInputs()} pass. Using an explicit
 	 * map is more robust than the previous {@code skipNextInputStash} boolean because a
@@ -213,6 +225,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	private LinearLayout liveStatusCardView;
 	private TextView liveStatusSummaryView;
 	private TextView liveStatusIssueView;
+	private Button primaryActionButton;
 	// #3 Enter-to-submit: the active page's primary action (withdraw/convert/transfer/...).
 	private Runnable primaryAction;
 
@@ -229,25 +242,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	private boolean refreshScheduled;
 	private boolean refreshIncludeHeader;
 	private FocusTarget refreshFocusTarget = FocusTarget.NONE;
-	private boolean exchangeRefreshPending;
 	private long lastExchangeSyncRebuildMs;
-	private long exchangeRefreshStartedAtMs;
-	private Button headerRefreshButton;
-	private int exchangeRefreshRequestId;
-	// v24: success-flash window. applyExchangeSync sets this to (now + 1200 ms),
-	// and the header rebuild path reads it to flash the refresh button green with
-	// “同步成功” before reverting to “刷新”. Expired timestamps are
-	// cleared in-place during the rebuild check so no extra cleanup hook is needed.
-	private long exchangeRefreshSuccessUntilMs;
-	// v24 tick-driven: timestamp when a snapshot arrived while pending=true.
-	// Held here (not promoted directly) so the tick handler can flip pending
-	// → success only AFTER the 300 ms minimum AMBER window has elapsed.
-	// 0 = no deferred flip queued. Tick reads + clears this.
-	private long exchangeRefreshSnapshotArrivedMs;
-	// v24 tick-driven: dedup flag so the 20 Hz client tick doesn't enqueue a
-	// fresh root.post(applyRefreshButtonState) every frame while a transition
-	// is in flight. Set when we post, cleared by the posted Runnable.
-	private boolean refreshStateUpdateScheduled;
 
 	public HolographicShopFragment(int sessionId, boolean itemMode, BlockPos blockPos) {
 		this.sessionId = sessionId;
@@ -288,97 +283,46 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		return null;
 	}
 
-	/**
-	 * v24 tick-driven refresh button: called from VirtualCraftClient’s
-	 * ClientTickEvent.Post listener at 20 Hz. Walks the currently displayed
-	 * screen and, if it’s a HolographicShopFragment with active refresh state,
-	 * advances the state machine and repaints the button.
-	 *
-	 * <p>Replaces an earlier postDelayed-chained design that silently failed
-	 * because ModernUI’s View.postDelayed does not reliably fire on the
-	 * Minecraft render thread.</p>
-	 */
-	public static void tickActiveRefreshButton() {
-		if (!(Minecraft.getInstance().screen instanceof MuiScreen mui)) {
-			return;
-		}
-		if (!(mui.getFragment() instanceof HolographicShopFragment fragment)) {
-			return;
-		}
-		// Cheap early-out: if no refresh state is active, nothing to do.
-		// (Pure state reads, safe on render thread.)
-		if (!fragment.exchangeRefreshPending
-				&& fragment.exchangeRefreshSuccessUntilMs == 0L
-				&& fragment.exchangeRefreshSnapshotArrivedMs == 0L) {
-			return;
-		}
-		// CRITICAL: ClientTickEvent.Post fires on the Render thread, but
-		// applyRefreshButtonState calls View.setText which mutates ModernUI
-		// views and MUST run on ModernUI's UI thread (otherwise the engine
-		// asserts and the client crashes via Core.checkUiThread). Dispatch
-		// via root.post(Runnable) — that posts to the UI thread queue and
-		// executes on the next UI cycle.
-		//
-		// The refreshStateUpdateScheduled guard prevents the 20 Hz tick from
-		// enqueuing 20 redundant Runnables per second while a 1.2 s success
-		// flash is in flight. One queued update at a time is enough; the
-		// state machine is idempotent and converges on next tick if needed.
-		if (fragment.root == null || fragment.refreshStateUpdateScheduled) {
-			return;
-		}
-		fragment.refreshStateUpdateScheduled = true;
-		fragment.root.post(() -> {
-			fragment.refreshStateUpdateScheduled = false;
-			fragment.applyRefreshButtonState();
-		});
-	}
-
 	@Override
 	public View onCreateView(LayoutInflater inflater, ViewGroup container, icyllis.modernui.util.DataSet savedInstanceState) {
 		root = new FrameLayout(requireContext());
 		root.setBackground(rounded(OVERLAY, 0, 0f, 0));
-		root.setPadding(dp(18), dp(18), dp(18), dp(18));
+		root.setPadding(dp(12), dp(12), dp(12), dp(12));
 
-		LinearLayout window = vertical();
-		// P3: 主窗体切换到 acrylic（底色 + 描边 + 玻璃高光线）
-		window.setBackground(HolographicTheme.acrylic(WINDOW, WINDOW_STROKE, 12f));
-		window.setPadding(dp(18), dp(18), dp(18), dp(18));
-		// 整体加大给中文翻译足够空间：
-		// 主窗 dp(744)×dp(560) → dp(880)×dp(620)
-		FrameLayout.LayoutParams windowParams = new FrameLayout.LayoutParams(dp(880), dp(620));
+		terminalWindow = vertical();
+		terminalWindow.setBackground(HolographicTheme.acrylic(WINDOW, WINDOW_STROKE, dp(14)));
+		terminalWindow.setPadding(dp(16), dp(16), dp(16), dp(16));
+		FrameLayout.LayoutParams windowParams = new FrameLayout.LayoutParams(dp(920), dp(620));
 		windowParams.gravity = Gravity.CENTER;
-		windowParams.setMargins(0, 0, dp(24), 0);
-		root.addView(window, windowParams);
+		root.addView(terminalWindow, windowParams);
 
-		window.addView(buildHeader(), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-		window.addView(spacer(dp(14)));
+		terminalWindow.addView(buildHeader(), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44)));
+		terminalWindow.addView(spacer(dp(10)));
 
 		View divider = new View(requireContext());
 		divider.setBackground(rounded(ACCENT_LINE, 0, 0f, 0));
-		window.addView(divider, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(1)));
-		window.addView(spacer(dp(14)));
+		terminalWindow.addView(divider, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(1)));
+		terminalWindow.addView(spacer(dp(10)));
 
 		LinearLayout body = new LinearLayout(requireContext());
 		body.setOrientation(LinearLayout.HORIZONTAL);
-		window.addView(body, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+		terminalWindow.addView(body, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 
 		navColumn = vertical();
-		navColumn.setPadding(dp(12), dp(12), dp(12), dp(12));
-		navColumn.setBackground(HolographicTheme.acrylic(PANEL_ALT, WINDOW_STROKE, 10f));
-		// nav 侧栏宽度：要容下底部「VC-XXXXXXXXXX」13 字完整地址单行不省略。
-		// 列内 padding dp(12)*2 + 卡片 padding dp(8)*2 后，内容净宽 ≈ dp(130)，刚好够。
-		body.addView(navColumn, new LinearLayout.LayoutParams(dp(170), ViewGroup.LayoutParams.MATCH_PARENT));
+		navColumn.setPadding(dp(8), dp(8), dp(8), dp(8));
+		navColumn.setBackground(HolographicTheme.acrylic(PANEL_ALT, WINDOW_STROKE, dp(11)));
+		body.addView(navColumn, new LinearLayout.LayoutParams(dp(152), ViewGroup.LayoutParams.MATCH_PARENT));
 
 		contentFrame = new FrameLayout(requireContext());
 		contentFrame.setBackground(HolographicTheme.acrylic(PANEL, WINDOW_STROKE, 10f));
 		var contentParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
-		contentParams.setMargins(dp(12), 0, dp(12), 0);
+		contentParams.setMargins(dp(10), 0, dp(10), 0);
 		body.addView(contentFrame, contentParams);
 
 		ScrollView contentScroll = new HoloScrollView(requireContext());
 		wireScrollFocus(contentScroll);
 		contentColumn = vertical();
-		contentColumn.setPadding(dp(14), dp(14), dp(14), dp(14));
+		contentColumn.setPadding(dp(16), dp(14), dp(16), dp(14));
 		contentScroll.addView(contentColumn, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 		contentFrame.addView(contentScroll, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
@@ -397,9 +341,8 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 				ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
 		actionShell = new FrameLayout(requireContext());
-		actionShell.setBackground(HolographicTheme.acrylic(PANEL_ALT, WINDOW_STROKE, 10f));
-		// action 右栏 dp(236)→dp(280)，给 quickAmount 按钮 + help text 多个中文字空间。
-		body.addView(actionShell, new LinearLayout.LayoutParams(dp(280), ViewGroup.LayoutParams.MATCH_PARENT));
+		actionShell.setBackground(HolographicTheme.acrylic(PANEL_ALT, WINDOW_STROKE, dp(11)));
+		body.addView(actionShell, new LinearLayout.LayoutParams(dp(252), ViewGroup.LayoutParams.MATCH_PARENT));
 
 		ScrollView actionScroll = new HoloScrollView(requireContext());
 		wireScrollFocus(actionScroll);
@@ -421,6 +364,15 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		root.setFocusableInTouchMode(true);
 		root.setOnKeyListener((v, keyCode, event) -> handleNavShortcut(keyCode, event));
 		root.post(root::requestFocus);
+		root.post(() -> {
+			int availableWidth = Math.max(dp(320), root.getWidth() - dp(24));
+			int availableHeight = Math.max(dp(320), root.getHeight() - dp(24));
+			FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) terminalWindow.getLayoutParams();
+			params.width = Math.min(dp(920), availableWidth);
+			params.height = Math.min(dp(620), availableHeight);
+			terminalWindow.setLayoutParams(params);
+			HolographicTheme.enterWindow(terminalWindow);
+		});
 		// Note: the server pushes the initial wallet/exchange/preferences/catalog
 		// snapshot itself right after openMenu (see HolographicShopSyncDispatcher),
 		// so we no longer need a client → server REQUEST_SYNC round-trip here.
@@ -486,9 +438,6 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			HolographicShopClientCache.recordPrice(c, price);
 			HolographicMarketData.updateLivePrice(c, price);
 		}
-		if (exchangeRefreshPending && exchangeRefreshSnapshotArrivedMs == 0L) {
-			exchangeRefreshSnapshotArrivedMs = System.currentTimeMillis();
-		}
 		long now = System.currentTimeMillis();
 		// Live total: the wallet's USDT value moves with the market, so repaint just
 		// the header total on every tick (cheap, coalesced) on whatever page is open
@@ -502,11 +451,13 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 				}
 			});
 		}
+		if (root != null) {
+			root.post(this::updateLiveStatus);
+		}
 		// On the MARKET (K-line) page we repaint just the live chart / price widgets in
 		// place on every tick — no full-screen rebuild — so the chart updates in real time
-		// without the 5s throttle that made it feel sluggish. A pending manual refresh
-		// still falls through to the normal rebuild path below.
-		if (currentPage == Page.MARKET && !exchangeRefreshPending) {
+		// without rebuilding the rest of the terminal.
+		if (currentPage == Page.MARKET) {
 			if (root != null && !marketUpdateScheduled) {
 				marketUpdateScheduled = true;
 				root.post(() -> {
@@ -516,9 +467,17 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			}
 			return;
 		}
-		if (exchangeRefreshPending || now - lastExchangeSyncRebuildMs >= 5000L) {
+		FocusTarget focus = captureFocusTarget();
+		boolean passivePageNeedsRates = currentPage == Page.WALLET
+				|| currentPage == Page.CONVERT
+				|| currentPage == Page.SHOP
+				|| currentPage == Page.MINING;
+		if (passivePageNeedsRates
+				&& focus == FocusTarget.NONE
+				&& pickerTarget == PickerTarget.NONE
+				&& now - lastExchangeSyncRebuildMs >= 15_000L) {
 			lastExchangeSyncRebuildMs = now;
-			requestRefresh(true, captureFocusTarget());
+			requestRefresh(false, FocusTarget.NONE);
 		}
 	}
 
@@ -581,92 +540,27 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 
 		LinearLayout titleBlock = vertical();
 		TextView title = titleText(t("screen.virtual_craft.holographic_shop"));
-		TextView subtitle = bodyText(t("screen.virtual_craft.holographic_shop.sidebar.system"));
-		subtitle.setTextColor(TEXT_SOFT);
+		title.setTextSize(17f);
+		headerPage = hintText(pageLabel(currentPage));
+		headerPage.setTextColor(TEXT_SOFT);
+		headerPage.setSingleLine(true);
 		titleBlock.addView(title);
-		titleBlock.addView(subtitle);
+		titleBlock.addView(headerPage);
 		header.addView(titleBlock, weighted(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-		// Prices stream in over WebSocket, so the header carries only the live USDT
-		// total now — the manual "刷新" button and the "实时" status chip were dropped
-		// as redundant (the total itself updates every tick).
 		headerValue = chip();
-		header.addView(headerValue, new LinearLayout.LayoutParams(dp(170), dp(30)));
+		var valueParams = new LinearLayout.LayoutParams(dp(184), dp(30));
+		header.addView(headerValue, valueParams);
 
 		return header;
-	}
-
-	private void requestExchangeRefresh() {
-		if (exchangeRefreshPending) {
-			return;
-		}
-		exchangeRefreshPending = true;
-		exchangeRefreshStartedAtMs = System.currentTimeMillis();
-		// Any in-flight success flash or queued promotion from a previous sync is stale.
-		exchangeRefreshSuccessUntilMs = 0L;
-		exchangeRefreshSnapshotArrivedMs = 0L;
-		exchangeRefreshRequestId++;
-		// v24 tick-driven: paint “同步中” immediately on click so the user gets
-		// instant feedback. All time-based transitions (900 ms timeout, 300 ms
-		// min AMBER → GREEN flip, 1200 ms GREEN → CYAN revert) are owned by the
-		// ClientTickEvent.Post handler calling applyRefreshButtonState() at 20 Hz.
-		// View.postDelayed is NOT used because it doesn’t reliably fire on the
-		// Minecraft render thread under ModernUI — callbacks silently drop.
-		applyRefreshButtonState();
-		PacketDistributor.sendToServer(new WalletActionPayload(sessionId, WalletActionPayload.Action.REFRESH_RATES, "", "", 0L, ""));
-		requestRefresh(true, captureFocusTarget());
 	}
 
 	private void refreshHeader() {
 		long totalUsdtMinor = CurrencyConversionService.totalWalletValueUsdtMinor(balances, exchangeSnapshot);
 		headerValue.setText(CryptoCurrency.USDT.formatCompact(totalUsdtMinor) + " USDT");
-	}
-
-	/**
-	 * v24: single source of truth for the refresh button's three visual states
-	 * (idle “刷新” CYAN / pending “同步中” AMBER / success “同步成功”
-	 * GREEN). Called from refreshHeader (so the scheduled rebuild path picks
-	 * up state changes) and from requestExchangeRefresh (so click feels
-	 * instant instead of waiting one frame for root.post to fire).
-	 */
-	private void applyRefreshButtonState() {
-		if (headerRefreshButton == null) {
-			return;
+		if (headerPage != null) {
+			headerPage.setText(pageLabel(currentPage));
 		}
-		long nowMs = System.currentTimeMillis();
-		// v24 tick-driven state machine. Idempotent; safe to call every tick.
-		// (1) Promote a queued snapshot to success once the 300 ms min AMBER
-		//     window has elapsed. This guarantees the user sees “同步中”.
-		if (exchangeRefreshSnapshotArrivedMs > 0L && exchangeRefreshPending
-				&& nowMs - exchangeRefreshStartedAtMs >= 300L) {
-			exchangeRefreshPending = false;
-			exchangeRefreshSuccessUntilMs = nowMs + 1200L;
-			exchangeRefreshSnapshotArrivedMs = 0L;
-		}
-		// (2) Timeout fallback: if no snapshot ever arrives, clear pending
-		//     after 900 ms so the button doesn’t stay stuck on AMBER.
-		if (exchangeRefreshPending && nowMs - exchangeRefreshStartedAtMs > 6000L) {
-			exchangeRefreshPending = false;
-			exchangeRefreshSnapshotArrivedMs = 0L;
-		}
-		// (3) Expire success window so the button reverts to CYAN “刷新”.
-		if (exchangeRefreshSuccessUntilMs > 0L && nowMs >= exchangeRefreshSuccessUntilMs) {
-			exchangeRefreshSuccessUntilMs = 0L;
-		}
-		String key;
-		int accent;
-		if (exchangeRefreshPending) {
-			key = "screen.virtual_craft.holographic_shop.refreshing";
-			accent = AMBER;
-		} else if (exchangeRefreshSuccessUntilMs > nowMs) {
-			key = "screen.virtual_craft.holographic_shop.refresh_success";
-			accent = GREEN;
-		} else {
-			key = "screen.virtual_craft.holographic_shop.refresh";
-			accent = CYAN;
-		}
-		headerRefreshButton.setText(t(key));
-		headerRefreshButton.setBackground(rounded(PANEL_BUTTON, accent, 9f, 1));
 	}
 
 	/**
@@ -717,6 +611,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		}
 		stashInputs();
 		stashScrollPositions();
+		refreshHeader();
 		refreshNav();
 		buildContentPage();
 		buildActionPage();
@@ -725,6 +620,9 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		if (pageTransitionPending) {
 			pageTransitionPending = false;
 			HolographicTheme.enterTransition(contentColumn);
+			if (actionShell != null && actionShell.getVisibility() == View.VISIBLE) {
+				HolographicTheme.enterTransition(actionColumn);
+			}
 		}
 	}
 
@@ -745,27 +643,27 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		ResourceLocation transferIcon = ResourceLocation.fromNamespaceAndPath("minecraft", "paper");
 		ResourceLocation shopIcon = ResourceLocation.fromNamespaceAndPath("minecraft", "gold_ingot");
 		ResourceLocation miningIcon = ResourceLocation.fromNamespaceAndPath("virtual_craft", "encrypted_hash_voucher");
-		LinearLayout.LayoutParams navParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32));
+		LinearLayout.LayoutParams navParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(NAV_HEIGHT_DP));
 		// Nav order: Wallet first, then trading pages. Keep in sync with NAV_ORDER
 		// (which maps the 1..N keyboard shortcuts).
-		navColumn.addView(navIconButton(walletIcon, "1  " + t("screen.virtual_craft.holographic_shop.page.wallet"), Page.WALLET), navParams);
-		navColumn.addView(spacer(dp(6)));
-		navColumn.addView(navIconButton(marketIcon, "2  " + t("screen.virtual_craft.holographic_shop.page.market"), Page.MARKET), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
-		navColumn.addView(spacer(dp(6)));
-		navColumn.addView(navIconButton(convertIcon, "3  " + t("screen.virtual_craft.holographic_shop.page.convert"), Page.CONVERT), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
-		navColumn.addView(spacer(dp(6)));
-		navColumn.addView(navIconButton(contractsIcon, "4  " + t("screen.virtual_craft.holographic_shop.page.contracts"), Page.CONTRACTS), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
-		navColumn.addView(spacer(dp(6)));
-		navColumn.addView(navIconButton(transferIcon, "5  " + t("screen.virtual_craft.holographic_shop.page.transfer"), Page.TRANSFER), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
-		navColumn.addView(spacer(dp(6)));
-		navColumn.addView(navIconButton(shopIcon, "6  " + t("screen.virtual_craft.holographic_shop.page.shop"), Page.SHOP), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
-		navColumn.addView(spacer(dp(6)));
-		navColumn.addView(navIconButton(miningIcon, "7  " + t("screen.virtual_craft.holographic_shop.page.mining"), Page.MINING), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(32)));
-		navColumn.addView(spacer(dp(14)));
+		navColumn.addView(navIconButton(walletIcon, t("screen.virtual_craft.holographic_shop.page.wallet"), Page.WALLET), navParams);
+		navColumn.addView(spacer(dp(4)));
+		navColumn.addView(navIconButton(marketIcon, t("screen.virtual_craft.holographic_shop.page.market"), Page.MARKET), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(NAV_HEIGHT_DP)));
+		navColumn.addView(spacer(dp(4)));
+		navColumn.addView(navIconButton(convertIcon, t("screen.virtual_craft.holographic_shop.page.convert"), Page.CONVERT), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(NAV_HEIGHT_DP)));
+		navColumn.addView(spacer(dp(4)));
+		navColumn.addView(navIconButton(contractsIcon, t("screen.virtual_craft.holographic_shop.page.contracts"), Page.CONTRACTS), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(NAV_HEIGHT_DP)));
+		navColumn.addView(spacer(dp(4)));
+		navColumn.addView(navIconButton(transferIcon, t("screen.virtual_craft.holographic_shop.page.transfer"), Page.TRANSFER), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(NAV_HEIGHT_DP)));
+		navColumn.addView(spacer(dp(4)));
+		navColumn.addView(navIconButton(shopIcon, t("screen.virtual_craft.holographic_shop.page.shop"), Page.SHOP), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(NAV_HEIGHT_DP)));
+		navColumn.addView(spacer(dp(4)));
+		navColumn.addView(navIconButton(miningIcon, t("screen.virtual_craft.holographic_shop.page.mining"), Page.MINING), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(NAV_HEIGHT_DP)));
+		navColumn.addView(spacer(dp(10)));
 		// 资产总额只在顶部 header 的 USDT 药丸里展示一次（headerValue），侧栏不再重复一张
 		// “资产总览”卡片——既消除重复，也腾出垂直空间，避免底部“钱包地址/汇率状态”卡被裁。
 		LinearLayout metaCard = card(PANEL_ROW, WINDOW_STROKE, 10f);
-		metaCard.setPadding(dp(8), dp(10), dp(8), dp(10));
+		metaCard.setPadding(dp(8), dp(8), dp(8), dp(8));
 		// label 与 value 原本字号仅差 1sp（hintText 12 vs bodyText 13），纵向密集时视觉层次模糊。
 		// 把 value 提到 14sp 并在 label-value 之间加 dp(3) spacer，节奏明显更舒服。
 		metaCard.addView(hintText(t("screen.virtual_craft.holographic_shop.wallet.address_label")));
@@ -774,7 +672,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		// on a single line — the 13-char "VC-XXXXXXXXXX" fits at this size, and a
 		// 2-line wrap looked awkward in the narrow sidebar.
 		TextView addressValue = bodyText(displayWalletAddress());
-		addressValue.setTextSize(12f);
+		addressValue.setTextSize(11f);
 		addressValue.setSingleLine(true);
 		// No ellipsis — the column is sized so the full 13-char address fits.
 		addressValue.setEllipsize(null);
@@ -791,6 +689,9 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		transferMemoInput = null;
 		shopSearchInput = null;
 		miningAmountInput = null;
+		shopCatalogList = null;
+		convertPreviewValue = null;
+		miningPreviewValue = null;
 
 		switch (currentPage) {
 			case WALLET -> buildWalletContent();
@@ -814,12 +715,17 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			return;
 		}
 		actionColumn.removeAllViews();
+		amountSliders.clear();
+		shopQuantitySlider = null;
+		miningQuantitySlider = null;
+		shopQuantityValue = null;
 		// Drop references to the previous page's live-update views so a stale slider drag
 		// can never write into a recycled card.
 		liveStatusModel = null;
 		liveStatusCardView = null;
 		liveStatusSummaryView = null;
 		liveStatusIssueView = null;
+		primaryActionButton = null;
 		primaryAction = null;
 		actionColumn.addView(sectionHeader(actionTitle(), actionSubtitle()));
 		actionColumn.addView(spacer(dp(10)));
@@ -833,6 +739,13 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			case CONTRACTS -> buildContractsActions();
 			case MARKET -> { /* no side panel — full-width chart */ }
 		}
+	}
+
+	private void refreshActionPage(FocusTarget focusTarget) {
+		stashInputs();
+		buildActionPage();
+		restoreFocus(focusTarget);
+		HolographicTheme.enterTransition(actionColumn);
 	}
 
 	private void refreshPicker() {
@@ -858,6 +771,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		FrameLayout.LayoutParams pickerParams = new FrameLayout.LayoutParams(dp(360), dp(420));
 		pickerParams.gravity = Gravity.CENTER;
 		pickerOverlay.addView(pickerCard, pickerParams);
+		pickerCard.post(() -> HolographicTheme.popIn(pickerCard));
 
 		pickerCard.addView(sectionHeader(t("screen.virtual_craft.holographic_shop.currency_picker"), pickerPrompt()));
 		pickerCard.addView(spacer(dp(10)));
@@ -879,7 +793,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		pickerCard.addView(actionButton(t("screen.virtual_craft.holographic_shop.currency_picker_close"), CYAN, () -> {
 			pickerTarget = PickerTarget.NONE;
 			refreshPicker();
-		}), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(30)));
+		}), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(CONTROL_HEIGHT_DP)));
 	}
 
 	private void buildWalletContent() {
@@ -1091,14 +1005,14 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 				walletActionMode == WalletActionMode.DEPOSIT,
 				() -> {
 					walletActionMode = WalletActionMode.DEPOSIT;
-					requestRefresh(false, FocusTarget.NONE);
+					refreshActionPage(FocusTarget.WALLET_AMOUNT);
 				},
 				t("screen.virtual_craft.holographic_shop.wallet.mode.withdraw"),
 				walletActionMode == WalletActionMode.WITHDRAW,
 				() -> {
 					walletActionMode = WalletActionMode.WITHDRAW;
-					requestRefresh(false, FocusTarget.WALLET_AMOUNT);
-				}), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(34)));
+					refreshActionPage(FocusTarget.WALLET_AMOUNT);
+				}), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(CONTROL_HEIGHT_DP)));
 		actionColumn.addView(spacer(dp(10)));
 
 		if (walletActionMode == WalletActionMode.DEPOSIT) {
@@ -1107,9 +1021,10 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			String depositProblem = walletDepositProblem(requested, depositable);
 			actionColumn.addView(fieldLabel(t("screen.virtual_craft.holographic_shop.amount_whole")));
 			walletAmountInput = input(walletAmountText, Long.toString(Math.max(0L, depositable)));
+			bindLiveInput(walletAmountInput, FocusTarget.WALLET_AMOUNT, value -> walletAmountText = value);
 			primaryAction = this::sendWalletDeposit;
 			submitOnEnter(walletAmountInput);
-			actionColumn.addView(walletAmountInput, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(34)));
+			actionColumn.addView(walletAmountInput, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(CONTROL_HEIGHT_DP)));
 			actionColumn.addView(spacer(dp(6)));
 			actionColumn.addView(wholeAmountSlider(
 					t("screen.virtual_craft.holographic_shop.amount_whole"),
@@ -1120,9 +1035,8 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 					FocusTarget.WALLET_AMOUNT), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 			actionColumn.addView(spacer(dp(6)));
 			actionColumn.addView(compactActionButton(t("screen.virtual_craft.holographic_shop.wallet.max_whole"), () -> {
-				walletAmountText = Long.toString(inventoryWholeItemCount(selectedWalletCurrency));
-				pendingInputOverrides.put(FocusTarget.WALLET_AMOUNT, walletAmountText);
-				requestRefresh(false, FocusTarget.WALLET_AMOUNT);
+				String value = Long.toString(inventoryWholeItemCount(selectedWalletCurrency));
+				applyAmountDraft(FocusTarget.WALLET_AMOUNT, value, picked -> walletAmountText = picked, AMOUNT_SLIDER_STEPS);
 			}), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(QUICK_BUTTON_HEIGHT_DP)));
 			actionColumn.addView(spacer(dp(10)));
 			actionColumn.addView(liveStatusCard(() -> {
@@ -1132,14 +1046,16 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 				return new StatusModel(walletDepositSummary(req), p, p.isBlank() ? GREEN : AMBER);
 			}));
 			actionColumn.addView(spacer(dp(10)));
-			actionColumn.addView(actionButton(t("screen.virtual_craft.holographic_shop.deposit_current", selectedWalletCurrency.ticker()), GREEN, this::sendWalletDeposit),
-				new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(30)));
+			primaryActionButton = actionButton(t("screen.virtual_craft.holographic_shop.deposit_current", selectedWalletCurrency.ticker()), GREEN, this::sendWalletDeposit);
+			applyPrimaryActionState(depositProblem.isBlank());
+			actionColumn.addView(primaryActionButton,
+				new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(PRIMARY_BUTTON_HEIGHT_DP)));
 			actionColumn.addView(spacer(dp(6)));
 			actionColumn.addView(actionButton(t("screen.virtual_craft.holographic_shop.deposit_all"), CYAN, () -> {
 					PacketDistributor.sendToServer(new WalletActionPayload(sessionId, WalletActionPayload.Action.DEPOSIT_ALL, "", "", 0L, ""));
 					toast("screen.virtual_craft.holographic_shop.toast.deposit");
 				}),
-				new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(30)));
+				new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(CONTROL_HEIGHT_DP)));
 			return;
 		}
 
@@ -1148,9 +1064,10 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		String withdrawProblem = walletWithdrawProblem(requested, withdrawable);
 		actionColumn.addView(fieldLabel(t("screen.virtual_craft.holographic_shop.amount_whole")));
 		walletAmountInput = input(walletAmountText, Long.toString(Math.max(0L, withdrawable)));
+		bindLiveInput(walletAmountInput, FocusTarget.WALLET_AMOUNT, value -> walletAmountText = value);
 		primaryAction = () -> sendWalletWithdraw(WalletActionPayload.Action.WITHDRAW_ITEM);
 		submitOnEnter(walletAmountInput);
-		actionColumn.addView(walletAmountInput, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(34)));
+		actionColumn.addView(walletAmountInput, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(CONTROL_HEIGHT_DP)));
 		actionColumn.addView(spacer(dp(6)));
 		actionColumn.addView(wholeAmountSlider(
 				t("screen.virtual_craft.holographic_shop.amount_whole"),
@@ -1161,9 +1078,8 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 				FocusTarget.WALLET_AMOUNT), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 		actionColumn.addView(spacer(dp(6)));
 		actionColumn.addView(compactActionButton(t("screen.virtual_craft.holographic_shop.wallet.max_whole"), () -> {
-			walletAmountText = Long.toString(wholeItemCount(selectedWalletCurrency));
-			pendingInputOverrides.put(FocusTarget.WALLET_AMOUNT, walletAmountText);
-			requestRefresh(false, FocusTarget.WALLET_AMOUNT);
+			String value = Long.toString(wholeItemCount(selectedWalletCurrency));
+			applyAmountDraft(FocusTarget.WALLET_AMOUNT, value, picked -> walletAmountText = picked, AMOUNT_SLIDER_STEPS);
 		}), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(QUICK_BUTTON_HEIGHT_DP)));
 		actionColumn.addView(spacer(dp(10)));
 		actionColumn.addView(liveStatusCard(() -> {
@@ -1175,12 +1091,16 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		actionColumn.addView(spacer(dp(10)));
 
 		Button withdrawCoin = actionButton(t("screen.virtual_craft.holographic_shop.withdraw_item"), GREEN, () -> sendWalletWithdraw(WalletActionPayload.Action.WITHDRAW_ITEM));
-		actionColumn.addView(withdrawCoin, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(30)));
+		primaryActionButton = withdrawCoin;
+		applyPrimaryActionState(withdrawProblem.isBlank());
+		actionColumn.addView(withdrawCoin, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(PRIMARY_BUTTON_HEIGHT_DP)));
 
 		if (selectedWalletCurrency == CryptoCurrency.USDT) {
 			actionColumn.addView(spacer(dp(6)));
 			Button withdrawEmeralds = actionButton(t("screen.virtual_craft.holographic_shop.withdraw_emeralds"), AMBER, () -> sendWalletWithdraw(WalletActionPayload.Action.WITHDRAW_EMERALDS));
-			actionColumn.addView(withdrawEmeralds, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(30)));
+			withdrawEmeralds.setEnabled(withdrawProblem.isBlank());
+			withdrawEmeralds.setAlpha(withdrawProblem.isBlank() ? 1f : 0.48f);
+			actionColumn.addView(withdrawEmeralds, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(CONTROL_HEIGHT_DP)));
 		}
 	}
 
@@ -1191,6 +1111,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		FrameLayout.LayoutParams pickerParams = new FrameLayout.LayoutParams(dp(360), dp(420));
 		pickerParams.gravity = Gravity.CENTER;
 		pickerOverlay.addView(pickerCard, pickerParams);
+		pickerCard.post(() -> HolographicTheme.popIn(pickerCard));
 
 		pickerCard.addView(sectionHeader(
 				t("screen.virtual_craft.holographic_shop.transfer.player_picker"),
@@ -1216,7 +1137,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		pickerCard.addView(actionButton(t("screen.virtual_craft.holographic_shop.currency_picker_close"), CYAN, () -> {
 			pickerTarget = PickerTarget.NONE;
 			refreshPicker();
-		}), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(30)));
+		}), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(CONTROL_HEIGHT_DP)));
 	}
 
 	private void buildConvertContent() {
@@ -1230,7 +1151,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 				() -> openPicker(PickerTarget.CONVERT_SOURCE));
 		tradeRow.addView(sourceCard, weighted(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-		Button swapButton = actionButton("\u21C5", CYAN, this::swapConvertCurrencies);
+		Button swapButton = actionButton("\u21C4", CYAN, this::swapConvertCurrencies);
 		swapButton.setGravity(Gravity.CENTER);
 		var swapParams = new LinearLayout.LayoutParams(dp(44), dp(44));
 		swapParams.setMargins(dp(8), dp(16), dp(8), 0);
@@ -1241,7 +1162,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 				() -> openPicker(PickerTarget.CONVERT_TARGET));
 		tradeRow.addView(targetCard, weighted(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-		contentColumn.addView(sectionHeader(t("screen.virtual_craft.holographic_shop.convert.trade"), convertPairLabel()));
+		contentColumn.addView(sectionHeader(t("screen.virtual_craft.holographic_shop.convert.trade"), null));
 		contentColumn.addView(spacer(dp(10)));
 		contentColumn.addView(tradeRow, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 		contentColumn.addView(spacer(dp(10)));
@@ -1250,7 +1171,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		contentColumn.addView(spacer(dp(8)));
 		LinearLayout metrics = new LinearLayout(requireContext());
 		metrics.setOrientation(LinearLayout.HORIZONTAL);
-		metrics.addView(metricCard(t("screen.virtual_craft.holographic_shop.no_fee"), t("screen.virtual_craft.holographic_shop.convert.fee_free"), GREEN), weighted(0, ViewGroup.LayoutParams.WRAP_CONTENT, 0.48f));
+		metrics.addView(metricCard(t("screen.virtual_craft.holographic_shop.transfer.gas"), "0", GREEN), weighted(0, ViewGroup.LayoutParams.WRAP_CONTENT, 0.48f));
 		var modeParams = weighted(0, ViewGroup.LayoutParams.WRAP_CONTENT, 0.52f);
 		modeParams.setMargins(dp(8), 0, 0, 0);
 		metrics.addView(metricCard(t("screen.virtual_craft.holographic_shop.convert.mode_label"), convertModeShortLabel(), TEXT_DIM), modeParams);
@@ -1260,55 +1181,10 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		LinearLayout previewCard = card(PANEL_SOFT, CYAN, 10f);
 		previewCard.setPadding(dp(14), dp(14), dp(14), dp(14));
 		previewCard.addView(hintText(t("screen.virtual_craft.holographic_shop.convert.preview")));
-		TextView previewValue = titleText(formatTickerAmount(convertTargetCurrency, targetAmount));
-		previewValue.setTextColor(GREEN);
-		previewCard.addView(previewValue);
-		previewCard.addView(hintText(convertSummaryLine()));
-		// Min-receive guard: even though there's no AMM, rounding + stale rates can
-		// cause the realized payout to drift slightly. We surface a 0.5% slippage
-		// floor so the user can sanity-check the worst case.
-		long minReceive = convertMinimumReceiveAmount(targetAmount);
-		previewCard.addView(spacer(dp(4)));
-		previewCard.addView(hintText(t("screen.virtual_craft.holographic_shop.convert.min_receive",
-				formatTickerAmount(convertTargetCurrency, minReceive),
-				formatSlippagePercent())));
-		String problem = convertProblem();
-		TextView balanceLine = hintText(problem.isBlank() ? t("screen.virtual_craft.holographic_shop.convert.balance_ok") : problem);
-		balanceLine.setTextColor(problem.isBlank() ? GREEN : AMBER);
-		previewCard.addView(balanceLine);
-
-		// Surface a clear AMBER warning when the rates aren't fresh so the player
-		// understands why the preview might not match the realized amount.
-		if (exchangeSnapshot.status() == ExchangeRateSnapshot.SourceStatus.STALE
-				|| exchangeSnapshot.status() == ExchangeRateSnapshot.SourceStatus.DEFAULT) {
-			TextView staleLine = hintText(t("screen.virtual_craft.holographic_shop.convert.rates_stale"));
-			staleLine.setTextColor(AMBER);
-			previewCard.addView(spacer(dp(4)));
-			previewCard.addView(staleLine);
-		}
+		convertPreviewValue = titleText(formatTickerAmount(convertTargetCurrency, targetAmount));
+		convertPreviewValue.setTextColor(GREEN);
+		previewCard.addView(convertPreviewValue);
 		contentColumn.addView(previewCard, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-	}
-
-	/** Default slippage tolerance applied to the min-receive preview, in basis points. */
-	private static final int CONVERT_SLIPPAGE_BPS = 50;
-
-	/** Apply {@link #CONVERT_SLIPPAGE_BPS} as a floor against the preview amount. */
-	private long convertMinimumReceiveAmount(long targetAmountMinor) {
-		if (targetAmountMinor <= 0) {
-			return 0L;
-		}
-		long deduction = (targetAmountMinor * CONVERT_SLIPPAGE_BPS) / 10_000L;
-		return Math.max(0L, targetAmountMinor - deduction);
-	}
-
-	private String formatSlippagePercent() {
-		// 50 bps -> "0.5%"
-		java.math.BigDecimal pct = java.math.BigDecimal.valueOf(CONVERT_SLIPPAGE_BPS, 2)
-				.stripTrailingZeros();
-		if (pct.scale() < 0) {
-			pct = pct.setScale(0, RoundingMode.UNNECESSARY);
-		}
-		return pct.toPlainString() + "%";
 	}
 
 	private void buildConvertActions() {
@@ -1326,13 +1202,14 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 					convertReverseQuote = true;
 					pendingInputOverrides.put(FocusTarget.CONVERT_AMOUNT, convertAmountText);
 					requestRefresh(false, FocusTarget.CONVERT_AMOUNT);
-				}), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(34)));
+				}), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(CONTROL_HEIGHT_DP)));
 		actionColumn.addView(spacer(dp(10)));
 		actionColumn.addView(fieldLabel(t("screen.virtual_craft.holographic_shop.transfer.amount")));
 		convertAmountInput = input(convertAmountText, convertReverseQuote ? convertTargetCurrency.ticker() : convertSourceCurrency.ticker());
+		bindLiveInput(convertAmountInput, FocusTarget.CONVERT_AMOUNT, value -> convertAmountText = value);
 		primaryAction = this::sendConvertAction;
 		submitOnEnter(convertAmountInput);
-		actionColumn.addView(convertAmountInput, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(34)));
+		actionColumn.addView(convertAmountInput, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(CONTROL_HEIGHT_DP)));
 		actionColumn.addView(spacer(dp(6)));
 		CryptoCurrency convertInputCurrency = convertReverseQuote ? convertTargetCurrency : convertSourceCurrency;
 		long convertSliderMax = convertReverseQuote
@@ -1356,8 +1233,9 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		}));
 		actionColumn.addView(spacer(dp(10)));
 
-		Button submit = actionButton(t("screen.virtual_craft.holographic_shop.convert.submit"), GREEN, this::sendConvertAction);
-		actionColumn.addView(submit, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(30)));
+		primaryActionButton = actionButton(t("screen.virtual_craft.holographic_shop.convert.submit"), GREEN, this::sendConvertAction);
+		applyPrimaryActionState(problem.isBlank());
+		actionColumn.addView(primaryActionButton, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(PRIMARY_BUTTON_HEIGHT_DP)));
 	}
 
 	private void buildShopContent() {
@@ -1374,20 +1252,35 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		// the buttons (dp(34)) 3 dp slack top + 3 dp slack bottom.
 		toolbar.setGravity(Gravity.CENTER_VERTICAL);
 		shopSearchInput = input(shopSearchText, t("screen.virtual_craft.holographic_shop.shop.search_hint"));
-		toolbar.addView(shopSearchInput, weighted(0, dp(34), 1f));
+		shopSearchInput.addTextChangedListener(new TextWatcher() {
+			@Override
+			public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+			}
+
+			@Override
+			public void onTextChanged(CharSequence s, int start, int before, int count) {
+				shopSearchText = s.toString();
+				refreshShopCatalogList();
+			}
+
+			@Override
+			public void afterTextChanged(Editable s) {
+			}
+		});
+		toolbar.addView(shopSearchInput, weighted(0, dp(CONTROL_HEIGHT_DP), 1f));
 		Button sortButton = compactActionButton(t("screen.virtual_craft.holographic_shop.shop.sort." + shopSortMode.name().toLowerCase(java.util.Locale.ROOT)), () -> {
 			ShopSortMode[] modes = ShopSortMode.values();
 			shopSortMode = modes[(shopSortMode.ordinal() + 1) % modes.length];
-			requestRefresh(false, FocusTarget.SHOP_SEARCH);
+			refreshShopCatalogList();
 		});
 		// v25 ultra-compact sort cycler: labels are now pure-symbol (↕ / 买↑ / 卖↓ /
 		// A→Z), at most 3 chars wide, so dp(132) was 2.4x too wide. Shrink to dp(56)
 		// to free toolbar space for a wider search input. Hover tooltip lists the
 		// cyclable modes so the symbol meaning stays discoverable.
 		sortButton.setTextSize(13f);
-		sortButton.setMinimumHeight(dp(34));
+		sortButton.setMinimumHeight(dp(CONTROL_HEIGHT_DP));
 		sortButton.setTooltipText(t("screen.virtual_craft.holographic_shop.shop.sort_tooltip"));
-		var sortParams = new LinearLayout.LayoutParams(dp(56), dp(34));
+		var sortParams = new LinearLayout.LayoutParams(dp(56), dp(CONTROL_HEIGHT_DP));
 		sortParams.setMargins(dp(6), 0, 0, 0);
 		toolbar.addView(sortButton, sortParams);
 		Button favButton = compactActionButton(
@@ -1396,59 +1289,76 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 						: t("screen.virtual_craft.holographic_shop.shop.favorites_off"),
 				() -> {
 					shopFavoritesOnly = !shopFavoritesOnly;
-					requestRefresh(false, FocusTarget.SHOP_SEARCH);
+					refreshShopCatalogList();
 				});
 		// v25 favorites toggle is now a pure star glyph (★ filled = only favorites,
 		// ☆ outline = all). dp(40) is just enough for a single 14sp glyph centered
 		// in the toggle background. Hover tooltip carries the full description.
 		favButton.setTextSize(14f);
 		favButton.setTextColor(shopFavoritesOnly ? AMBER : TEXT_DIM);
-		favButton.setMinimumHeight(dp(34));
+		favButton.setMinimumHeight(dp(CONTROL_HEIGHT_DP));
 		favButton.setTooltipText(t("screen.virtual_craft.holographic_shop.shop.favorites_tooltip"));
-		var favParams = new LinearLayout.LayoutParams(dp(40), dp(34));
+		var favParams = new LinearLayout.LayoutParams(dp(40), dp(CONTROL_HEIGHT_DP));
 		favParams.setMargins(dp(6), 0, 0, 0);
 		toolbar.addView(favButton, favParams);
 		contentColumn.addView(toolbar, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(40)));
 		contentColumn.addView(spacer(dp(8)));
 
+		ScrollView listScroll = scrollShell("shop.catalog");
+		shopCatalogList = vertical();
+		listScroll.addView(shopCatalogList, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+		refreshShopCatalogList();
+		contentColumn.addView(listScroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+	}
+
+	private void refreshShopCatalogList() {
+		if (shopCatalogList == null) {
+			return;
+		}
+		hideShopTooltip();
+		int previousSelection = selectedOfferIndex;
 		List<IndexedOffer> filteredOffers = filteredShopOffers();
-		// Keep selectedOfferIndex pointing at a row that still appears, otherwise
-		// snap to the first visible offer so the detail panel never goes empty.
 		boolean selectionVisible = filteredOffers.stream().anyMatch(io -> io.originalIndex() == selectedOfferIndex);
 		if (!selectionVisible && !filteredOffers.isEmpty()) {
 			selectedOfferIndex = filteredOffers.get(0).originalIndex();
 		}
 
-		// 详情改为悬停弹出 ({@link #showShopTooltip})、不再占右侧面板，列表占满整宽。
-		// 重建列表前先隐藏上一次的 tooltip：row view 被重新创建后，原本指向它的
-		// HOVER_EXIT 不会再到达，必须主动 hide 避免 tooltip “慌子在上面”。
-		hideShopTooltip();
-
-		ScrollView listScroll = scrollShell("shop.catalog");
-		LinearLayout list = vertical();
+		shopCatalogList.removeAllViews();
 		if (offers.isEmpty()) {
-			list.addView(emptyState(t("screen.virtual_craft.holographic_shop.shop.empty"), t("screen.virtual_craft.holographic_shop.shop.waiting")));
+			shopCatalogList.addView(emptyState(
+					t("screen.virtual_craft.holographic_shop.shop.empty"),
+					t("screen.virtual_craft.holographic_shop.shop.waiting")));
 		} else if (filteredOffers.isEmpty()) {
-			list.addView(emptyState(t("screen.virtual_craft.holographic_shop.shop.no_match"), t("screen.virtual_craft.holographic_shop.shop.no_match_hint")));
+			shopCatalogList.addView(emptyState(
+					t("screen.virtual_craft.holographic_shop.shop.no_match"),
+					t("screen.virtual_craft.holographic_shop.shop.no_match_hint")));
 		} else {
 			for (IndexedOffer indexed : filteredOffers) {
 				int originalIndex = indexed.originalIndex();
 				ShopOffer offer = indexed.offer();
-				list.addView(offerRow(offer, originalIndex == selectedOfferIndex, () -> {
+				shopCatalogList.addView(offerRow(offer, originalIndex == selectedOfferIndex, () -> {
+					if (selectedOfferIndex == originalIndex) {
+						return;
+					}
 					selectedOfferIndex = originalIndex;
-					requestRefresh(false, FocusTarget.NONE);
+					refreshShopCatalogList();
+					buildActionPage();
+					HolographicTheme.enterTransition(actionColumn);
 				}));
-				list.addView(spacer(dp(6)));
+				shopCatalogList.addView(spacer(dp(6)));
 			}
 		}
-		listScroll.addView(list, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-		contentColumn.addView(listScroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+		if (previousSelection != selectedOfferIndex && actionColumn != null && currentPage == Page.SHOP) {
+			buildActionPage();
+		}
 	}
 
 	private void buildShopActions() {
 		ShopOffer offer = selectedOffer();
 		int buyMax = currentShopBuyMax(offer);
 		int sellMax = currentShopSellMax(offer);
+		actionColumn.addView(shopActionSummaryCard(offer, buyMax, sellMax));
+		actionColumn.addView(spacer(dp(10)));
 		actionColumn.addView(currencyActionButton(t("screen.virtual_craft.holographic_shop.shop_currency_short", shopSettlementCurrency.ticker()), shopSettlementCurrency, PickerTarget.SHOP_SETTLEMENT));
 		actionColumn.addView(spacer(dp(10)));
 		actionColumn.addView(modeSwitch(
@@ -1456,28 +1366,26 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 				shopTradeMode == ShopTradeMode.BUY,
 				() -> {
 					shopTradeMode = ShopTradeMode.BUY;
-					requestRefresh(false, FocusTarget.NONE);
+					refreshActionPage(FocusTarget.NONE);
 				},
 				t("screen.virtual_craft.holographic_shop.sell"),
 				shopTradeMode == ShopTradeMode.SELL,
 				() -> {
 					shopTradeMode = ShopTradeMode.SELL;
-					requestRefresh(false, FocusTarget.NONE);
-				}), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(34)));
+					refreshActionPage(FocusTarget.NONE);
+				}), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(CONTROL_HEIGHT_DP)));
 		actionColumn.addView(spacer(dp(10)));
 
 		int maxQuantity = Math.max(1, maxShopQuantity(buyMax, sellMax));
 		int quantity = clampInt(parseInt(shopQuantityText, 1), 1, maxQuantity);
 		shopQuantityText = Integer.toString(quantity);
 
-		actionColumn.addView(quantitySlider(t("screen.virtual_craft.holographic_shop.transfer.amount"), 1, maxQuantity, quantity, value -> {
-			shopQuantityText = Integer.toString(value);
-		}), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+		actionColumn.addView(quantitySlider(t("screen.virtual_craft.holographic_shop.transfer.amount"), 1, maxQuantity, quantity,
+				value -> setShopQuantity(value, maxQuantity)),
+				new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 		actionColumn.addView(spacer(dp(8)));
 		actionColumn.addView(quantityControlRow(quantity, maxQuantity, value -> {
-			shopQuantityText = Integer.toString(value);
-			// shopQuantityText has no EditText counterpart, so no input override is needed.
-			requestRefresh(false, FocusTarget.NONE);
+			setShopQuantity(value, maxQuantity);
 		}), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(QUICK_BUTTON_HEIGHT_DP)));
 		actionColumn.addView(spacer(dp(10)));
 
@@ -1512,7 +1420,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		}));
 		actionColumn.addView(spacer(dp(10)));
 
-		Button primary = actionButton(t(buying ? "screen.virtual_craft.holographic_shop.buy" : "screen.virtual_craft.holographic_shop.sell"),
+		primaryActionButton = actionButton(t(buying ? "screen.virtual_craft.holographic_shop.buy" : "screen.virtual_craft.holographic_shop.sell"),
 				buying ? GREEN : AMBER,
 				() -> {
 					int currentQuantity = parseInt(shopQuantityText, 1);
@@ -1526,7 +1434,53 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 						requestRefresh(false, FocusTarget.NONE);
 					}
 				});
-		actionColumn.addView(primary, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(30)));
+		applyPrimaryActionState((buying ? buyProblem : sellProblem).isBlank());
+		actionColumn.addView(primaryActionButton, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(PRIMARY_BUTTON_HEIGHT_DP)));
+	}
+
+	private View shopActionSummaryCard(ShopOffer offer, int buyMax, int sellMax) {
+		LinearLayout card = card(PANEL_ROW, offer == null ? WINDOW_STROKE : CYAN, 10f);
+		card.setOrientation(LinearLayout.HORIZONTAL);
+		card.setGravity(Gravity.CENTER_VERTICAL);
+		card.setPadding(dp(10), dp(9), dp(10), dp(9));
+		if (offer == null) {
+			card.addView(bodyText(t("screen.virtual_craft.holographic_shop.shop.empty")));
+			return card;
+		}
+		card.addView(itemIconView(offer.itemId(), offer.displayName().getString(), ICON_LARGE_DP));
+		LinearLayout text = vertical();
+		var textParams = weighted(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+		textParams.setMargins(dp(9), 0, 0, 0);
+		TextView name = bodyText(offer.displayName().getString());
+		name.setMaxLines(1);
+		name.setEllipsize(TextUtils.TruncateAt.END);
+		text.addView(name);
+		TextView prices = hintText(t("screen.virtual_craft.holographic_shop.shop.price_pair",
+				shopSettlementCurrency.formatCompact(shopUnitBuyMinor(offer)),
+				shopSettlementCurrency.formatCompact(shopUnitSellMinor(offer)),
+				shopSettlementCurrency.ticker()));
+		prices.setTextSize(10.5f);
+		prices.setMaxLines(1);
+		prices.setEllipsize(TextUtils.TruncateAt.END);
+		text.addView(prices);
+		TextView limits = hintText(t("screen.virtual_craft.holographic_shop.shop.limits", buyMax, sellMax));
+		limits.setTextSize(10.5f);
+		limits.setMaxLines(1);
+		text.addView(limits);
+		card.addView(text, textParams);
+		return card;
+	}
+
+	private void setShopQuantity(int value, int max) {
+		int resolved = clampInt(value, 1, Math.max(1, max));
+		shopQuantityText = Integer.toString(resolved);
+		if (shopQuantityValue != null) {
+			shopQuantityValue.setText(shopQuantityText);
+		}
+		if (shopQuantitySlider != null && shopQuantitySlider.getProgress() != resolved) {
+			shopQuantitySlider.setProgress(resolved);
+		}
+		updateLiveStatus();
 	}
 
 	private void buildTransferContent() {
@@ -1547,9 +1501,10 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		// "粘贴" 被遮挡). Force dp(40) + CENTER_VERTICAL so the stroke has room.
 		targetRow.setGravity(Gravity.CENTER_VERTICAL);
 		transferTargetInput = input(transferTargetText, t("screen.virtual_craft.holographic_shop.transfer.target"));
+		bindLiveInput(transferTargetInput, FocusTarget.TRANSFER_TARGET, value -> transferTargetText = value);
 		submitOnEnter(transferTargetInput);
-		targetRow.addView(transferTargetInput, weighted(0, dp(34), 1f));
-		var chooseParams = new LinearLayout.LayoutParams(dp(64), dp(34));
+		targetRow.addView(transferTargetInput, weighted(0, dp(CONTROL_HEIGHT_DP), 1f));
+		var chooseParams = new LinearLayout.LayoutParams(dp(64), dp(CONTROL_HEIGHT_DP));
 		chooseParams.setMargins(dp(8), 0, 0, 0);
 		targetRow.addView(actionButton(t("screen.virtual_craft.holographic_shop.transfer.choose"), CYAN, () -> {
 			if (transferTargetInput != null) {
@@ -1558,13 +1513,10 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			refreshPlayerSuggestions();
 			openPicker(PickerTarget.TRANSFER_PLAYER);
 		}), chooseParams);
-		var pasteParams = new LinearLayout.LayoutParams(dp(64), dp(34));
+		var pasteParams = new LinearLayout.LayoutParams(dp(64), dp(CONTROL_HEIGHT_DP));
 		pasteParams.setMargins(dp(6), 0, 0, 0);
 		targetRow.addView(actionButton(t("screen.virtual_craft.holographic_shop.transfer.paste"), CYAN, () -> {
-			transferTargetText = readClipboard();
-			pendingInputOverrides.put(FocusTarget.TRANSFER_TARGET, transferTargetText);
-			refreshPlayerSuggestions();
-			requestRefresh(false, FocusTarget.TRANSFER_TARGET);
+			applyTransferTarget(readClipboard());
 		}), pasteParams);
 		targetCard.addView(spacer(dp(6)));
 		targetCard.addView(targetRow, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(40)));
@@ -1596,9 +1548,10 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		actionColumn.addView(spacer(dp(10)));
 		actionColumn.addView(fieldLabel(t("screen.virtual_craft.holographic_shop.transfer.amount")));
 		transferAmountInput = input(transferAmountText, transferCurrency.ticker());
+		bindLiveInput(transferAmountInput, FocusTarget.TRANSFER_AMOUNT, value -> transferAmountText = value);
 		primaryAction = this::sendTransferAction;
 		submitOnEnter(transferAmountInput);
-		actionColumn.addView(transferAmountInput, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(34)));
+		actionColumn.addView(transferAmountInput, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(CONTROL_HEIGHT_DP)));
 		actionColumn.addView(spacer(dp(6)));
 		actionColumn.addView(currencyAmountSlider(
 				t("screen.virtual_craft.holographic_shop.transfer.amount"),
@@ -1620,12 +1573,14 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 
 		actionColumn.addView(fieldLabel(t("screen.virtual_craft.holographic_shop.transfer.memo")));
 		transferMemoInput = input(transferMemoText, t("screen.virtual_craft.holographic_shop.transfer.memo_hint"));
+		bindLiveInput(transferMemoInput, FocusTarget.TRANSFER_MEMO, value -> transferMemoText = value);
 		submitOnEnter(transferMemoInput);
-		actionColumn.addView(transferMemoInput, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(30)));
+		actionColumn.addView(transferMemoInput, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(CONTROL_HEIGHT_DP)));
 		actionColumn.addView(spacer(dp(10)));
 
-		Button send = actionButton(t("screen.virtual_craft.holographic_shop.transfer.send"), GREEN, this::sendTransferAction);
-		actionColumn.addView(send, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(30)));
+		primaryActionButton = actionButton(t("screen.virtual_craft.holographic_shop.transfer.send"), GREEN, this::sendTransferAction);
+		applyPrimaryActionState(problem.isBlank());
+		actionColumn.addView(primaryActionButton, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(PRIMARY_BUTTON_HEIGHT_DP)));
 	}
 
 	private void buildMiningContent() {
@@ -1650,26 +1605,48 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 				CYAN), voucherParams);
 		var previewParams = weighted(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
 		previewParams.setMargins(dp(10), 0, 0, 0);
-		top.addView(infoCard(t("screen.virtual_craft.holographic_shop.mining.preview"), miningSettlementCurrency.displayName().getString(), formatTickerAmount(miningSettlementCurrency, payoutMinor), GREEN), previewParams);
+		top.addView(miningPreviewCard(payoutMinor), previewParams);
 		contentColumn.addView(top, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 		contentColumn.addView(spacer(dp(10)));
-		contentColumn.addView(virtualRelicHintCard(), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+		LinearLayout metrics = new LinearLayout(requireContext());
+		metrics.setOrientation(LinearLayout.HORIZONTAL);
+		metrics.addView(metricCard(
+				t("screen.virtual_craft.holographic_shop.mining.fragments"),
+				Integer.toString(countDataFragments()),
+				CYAN), weighted(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
+		var settlementsParams = weighted(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
+		settlementsParams.setMargins(dp(8), 0, 0, 0);
+		metrics.addView(metricCard(
+				t("screen.virtual_craft.holographic_shop.mining.stats.total_settlements"),
+				Long.toString(miningStatsCache.totalSettlements()),
+				CYAN), settlementsParams);
+		var totalParams = weighted(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
+		totalParams.setMargins(dp(8), 0, 0, 0);
+		metrics.addView(metricCard(
+				t("screen.virtual_craft.holographic_shop.mining.stats.total_btc"),
+				CryptoCurrency.BTC.formatCompact(miningStatsCache.totalBtcMinor()),
+				GREEN), totalParams);
+		contentColumn.addView(metrics, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(62)));
 		contentColumn.addView(spacer(dp(10)));
 		contentColumn.addView(miningVoucherBreakdown(vouchers), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 		contentColumn.addView(spacer(dp(10)));
 		contentColumn.addView(miningStatsDashboard(), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 	}
 
-	private View virtualRelicHintCard() {
-		LinearLayout card = card(PANEL_SOFT, CYAN, 10f);
-		card.setPadding(dp(14), dp(10), dp(14), dp(10));
-		card.addView(hintText(t("screen.virtual_craft.holographic_shop.mining.relics")));
-		card.addView(bodyText(t("screen.virtual_craft.holographic_shop.mining.relics_hint")));
-		card.addView(spacer(dp(6)));
-		card.addView(keyValueRow(
-				t("screen.virtual_craft.holographic_shop.mining.fragments"),
-				Integer.toString(countDataFragments()),
-				CYAN));
+	private View miningPreviewCard(long payoutMinor) {
+		LinearLayout card = card(PANEL_SOFT, WINDOW_STROKE, 10f);
+		card.setPadding(dp(14), dp(14), dp(14), dp(14));
+		card.addView(hintText(t("screen.virtual_craft.holographic_shop.mining.preview")));
+		card.addView(spacer(dp(4)));
+		card.addView(bodyText(miningSettlementCurrency.displayName().getString()));
+		card.addView(spacer(dp(4)));
+		miningPreviewValue = new TextView(requireContext());
+		miningPreviewValue.setText(formatTickerAmount(miningSettlementCurrency, payoutMinor));
+		miningPreviewValue.setTextSize(17f);
+		miningPreviewValue.setTextColor(GREEN);
+		miningPreviewValue.setSingleLine(true);
+		card.addView(miningPreviewValue);
 		return card;
 	}
 
@@ -1736,46 +1713,26 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	 */
 	private View miningStatsDashboard() {
 		LinearLayout card = card(PANEL_ROW, WINDOW_STROKE, 10f);
-		card.setPadding(dp(14), dp(14), dp(14), dp(14));
-		card.addView(hintText(t("screen.virtual_craft.holographic_shop.mining.stats")));
-		card.addView(spacer(dp(8)));
-
-		LinearLayout metrics = new LinearLayout(requireContext());
-		metrics.setOrientation(LinearLayout.HORIZONTAL);
-		// 容器固定高 dp(72)，每张 card 用 MATCH_PARENT 高度，
-		// 确保 3 张 card 视觉上等高（不会因为某张 wrap 多一行而拉高整行）。
-		metrics.addView(metricCard(
-				t("screen.virtual_craft.holographic_shop.mining.stats.total_settlements"),
-				Long.toString(miningStatsCache.totalSettlements()),
-				CYAN), weighted(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
-		var voucherParams = weighted(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
-		voucherParams.setMargins(dp(8), 0, 0, 0);
-		metrics.addView(metricCard(
-				t("screen.virtual_craft.holographic_shop.mining.stats.total_vouchers"),
-				Long.toString(miningStatsCache.totalVouchers()),
-				CYAN), voucherParams);
-		var btcParams = weighted(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
-		btcParams.setMargins(dp(8), 0, 0, 0);
-		metrics.addView(metricCard(
-				t("screen.virtual_craft.holographic_shop.mining.stats.total_btc"),
-				CryptoCurrency.BTC.formatCompact(miningStatsCache.totalBtcMinor()) + " BTC",
-				GREEN), btcParams);
-		card.addView(metrics, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(72)));
-
-		card.addView(spacer(dp(10)));
+		card.setPadding(dp(14), dp(12), dp(14), dp(12));
 		card.addView(hintText(t("screen.virtual_craft.holographic_shop.mining.stats.last_7_days")));
+		boolean hasRecentPayout = false;
+		for (long payout : sevenDayBtc()) {
+			if (payout > 0L) {
+				hasRecentPayout = true;
+				break;
+			}
+		}
+		if (!hasRecentPayout) {
+			card.addView(spacer(dp(8)));
+			TextView empty = bodyText(t("screen.virtual_craft.holographic_shop.mining.stats.empty"));
+			empty.setTextColor(TEXT_SOFT);
+			card.addView(empty);
+			return card;
+		}
 		card.addView(spacer(dp(6)));
-		card.addView(miningSevenDayChart(), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(46)));
-		card.addView(spacer(dp(10)));
-		card.addView(miningWeekSummary(), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(64)));
-		long avgMinor = miningStatsCache.totalSettlements() > 0
-				? miningStatsCache.totalBtcMinor() / miningStatsCache.totalSettlements()
-				: 0L;
+		card.addView(miningSevenDayChart(), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(42)));
 		card.addView(spacer(dp(8)));
-		card.addView(keyValueRow(
-				t("screen.virtual_craft.holographic_shop.mining.stats.avg_payout"),
-				CryptoCurrency.BTC.formatCompact(avgMinor) + " " + CryptoCurrency.BTC.ticker(),
-				CYAN));
+		card.addView(miningWeekSummary(), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(52)));
 		return card;
 	}
 
@@ -1870,9 +1827,10 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		actionColumn.addView(spacer(dp(10)));
 		actionColumn.addView(fieldLabel(t("screen.virtual_craft.holographic_shop.mining.quantity", miningCount)));
 		miningAmountInput = input(miningAmountText, Integer.toString(vouchers));
+		bindLiveInput(miningAmountInput, FocusTarget.MINING_AMOUNT, value -> miningAmountText = value);
 		primaryAction = this::sendMiningAction;
 		submitOnEnter(miningAmountInput);
-		actionColumn.addView(miningAmountInput, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(34)));
+		actionColumn.addView(miningAmountInput, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(CONTROL_HEIGHT_DP)));
 		actionColumn.addView(spacer(dp(6)));
 		actionColumn.addView(quantitySlider(t("item.virtual_craft.hash_voucher"), 0, sliderMax, requested, value -> {
 			String text = Integer.toString(value);
@@ -1886,8 +1844,14 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		actionColumn.addView(actionButton(t("screen.virtual_craft.holographic_shop.mining.all"), CYAN, () -> {
 			miningAmountText = Integer.toString(vouchers);
 			pendingInputOverrides.put(FocusTarget.MINING_AMOUNT, miningAmountText);
-			requestRefresh(false, FocusTarget.MINING_AMOUNT);
-		}), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(28)));
+			if (miningAmountInput != null) {
+				miningAmountInput.setText(miningAmountText);
+			}
+			if (miningQuantitySlider != null && miningQuantitySlider.getProgress() != vouchers) {
+				miningQuantitySlider.setProgress(vouchers);
+			}
+			updateLiveStatus();
+		}), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(QUICK_BUTTON_HEIGHT_DP)));
 		actionColumn.addView(spacer(dp(10)));
 		actionColumn.addView(liveStatusCard(() -> {
 			long liveCount = parseWhole(miningAmountText);
@@ -1896,8 +1860,9 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		}));
 		actionColumn.addView(spacer(dp(10)));
 
-		Button settle = actionButton(t("screen.virtual_craft.holographic_shop.mining.settle"), GREEN, this::sendMiningAction);
-		actionColumn.addView(settle, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(30)));
+		primaryActionButton = actionButton(t("screen.virtual_craft.holographic_shop.mining.settle"), GREEN, this::sendMiningAction);
+		applyPrimaryActionState(problem.isBlank());
+		actionColumn.addView(primaryActionButton, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(PRIMARY_BUTTON_HEIGHT_DP)));
 	}
 
 	private void buildContractsContent() {
@@ -1952,7 +1917,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		LinearLayout.LayoutParams pillParams = new LinearLayout.LayoutParams(dp(6), dp(6));
 		pillParams.setMargins(0, 0, dp(5), 0);
 		rewardRow.addView(rewardPill, pillParams);
-		TextView reward = hintText(t("screen.virtual_craft.holographic_shop.contracts.reward", contract.rewardText()));
+		TextView reward = hintText(t("screen.virtual_craft.holographic_shop.contracts.reward", contractRewardText(contract)));
 		reward.setMaxLines(1);
 		reward.setEllipsize(TextUtils.TruncateAt.END);
 		reward.setTextColor(rewardColor);
@@ -1983,7 +1948,8 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 				});
 		claim.setEnabled(complete && !contract.claimed());
 		claim.setTextColor(complete && !contract.claimed() ? GREEN : TEXT_DIM);
-		actionRow.addView(claim, new LinearLayout.LayoutParams(dp(76), dp(30)));
+		claim.setAlpha(complete && !contract.claimed() ? 1f : 0.46f);
+		actionRow.addView(claim, new LinearLayout.LayoutParams(dp(76), dp(QUICK_BUTTON_HEIGHT_DP)));
 		card.addView(actionRow);
 		return card;
 	}
@@ -2019,7 +1985,8 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			Button claimAll = actionButton(t("screen.virtual_craft.holographic_shop.contracts.claim_all"), GREEN, this::claimAllContracts);
 			claimAll.setEnabled(any);
 			claimAll.setTextColor(any ? GREEN : TEXT_DIM);
-			actionColumn.addView(claimAll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(30)));
+			claimAll.setAlpha(any ? 1f : 0.46f);
+			actionColumn.addView(claimAll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(PRIMARY_BUTTON_HEIGHT_DP)));
 		}
 	}
 
@@ -2127,7 +2094,28 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 
 	private String contractProgressText(DailyContractSnapshot contract) {
 		long progress = Math.min(contract.progress(), contract.target());
+		if ("shop_trade".equals(contract.typeId()) || "convert_currency".equals(contract.typeId())) {
+			return CryptoCurrency.USDT.formatCompact(progress) + " / "
+					+ CryptoCurrency.USDT.formatCompact(contract.target()) + " USDT";
+		}
 		return progress + "/" + contract.target();
+	}
+
+	private String contractRewardText(DailyContractSnapshot contract) {
+		String itemKey = switch (contract.rewardKind() == null ? "" : contract.rewardKind()) {
+			case "data_fragment" -> "item.virtual_craft.data_fragment";
+			case "explorer_hash_voucher" -> "item.virtual_craft.explorer_hash_voucher";
+			case "encrypted_hash_voucher" -> "item.virtual_craft.encrypted_hash_voucher";
+			case "quantum_hash_voucher" -> "item.virtual_craft.quantum_hash_voucher";
+			default -> "";
+		};
+		if (itemKey.isEmpty()) {
+			return contract.rewardText();
+		}
+		String amount = contract.rewardText().endsWith("x")
+				? contract.rewardText().substring(0, contract.rewardText().length() - 1)
+				: contract.rewardText();
+		return amount + " \u00d7 " + t(itemKey);
 	}
 
 	/** Horizontal chip row of the player's most recent transfer recipients. */
@@ -2141,14 +2129,14 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			chip.setGravity(Gravity.CENTER);
 			chip.setTextSize(12f);
 			chip.setOnClickListener(v -> {
-				transferTargetText = contact.name();
+				applyTransferTarget(contact.name());
 				if (!contact.lastMemo().isBlank()) {
 					transferMemoText = contact.lastMemo();
 					pendingInputOverrides.put(FocusTarget.TRANSFER_MEMO, transferMemoText);
+					if (transferMemoInput != null) {
+						transferMemoInput.setText(transferMemoText);
+					}
 				}
-				pendingInputOverrides.put(FocusTarget.TRANSFER_TARGET, transferTargetText);
-				refreshPlayerSuggestions();
-				requestRefresh(false, FocusTarget.TRANSFER_TARGET);
 			});
 			HolographicTheme.interactive(chip);
 			LinearLayout.LayoutParams params = weighted(0, dp(26), 1f);
@@ -2158,6 +2146,16 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			row.addView(chip, params);
 		}
 		return row;
+	}
+
+	private void applyTransferTarget(String playerName) {
+		transferTargetText = playerName == null ? "" : playerName.trim();
+		pendingInputOverrides.put(FocusTarget.TRANSFER_TARGET, transferTargetText);
+		if (transferTargetInput != null && !transferTargetInput.getText().toString().equals(transferTargetText)) {
+			transferTargetInput.setText(transferTargetText);
+		}
+		refreshPlayerSuggestions();
+		updateLiveStatus();
 	}
 
 	private View playerSuggestionGrid() {
@@ -2175,10 +2173,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 				Button button = navButton(playerName, null);
 				button.setGravity(Gravity.CENTER);
 				button.setOnClickListener(v -> {
-					transferTargetText = playerName;
-					pendingInputOverrides.put(FocusTarget.TRANSFER_TARGET, transferTargetText);
-					refreshPlayerSuggestions();
-					requestRefresh(false, FocusTarget.TRANSFER_TARGET);
+					applyTransferTarget(playerName);
 				});
 				HolographicTheme.interactive(button);
 				if (column == 0) {
@@ -2204,11 +2199,9 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		row.setGravity(Gravity.CENTER_VERTICAL);
 		row.setPadding(dp(10), dp(8), dp(10), dp(8));
 		row.setOnClickListener(v -> {
-			transferTargetText = playerName;
-			pendingInputOverrides.put(FocusTarget.TRANSFER_TARGET, transferTargetText);
+			applyTransferTarget(playerName);
 			pickerTarget = PickerTarget.NONE;
-			refreshPlayerSuggestions();
-			requestRefresh(false, FocusTarget.TRANSFER_TARGET);
+			refreshPicker();
 		});
 		HolographicTheme.interactive(row);
 
@@ -2324,6 +2317,9 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		}
 		if (shopTooltipOverlay.getVisibility() != View.VISIBLE) {
 			shopTooltipOverlay.setVisibility(View.VISIBLE);
+			if (card != null) {
+				HolographicTheme.popIn(card);
+			}
 		}
 		// 不需要 bringToFront()：shopTooltipOverlay 在 onCreateView 末尾才 addView 到 root，
 		// 是 root 的最后一个子 view，自然处于最顶层 z-order，已盖过 window 和 actionShell。
@@ -2468,7 +2464,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		Button favBtn = compactIconButton(favorite ? "★" : "☆", () -> toggleFavoriteOffer(offer));
 		favBtn.setTextColor(favorite ? AMBER : TEXT_SOFT);
 		// 单字符 ★/☆ 仍需要给圆角背景留安全边，否则 ModernUI 父行偶发裁掉描边。
-		var favParams = new LinearLayout.LayoutParams(dp(40), dp(34));
+		var favParams = new LinearLayout.LayoutParams(dp(40), dp(CONTROL_HEIGHT_DP));
 		favParams.setMargins(dp(10), 0, 0, 0);
 		row.addView(favBtn, favParams);
 		return row;
@@ -2536,7 +2532,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 						? dev.tatami.virtualcraft.network.WalletPreferencesActionPayload.Action.ADD_FAVORITE
 						: dev.tatami.virtualcraft.network.WalletPreferencesActionPayload.Action.REMOVE_FAVORITE,
 				offer.id()));
-		requestRefresh(false, captureFocusTarget());
+		refreshShopCatalogList();
 	}
 
 	/**
@@ -2578,12 +2574,12 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		var namesParams = weighted(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
 		namesParams.setMargins(dp(10), 0, 0, 0);
 		TextView nameText = bodyText(currency.displayName().getString());
-		nameText.setMaxLines(1);
-		nameText.setEllipsize(TextUtils.TruncateAt.END);
+		nameText.setSingleLine(true);
+		nameText.setEllipsize(null);
 		names.addView(nameText);
 		TextView tickerText = hintText(currency.ticker());
-		tickerText.setMaxLines(1);
-		tickerText.setEllipsize(TextUtils.TruncateAt.END);
+		tickerText.setSingleLine(true);
+		tickerText.setEllipsize(null);
 		names.addView(tickerText);
 		head.addView(names, namesParams);
 		card.addView(head, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -2595,8 +2591,8 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		valueText.setTextSize(15f);
 		valueText.setTextColor(GREEN);
 		valueText.setGravity(Gravity.END);
-		valueText.setMaxLines(1);
-		valueText.setEllipsize(TextUtils.TruncateAt.END);
+		valueText.setSingleLine(true);
+		valueText.setEllipsize(null);
 		card.addView(valueText, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 		return card;
 	}
@@ -2643,20 +2639,21 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		var textParams = weighted(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
 		textParams.setMargins(dp(10), 0, dp(8), 0);
 		TextView titleView = bodyText(title);
-		titleView.setMaxLines(1);
-		titleView.setEllipsize(TextUtils.TruncateAt.END);
+		titleView.setSingleLine(true);
+		titleView.setEllipsize(null);
 		text.addView(titleView);
 		TextView secondaryView = hintText(secondary);
-		secondaryView.setMaxLines(1);
-		secondaryView.setEllipsize(TextUtils.TruncateAt.END);
+		secondaryView.setSingleLine(true);
+		secondaryView.setEllipsize(null);
 		text.addView(secondaryView);
 		row.addView(text, textParams);
 
 		TextView primaryView = bodyText(primary);
 		primaryView.setTextColor(selected ? CYAN : TEXT);
 		primaryView.setGravity(Gravity.END);
-		primaryView.setMaxLines(2);
-		primaryView.setEllipsize(TextUtils.TruncateAt.END);
+		primaryView.setTextSize(12f);
+		primaryView.setSingleLine(true);
+		primaryView.setEllipsize(null);
 		row.addView(primaryView);
 		return row;
 	}
@@ -2704,7 +2701,11 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		row.addView(stepButton("-", Math.max(1, current - 1), onChanged), weighted(0, ViewGroup.LayoutParams.MATCH_PARENT, 0.72f));
 		var valueParams = weighted(0, ViewGroup.LayoutParams.MATCH_PARENT, 0.92f);
 		valueParams.setMargins(dp(6), 0, dp(6), 0);
-		row.addView(valueChip(Integer.toString(current)), valueParams);
+		TextView value = valueChip(Integer.toString(current));
+		if (currentPage == Page.SHOP) {
+			shopQuantityValue = value;
+		}
+		row.addView(value, valueParams);
 		row.addView(stepButton("+", Math.min(max, current + 1), onChanged), weighted(0, ViewGroup.LayoutParams.MATCH_PARENT, 0.72f));
 		var maxParams = weighted(0, ViewGroup.LayoutParams.MATCH_PARENT, 0.92f);
 		maxParams.setMargins(dp(6), 0, 0, 0);
@@ -2712,7 +2713,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		return row;
 	}
 
-	private View valueChip(String text) {
+	private TextView valueChip(String text) {
 		TextView chip = new TextView(requireContext());
 		chip.setText(text);
 		chip.setTextSize(13f);
@@ -2733,26 +2734,30 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		// HoloSeekBar 内部直接 @Override onGenericMotionEvent 处理 ACTION_SCROLL，
 		// 比 setOnGenericMotionListener 更稳：listener 受 ENABLED_MASK 校验，
 		// 嵌套 ScrollView 时偶发吃事件；onGenericMotionEvent 直接走 dispatch chain。
-		SeekBar seekBar = new HoloSeekBar(requireContext());
+		HoloSeekBar seekBar = new HoloSeekBar(requireContext());
 		seekBar.setMin(min);
 		seekBar.setMax(max);
 		seekBar.setProgress(clampInt(current, min, max));
+		if (currentPage == Page.SHOP) {
+			shopQuantitySlider = seekBar;
+		} else if (currentPage == Page.MINING) {
+			miningQuantitySlider = seekBar;
+		}
 		seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
 			@Override
 			public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
 				int resolved = clampInt(progress, min, max);
 				value.setText(label + ": " + resolved);
 				onChanged.accept(resolved);
-				if (!fromUser) {
-					requestRefresh(false, FocusTarget.NONE);
-				} else {
-					updateLiveStatus();
+				if (shopQuantityValue != null) {
+					shopQuantityValue.setText(Integer.toString(resolved));
 				}
+				updateLiveStatus();
 			}
 
 			@Override
 			public void onStopTrackingTouch(SeekBar seekBar) {
-				requestRefresh(false, FocusTarget.NONE);
+				updateLiveStatus();
 			}
 		});
 		block.addView(seekBar, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -2771,11 +2776,12 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		LinearLayout block = vertical();
 		TextView value = hintText(label + ": " + formatTickerAmount(currency, safeCurrent));
 		block.addView(value);
-		SeekBar seekBar = new HoloSeekBar(requireContext());
+		HoloSeekBar seekBar = new HoloSeekBar(requireContext());
 		seekBar.setMin(0);
 		seekBar.setMax(AMOUNT_SLIDER_STEPS);
 		seekBar.setProgress(progressForAmount(safeCurrent, safeMax));
 		seekBar.setEnabled(safeMax > 0L);
+		amountSliders.put(focusTarget, seekBar);
 		seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
 			@Override
 			public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
@@ -2787,16 +2793,12 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 					mirrorInput.setText(text);
 				}
 				pendingInputOverrides.put(focusTarget, text);
-				if (!fromUser) {
-					requestRefresh(false, focusTarget);
-				} else {
-					updateLiveStatus();
-				}
+				updateLiveStatus();
 			}
 
 			@Override
 			public void onStopTrackingTouch(SeekBar seekBar) {
-				requestRefresh(false, focusTarget);
+				updateLiveStatus();
 			}
 		});
 		block.addView(seekBar, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -2814,11 +2816,12 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		LinearLayout block = vertical();
 		TextView value = hintText(label + ": " + safeCurrent + " / " + safeMax);
 		block.addView(value);
-		SeekBar seekBar = new HoloSeekBar(requireContext());
+		HoloSeekBar seekBar = new HoloSeekBar(requireContext());
 		seekBar.setMin(0);
 		seekBar.setMax(AMOUNT_SLIDER_STEPS);
 		seekBar.setProgress(progressForAmount(safeCurrent, safeMax));
 		seekBar.setEnabled(safeMax > 0L);
+		amountSliders.put(focusTarget, seekBar);
 		seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
 			@Override
 			public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
@@ -2830,16 +2833,12 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 					mirrorInput.setText(text);
 				}
 				pendingInputOverrides.put(focusTarget, text);
-				if (!fromUser) {
-					requestRefresh(false, focusTarget);
-				} else {
-					updateLiveStatus();
-				}
+				updateLiveStatus();
 			}
 
 			@Override
 			public void onStopTrackingTouch(SeekBar seekBar) {
-				requestRefresh(false, focusTarget);
+				updateLiveStatus();
 			}
 		});
 		block.addView(seekBar, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -2851,28 +2850,20 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	}
 
 	private View quickAmountRow(CryptoCurrency currency, long maxMinor, java.util.function.Consumer<String> onPicked, FocusTarget focusTarget) {
-		LinearLayout block = vertical();
-		LinearLayout topRow = new LinearLayout(requireContext());
-		topRow.setOrientation(LinearLayout.HORIZONTAL);
-		// 致命 bug 修复：weighted() 第二参 raw int 会直接作为 px 传给
-		// LinearLayout.LayoutParams。原代码 weighted(0, QUICK_BUTTON_HEIGHT_DP=32, 1f)
-		// 将按钮高设成 32 像素 (约当 dp(16))，12sp 字体需要 >= dp(22)
-		// 才能完整画出 → 文字被垂直裁成空白。所有调用点都改 dp()。
-		topRow.addView(quickAmountButton("25%", currency, maxMinor, 1, 4, onPicked, focusTarget), weighted(0, dp(QUICK_BUTTON_HEIGHT_DP), 1f));
+		LinearLayout row = new LinearLayout(requireContext());
+		row.setOrientation(LinearLayout.HORIZONTAL);
+		row.addView(quickAmountButton("25%", currency, maxMinor, 1, 4, onPicked, focusTarget),
+				weighted(0, dp(QUICK_BUTTON_HEIGHT_DP), 1f));
 		var halfParams = weighted(0, dp(QUICK_BUTTON_HEIGHT_DP), 1f);
-		halfParams.setMargins(dp(6), 0, 0, 0);
-		topRow.addView(quickAmountButton("50%", currency, maxMinor, 1, 2, onPicked, focusTarget), halfParams);
-		block.addView(topRow, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-		block.addView(spacer(dp(6)));
-
-		LinearLayout bottomRow = new LinearLayout(requireContext());
-		bottomRow.setOrientation(LinearLayout.HORIZONTAL);
-		bottomRow.addView(quickAmountButton(t("screen.virtual_craft.holographic_shop.quick_all"), currency, maxMinor, 1, 1, onPicked, focusTarget), weighted(0, dp(QUICK_BUTTON_HEIGHT_DP), 1f));
+		halfParams.setMargins(dp(4), 0, 0, 0);
+		row.addView(quickAmountButton("50%", currency, maxMinor, 1, 2, onPicked, focusTarget), halfParams);
+		var allParams = weighted(0, dp(QUICK_BUTTON_HEIGHT_DP), 1f);
+		allParams.setMargins(dp(4), 0, 0, 0);
+		row.addView(quickAmountButton(t("screen.virtual_craft.holographic_shop.quick_all"), currency, maxMinor, 1, 1, onPicked, focusTarget), allParams);
 		var clearParams = weighted(0, dp(QUICK_BUTTON_HEIGHT_DP), 1f);
-		clearParams.setMargins(dp(6), 0, 0, 0);
-		bottomRow.addView(clearAmountButton(onPicked, focusTarget), clearParams);
-		block.addView(bottomRow, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-		return block;
+		clearParams.setMargins(dp(4), 0, 0, 0);
+		row.addView(clearAmountButton(onPicked, focusTarget), clearParams);
+		return row;
 	}
 
 	private Button quickAmountButton(String label, CryptoCurrency currency, long maxMinor, int numerator, int denominator, java.util.function.Consumer<String> onPicked, FocusTarget focusTarget) {
@@ -2880,33 +2871,60 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			long balance = Math.max(0L, maxMinor);
 			long picked = denominator <= 1 ? balance : Math.max(0L, (balance / denominator) * numerator + ((balance % denominator) * numerator) / denominator);
 			String value = currency.formatFixed(picked);
-			onPicked.accept(value);
-			pendingInputOverrides.put(focusTarget, value);
-			requestRefresh(false, focusTarget);
+			applyAmountDraft(focusTarget, value, onPicked, progressForAmount(picked, balance));
 		});
 	}
 
 	private Button clearAmountButton(java.util.function.Consumer<String> onPicked, FocusTarget focusTarget) {
 		return compactActionButton(t("screen.virtual_craft.holographic_shop.clear"), () -> {
-			onPicked.accept("");
-			pendingInputOverrides.put(focusTarget, "");
-			requestRefresh(false, focusTarget);
+			applyAmountDraft(focusTarget, "", onPicked, 0);
 		});
+	}
+
+	private void applyAmountDraft(FocusTarget target,
+			String value,
+			java.util.function.Consumer<String> onChanged,
+			int sliderProgress) {
+		onChanged.accept(value);
+		pendingInputOverrides.put(target, value);
+		EditText input = inputFor(target);
+		if (input != null && !input.getText().toString().equals(value)) {
+			input.setText(value);
+		}
+		HoloSeekBar slider = amountSliders.get(target);
+		if (slider != null && slider.getProgress() != sliderProgress) {
+			slider.setProgress(sliderProgress);
+		}
+		updateLiveStatus();
+	}
+
+	private EditText inputFor(FocusTarget target) {
+		return switch (target) {
+			case WALLET_AMOUNT -> walletAmountInput;
+			case CONVERT_AMOUNT -> convertAmountInput;
+			case TRANSFER_TARGET -> transferTargetInput;
+			case TRANSFER_AMOUNT -> transferAmountInput;
+			case TRANSFER_MEMO -> transferMemoInput;
+			case SHOP_SEARCH -> shopSearchInput;
+			case MINING_AMOUNT -> miningAmountInput;
+			case NONE -> null;
+		};
 	}
 
 	private View statusCard(String summary, String issue, int accentColor) {
 		LinearLayout card = card(PANEL_ROW, accentColor, 10f);
 		card.setPadding(dp(12), dp(12), dp(12), dp(12));
 		TextView summaryView = bodyText(summary);
+		summaryView.setSingleLine(false);
 		summaryView.setMaxLines(2);
-		summaryView.setEllipsize(TextUtils.TruncateAt.END);
+		summaryView.setEllipsize(null);
 		card.addView(summaryView);
 		if (issue != null && !issue.isBlank()) {
 			card.addView(spacer(dp(4)));
 			TextView issueView = hintText(issue);
 			issueView.setTextColor(accentColor == GREEN ? TEXT_DIM : accentColor);
 			issueView.setMaxLines(2);
-			issueView.setEllipsize(TextUtils.TruncateAt.END);
+			issueView.setEllipsize(null);
 			card.addView(issueView);
 		}
 		return card;
@@ -2923,15 +2941,16 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		LinearLayout card = card(PANEL_ROW, m.accent(), 10f);
 		card.setPadding(dp(12), dp(12), dp(12), dp(12));
 		TextView summaryView = bodyText(m.summary());
+		summaryView.setSingleLine(false);
 		summaryView.setMaxLines(2);
-		summaryView.setEllipsize(TextUtils.TruncateAt.END);
+		summaryView.setEllipsize(null);
 		card.addView(summaryView);
 		card.addView(spacer(dp(4)));
 		// Always create the issue row (even when blank) so live updates can toggle it via
 		// visibility instead of adding/removing children mid-drag.
 		TextView issueView = hintText("");
 		issueView.setMaxLines(2);
-		issueView.setEllipsize(TextUtils.TruncateAt.END);
+		issueView.setEllipsize(null);
 		card.addView(issueView);
 		liveStatusCardView = card;
 		liveStatusSummaryView = summaryView;
@@ -2955,14 +2974,29 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			}
 		}
 		if (liveStatusCardView != null) {
-			liveStatusCardView.setBackground(HolographicTheme.acrylic(PANEL_ROW, m.accent(), 10f));
+			liveStatusCardView.setBackground(rounded(PANEL_ROW, m.accent(), 10f, 1));
 		}
+		applyPrimaryActionState(m.accent() != AMBER && m.accent() != RED);
+	}
+
+	private void applyPrimaryActionState(boolean enabled) {
+		if (primaryActionButton == null) {
+			return;
+		}
+		primaryActionButton.setEnabled(enabled);
+		primaryActionButton.setAlpha(enabled ? 1f : 0.48f);
 	}
 
 	/** Recompute and re-render the live status card from the current model, if one is active. */
 	private void updateLiveStatus() {
 		if (liveStatusModel != null) {
 			applyLiveStatus(liveStatusModel.get());
+		}
+		if (convertPreviewValue != null) {
+			convertPreviewValue.setText(formatTickerAmount(convertTargetCurrency, convertTargetAmount()));
+		}
+		if (miningPreviewValue != null) {
+			miningPreviewValue.setText(formatTickerAmount(miningSettlementCurrency, miningPayoutMinor()));
 		}
 	}
 
@@ -3034,7 +3068,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		if (subtitle != null && !subtitle.isBlank()) {
 			TextView subtitleView = hintText(subtitle);
 			subtitleView.setMaxLines(2);
-			subtitleView.setEllipsize(TextUtils.TruncateAt.END);
+			subtitleView.setEllipsize(null);
 			header.addView(subtitleView);
 		}
 		return header;
@@ -3046,7 +3080,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		state.addView(bodyText(title));
 		TextView subtitleView = hintText(subtitle);
 		subtitleView.setMaxLines(2);
-		subtitleView.setEllipsize(TextUtils.TruncateAt.END);
+		subtitleView.setEllipsize(null);
 		state.addView(spacer(dp(4)));
 		state.addView(subtitleView);
 		return state;
@@ -3055,14 +3089,14 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	private Button navButton(String text, Page page) {
 		Button button = new Button(requireContext());
 		button.setText(text);
-		button.setTextSize(13f);
+		button.setTextSize(12.5f);
 		button.setSingleLine();
-		button.setEllipsize(TextUtils.TruncateAt.END);
+		button.setEllipsize(null);
 		boolean selected = page != null && page == currentPage;
 		button.setTextColor(selected ? TEXT : TEXT_DIM);
 		button.setGravity(Gravity.CENTER_VERTICAL | Gravity.LEFT);
-		button.setPadding(dp(11), dp(6), dp(11), dp(6));
-		button.setBackground(rounded(selected ? PANEL_ACTIVE : PANEL_BUTTON, selected ? CYAN : WINDOW_STROKE, 9f, 1));
+		button.setPadding(dp(10), dp(5), dp(10), dp(5));
+		button.setBackground(rounded(selected ? PANEL_ACTIVE : 0x30FFFFFF, selected ? CYAN : 0, 9f, 1));
 		if (page != null) {
 			button.setOnClickListener(v -> navigateTo(page));
 		}
@@ -3125,10 +3159,20 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	 */
 	private Button navIconButton(ResourceLocation iconId, String text, Page page) {
 		Button button = navButton(text, page);
-		ImageDrawable icon = itemIcon(iconId, 16);
+		ImageDrawable icon = itemIcon(iconId, ICON_SMALL_DP);
 		if (icon != null) {
 			button.setCompoundDrawablesRelative(icon, null, null, null);
-			button.setCompoundDrawablePadding(dp(8));
+			button.setCompoundDrawablePadding(dp(7));
+		}
+		int shortcut = 0;
+		for (int index = 0; index < NAV_ORDER.length; index++) {
+			if (NAV_ORDER[index] == page) {
+				shortcut = index + 1;
+				break;
+			}
+		}
+		if (shortcut > 0) {
+			button.setTooltipText(shortcut + " · " + text);
 		}
 		return button;
 	}
@@ -3173,26 +3217,10 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	private Button actionButton(String text, int accentColor, Runnable action) {
 		Button button = navButton(text, null);
 		button.setGravity(Gravity.CENTER);
+		button.setTextSize(12.5f);
+		button.setMinimumHeight(dp(CONTROL_HEIGHT_DP));
 		button.setBackground(rounded(PANEL_BUTTON, accentColor, 9f, 1));
 		button.setOnClickListener(v -> action.run());
-		return button;
-	}
-
-	private Button headerIconButton(String glyph, int accentColor, Runnable action) {
-		Button button = new Button(requireContext());
-		button.setText(glyph);
-		button.setTextSize(19f);
-		button.setSingleLine();
-		button.setGravity(Gravity.CENTER);
-		button.setTextColor(TEXT);
-		button.setMinimumWidth(0);
-		button.setMinimumHeight(0);
-		// Symmetric padding so the status glyph sits dead-centre in the button.
-		// The old asymmetric (right/bottom) padding nudged it up-left.
-		button.setPadding(0, 0, 0, 0);
-		button.setBackground(rounded(PANEL_BUTTON, accentColor, 9f, 1));
-		button.setOnClickListener(v -> action.run());
-		HolographicTheme.interactive(button);
 		return button;
 	}
 
@@ -3204,14 +3232,14 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	private Button compactActionButton(String text, Runnable action) {
 		Button button = new Button(requireContext());
 		button.setText(text);
-		button.setTextSize(12f);
+		button.setTextSize(11.5f);
 		button.setTextColor(TEXT_DIM);
 		button.setGravity(Gravity.CENTER);
-		// 关键：不调 setSingleLine、不 setEllipsize，让 TextView 走默认多行 wrap，
-		// 短文本 “25%” / “清空” 一行就能放下，长文本可换行不被裁。
+		button.setSingleLine(true);
+		button.setEllipsize(null);
 		button.setMinimumWidth(0);
 		button.setMinimumHeight(0);
-		button.setPadding(dp(8), dp(6), dp(8), dp(6));
+		button.setPadding(dp(6), dp(5), dp(6), dp(5));
 		button.setBackground(rounded(PANEL_BUTTON, WINDOW_STROKE, 9f, 1));
 		button.setOnClickListener(v -> action.run());
 		HolographicTheme.interactive(button);
@@ -3236,8 +3264,9 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	private Button modeButton(String text, boolean selected, Runnable action) {
 		Button button = new Button(requireContext());
 		button.setText(text);
-		button.setTextSize(12f);
+		button.setTextSize(11.5f);
 		button.setSingleLine();
+		button.setEllipsize(null);
 		button.setTextColor(selected ? TEXT : TEXT_DIM);
 		button.setGravity(Gravity.CENTER);
 		button.setPadding(dp(8), dp(6), dp(8), dp(6));
@@ -3286,6 +3315,28 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		input.setPadding(dp(12), dp(6), dp(12), dp(6));
 		input.setBackground(rounded(PANEL_ROW, WINDOW_STROKE, 9f, 1));
 		return input;
+	}
+
+	private void bindLiveInput(EditText input,
+			FocusTarget target,
+			java.util.function.Consumer<String> onChanged) {
+		input.addTextChangedListener(new TextWatcher() {
+			@Override
+			public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+			}
+
+			@Override
+			public void onTextChanged(CharSequence s, int start, int before, int count) {
+				String value = s.toString();
+				pendingInputOverrides.remove(target);
+				onChanged.accept(value);
+				updateLiveStatus();
+			}
+
+			@Override
+			public void afterTextChanged(Editable s) {
+			}
+		});
 	}
 
 	/**
@@ -3357,7 +3408,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	 */
 	private static void applyTextSafe(TextView view) {
 		view.setSingleLine(true);
-		view.setEllipsize(TextUtils.TruncateAt.END);
+		view.setEllipsize(null);
 	}
 
 	private TextView fieldLabel(String text) {
@@ -3369,9 +3420,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	private LinearLayout card(int fill, int stroke, float radiusDp) {
 		LinearLayout card = new LinearLayout(requireContext());
 		card.setOrientation(LinearLayout.VERTICAL);
-		// P3: 所有卡组从 simple rounded 升级为亚克力，获得玻璃高光线。
-		// 在子项（button/chip/input）仍使用 rounded（不需高光，避免叠加描边遮住子元素）。
-		card.setBackground(HolographicTheme.acrylic(fill, stroke, radiusDp));
+		card.setBackground(rounded(fill, stroke, radiusDp, stroke == 0 ? 0 : 1));
 		return card;
 	}
 
@@ -3458,13 +3507,21 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	 * 完全受父容器管控。</p>
 	 */
 	private View currencyIconView(CryptoCurrency currency, int sizeDp) {
-		ImageView iv = new ImageView(requireContext());
 		ImageDrawable d = HolographicIconCache.currencyIcon(currency, dp(sizeDp));
 		if (d != null) {
+			ImageView iv = new ImageView(requireContext());
 			iv.setImageDrawable(d);
+			iv.setLayoutParams(squareLayout(sizeDp));
+			return iv;
 		}
-		iv.setLayoutParams(squareLayout(sizeDp));
-		return iv;
+		TextView badge = new TextView(requireContext());
+		badge.setText(currency.ticker().substring(0, 1));
+		badge.setTextSize(sizeDp >= ICON_LARGE_DP ? 13f : 10f);
+		badge.setTextColor(0xFFFFFFFF);
+		badge.setGravity(Gravity.CENTER);
+		badge.setBackground(rounded(currencyColor(currency), 0, 999f, 0));
+		badge.setLayoutParams(squareLayout(sizeDp));
+		return badge;
 	}
 
 	/**
@@ -3788,7 +3845,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		contentColumn.addView(spacer(dp(4)));
 
 		// Candlestick chart host.
-		marketChartHeightPx = dp(220);
+		marketChartHeightPx = dp(168);
 		marketChartHost = new LinearLayout(requireContext());
 		marketChartHost.setOrientation(LinearLayout.VERTICAL);
 		contentColumn.addView(marketChartHost, new LinearLayout.LayoutParams(
@@ -3799,7 +3856,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		marketVolumeHost = new LinearLayout(requireContext());
 		marketVolumeHost.setOrientation(LinearLayout.VERTICAL);
 		contentColumn.addView(marketVolumeHost, new LinearLayout.LayoutParams(
-				ViewGroup.LayoutParams.MATCH_PARENT, dp(46)));
+				ViewGroup.LayoutParams.MATCH_PARENT, dp(36)));
 		contentColumn.addView(spacer(dp(8)));
 
 		// Stats host (24h high / low / amplitude / volume).
@@ -3911,8 +3968,8 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			if (marketVolumeHost != null) {
 				marketVolumeHost.removeAllViews();
 				if (chartReady) {
-					marketVolumeHost.addView(buildVolumeChart(candles, dp(46)),
-							new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(46)));
+					marketVolumeHost.addView(buildVolumeChart(candles, dp(36)),
+							new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(36)));
 				}
 			}
 			marketChartKey = chartKey;
@@ -4623,6 +4680,18 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		return chip;
 	}
 
+	private String pageLabel(Page page) {
+		return switch (page) {
+			case WALLET -> t("screen.virtual_craft.holographic_shop.page.wallet");
+			case MARKET -> t("screen.virtual_craft.holographic_shop.page.market");
+			case CONVERT -> t("screen.virtual_craft.holographic_shop.page.convert");
+			case CONTRACTS -> t("screen.virtual_craft.holographic_shop.page.contracts");
+			case TRANSFER -> t("screen.virtual_craft.holographic_shop.page.transfer");
+			case SHOP -> t("screen.virtual_craft.holographic_shop.page.shop");
+			case MINING -> t("screen.virtual_craft.holographic_shop.page.mining");
+		};
+	}
+
 	private String actionTitle() {
 		return switch (currentPage) {
 			case WALLET -> t("screen.virtual_craft.holographic_shop.wallet.actions");
@@ -4636,18 +4705,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	}
 
 	private String actionSubtitle() {
-		return switch (currentPage) {
-			case WALLET -> selectedWalletCurrency.displayName().getString();
-			case CONVERT -> "";
-			case SHOP -> {
-				ShopOffer offer = selectedOffer();
-				yield offer == null ? t("screen.virtual_craft.holographic_shop.shop.empty") : offer.displayName().getString();
-			}
-			case TRANSFER -> transferCurrency.ticker();
-			case MINING -> miningSettlementCurrency.ticker();
-			case CONTRACTS -> t("screen.virtual_craft.holographic_shop.contracts.subtitle_short");
-					case MARKET -> "";
-		};
+		return "";
 	}
 
 	private String convertPairLabel() {
@@ -5279,20 +5337,9 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 
 	/**
 	 * 返回完整钱包地址。地址是 {@code "VC-" + 10 字符 hex}，总长 13。
-	 * sidebar metaCard 区域宽裕、能装下完整地址，不再用 {@link #shortWalletAddress()} 的 9 字符缩写。
 	 */
 	private String displayWalletAddress() {
 		return walletAddress == null || walletAddress.isBlank() ? "VC-UNKNOWN" : walletAddress;
-	}
-
-	private String shortWalletAddress() {
-		if (walletAddress == null || walletAddress.isBlank()) {
-			return "VC-UNKNOWN";
-		}
-		// 5+…+3 = 9 字符，能塞进 nav 侧栏 dp(126) 的可视宽度；
-		// 点击请复制钱包地址的 header handler 仍拿完整 walletAddress。
-		return walletAddress.length() <= 9 ? walletAddress
-				: walletAddress.substring(0, 5) + "\u2026" + walletAddress.substring(walletAddress.length() - 3);
 	}
 
 	private String formatTickerAmount(CryptoCurrency currency, long minorAmount) {
