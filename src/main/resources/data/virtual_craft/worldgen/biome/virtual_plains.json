@@ -40,8 +40,8 @@
     [
       "virtual_craft:virtual_world_electric_ore",
       "virtual_craft:virtual_world_deepslate_electric_ore",
-      "virtual_craft:virtual_world_virtual_silver_ore",
       "virtual_craft:virtual_world_virtual_aluminum_ore",
+      "virtual_craft:virtual_world_virtual_silver_ore",
       "virtual_craft:virtual_world_virtual_gold_ore",
       "virtual_craft:virtual_world_virtual_titanium_ore",
       "virtual_craft:virtual_world_virtual_chromium_ore"

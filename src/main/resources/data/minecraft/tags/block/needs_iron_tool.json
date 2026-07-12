@@ -4,6 +4,8 @@
     "virtual_craft:electric_condenser",
     "virtual_craft:holographic_shop",
     "virtual_craft:electric_ball_generator",
-    "virtual_craft:pow_miner"
+    "virtual_craft:pow_miner",
+    "virtual_craft:virtual_silver_ore",
+    "virtual_craft:virtual_gold_ore"
   ]
 }

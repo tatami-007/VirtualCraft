@@ -20,7 +20,7 @@ import net.neoforged.neoforge.items.SlotItemHandler;
 
 @SuppressWarnings("this-escape") // addSlot() in the constructor is the required AbstractContainerMenu pattern.
 public class ElectricBallGeneratorMenu extends AbstractContainerMenu {
-	private static final int FUEL_SLOT = 0;
+	private static final int FUEL_SLOT = ElectricBallGeneratorBlockEntity.FUEL_SLOT;
 	private static final int PLAYER_INV_START = 1;
 	private static final int PLAYER_INV_END = PLAYER_INV_START + 27;
 	private static final int HOTBAR_START = PLAYER_INV_END;

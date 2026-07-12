@@ -36,6 +36,7 @@ public class PowMinerScreen extends AbstractContainerScreen<PowMinerMenu> {
 	private static final int ARROW_W = 52, ARROW_H = 8;
 	private static final int ENERGY_X = 8, ENERGY_Y = 22;        // 垂直能量条 (MCPP 16×52，中点 (16, 48)，占 Y 22..74 在 widget 区域居中)
 	private static final int ENERGY_W = 16, ENERGY_H = 52;
+	private static final int CELL_X = 8, CELL_Y = 76;
 
 	public PowMinerScreen(PowMinerMenu menu, Inventory playerInventory, Component title) {
 		super(menu, playerInventory, title);
@@ -44,7 +45,7 @@ public class PowMinerScreen extends AbstractContainerScreen<PowMinerMenu> {
 		imageHeight = 178;
 		titleLabelX = 8;
 		titleLabelY = 6;
-		inventoryLabelX = 8;
+		inventoryLabelX = 28;
 		inventoryLabelY = 84;  // v16 vanilla 标准 = imageHeight - 94 = 178-94=84
 	}
 
@@ -67,6 +68,7 @@ public class PowMinerScreen extends AbstractContainerScreen<PowMinerMenu> {
 		int left = leftPos;
 		int top = topPos;
 		MachineDraw.drawBackground(guiGraphics, left, top, imageWidth, imageHeight, BG);
+		MachineDraw.drawItemSlot(guiGraphics, left + CELL_X - 1, top + CELL_Y - 1);
 		// 算力进度条动态填充（v15：sprite 从公用 sheet 移到本机器主背景 (180, 0) 36×8 区域）
 		MachineDraw.drawHorizontalBar(guiGraphics, left + ARROW_X, top + ARROW_Y, ARROW_W, ARROW_H,
 				menu.getScaledProgress() / (double) ARROW_W, BG, 180, 0);
@@ -88,8 +90,16 @@ public class PowMinerScreen extends AbstractContainerScreen<PowMinerMenu> {
 		// v17 关键修复：vanilla 1.21.1 AbstractContainerScreen.render() **不会**自动调 renderTooltip，
 		// 所以之前根本看不到槽位物品名。必须显式调用这个 protected 方法。
 		renderTooltip(guiGraphics, mouseX, mouseY);
+		renderEmptyCellTooltip(guiGraphics, mouseX, mouseY);
 		// 追加自定义区域 tooltip（能量条/进度条），仅 hoveredSlot==null 时画。
 		renderHoverTooltips(guiGraphics, mouseX, mouseY);
+	}
+
+	private void renderEmptyCellTooltip(GuiGraphics guiGraphics, int mouseX, int mouseY) {
+		if (hoveredSlot != null && !hoveredSlot.hasItem()
+				&& MachineDraw.contains(mouseX, mouseY, leftPos + CELL_X, topPos + CELL_Y, 16, 16)) {
+			guiGraphics.renderTooltip(font, Component.translatable("screen.virtual_craft.machine.power_cell"), mouseX, mouseY);
+		}
 	}
 
 	/**

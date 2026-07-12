@@ -36,7 +36,7 @@ import net.neoforged.neoforge.items.ItemHandlerHelper;
 import net.neoforged.neoforge.items.ItemStackHandler;
 
 public class ElectricBallGeneratorBlockEntity extends BlockEntity implements MenuProvider, IConfigurableSidedMachine {
-	private static final int FUEL_SLOT = 0;
+	public static final int FUEL_SLOT = 0;
 	// v18 能量 16× 提升：每球 51,200 → 819,200 FE。
 	// MAX_RECEIVE/MAX_EXTRACT 与 ENERGY_PER_TICK 一致避免内部能量溢出丢弃。
 	private static final int MAX_ENERGY = 200_000;     // 80_000 ×2.5 — 与电凝聚器一致
@@ -56,7 +56,7 @@ public class ElectricBallGeneratorBlockEntity extends BlockEntity implements Men
 
 		@Override
 		public boolean isItemValid(int slot, ItemStack stack) {
-			return stack.is(ModItems.ELECTRIC_BALL.get());
+			return slot == FUEL_SLOT && stack.is(ModItems.ELECTRIC_BALL.get());
 		}
 	};
 	private final StarterEnergyStorage energyStorage = new StarterEnergyStorage();
@@ -225,7 +225,9 @@ public class ElectricBallGeneratorBlockEntity extends BlockEntity implements Men
 	@Override
 	protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
 		super.loadAdditional(tag, registries);
-		inventory.deserializeNBT(registries, tag.getCompound("inventory"));
+		CompoundTag inventoryTag = tag.getCompound("inventory").copy();
+		inventoryTag.putInt("Size", 1);
+		inventory.deserializeNBT(registries, inventoryTag);
 		energyStorage.deserializeNBT(registries, tag.get("energy"));
 		burnTimeRemaining = tag.getInt("burn_time_remaining");
 		autoImport = tag.getBoolean("auto_import");

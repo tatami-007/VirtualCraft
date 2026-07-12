@@ -8,6 +8,7 @@ import dev.tatami.virtualcraft.machine.MachineSideConfig;
 import dev.tatami.virtualcraft.machine.PowMinerOutputRules;
 import dev.tatami.virtualcraft.machine.SideMode;
 import dev.tatami.virtualcraft.menu.PowMinerMenu;
+import dev.tatami.virtualcraft.item.PowerCellItem;
 import dev.tatami.virtualcraft.registry.ModBlockEntities;
 import dev.tatami.virtualcraft.registry.ModBlocks;
 import dev.tatami.virtualcraft.registry.ModItems;
@@ -39,14 +40,16 @@ import net.neoforged.neoforge.items.ItemStackHandler;
 public class PowMinerBlockEntity extends BlockEntity implements MenuProvider, IConfigurableSidedMachine {
 	public static final int BASIC_OUTPUT_SLOT = PowMinerOutputRules.BASIC_OUTPUT_SLOT;
 	public static final int RARE_OUTPUT_SLOT = PowMinerOutputRules.RARE_OUTPUT_SLOT;
+	public static final int POWER_CELL_SLOT = 2;
 	private static final int OUTPUT_SLOTS = PowMinerOutputRules.OUTPUT_SLOTS;
+	private static final int INVENTORY_SLOTS = 3;
 	private static final int MAX_PROGRESS = 600;
 	private static final int MAX_ENERGY = 200_000;
 	private static final int MAX_RECEIVE = 4_000;
 	private static final int ENERGY_PER_TICK = 240;
 	private static final int TRANSFER_PER_SIDE = 16;
 	private static final float ENCRYPTED_BONUS_CHANCE = 0.08F;
-	private final ItemStackHandler inventory = new ItemStackHandler(OUTPUT_SLOTS) {
+	private final ItemStackHandler inventory = new ItemStackHandler(INVENTORY_SLOTS) {
 		@Override
 		protected void onContentsChanged(int slot) {
 			setChanged();
@@ -54,7 +57,12 @@ public class PowMinerBlockEntity extends BlockEntity implements MenuProvider, IC
 
 		@Override
 		public boolean isItemValid(int slot, ItemStack stack) {
-			return false;
+			return slot == POWER_CELL_SLOT && PowerCellItem.isPowerCell(stack);
+		}
+
+		@Override
+		public int getSlotLimit(int slot) {
+			return slot == POWER_CELL_SLOT ? 1 : super.getSlotLimit(slot);
 		}
 	};
 	private final MinerEnergyStorage energyStorage = new MinerEnergyStorage();
@@ -102,6 +110,10 @@ public class PowMinerBlockEntity extends BlockEntity implements MenuProvider, IC
 			return;
 		}
 		blockEntity.tickAutomation(level, pos);
+		int cellMultiplier = PowerCellItem.multiplier(blockEntity.inventory.getStackInSlot(POWER_CELL_SLOT));
+		if (cellMultiplier == 0) {
+			return;
+		}
 
 		if (!blockEntity.canMine()) {
 			if (blockEntity.progress != 0) {
@@ -111,12 +123,13 @@ public class PowMinerBlockEntity extends BlockEntity implements MenuProvider, IC
 			return;
 		}
 
-		if (blockEntity.energyStorage.getEnergyStored() < ENERGY_PER_TICK) {
+		int energyCost = ENERGY_PER_TICK * cellMultiplier;
+		if (blockEntity.energyStorage.getEnergyStored() < energyCost) {
 			return;
 		}
 
-		blockEntity.energyStorage.consumeEnergy(ENERGY_PER_TICK);
-		blockEntity.progress++;
+		blockEntity.energyStorage.consumeEnergy(energyCost);
+		blockEntity.progress += cellMultiplier;
 		blockEntity.setChanged();
 		if (blockEntity.progress >= MAX_PROGRESS) {
 			blockEntity.progress = 0;
@@ -233,7 +246,7 @@ public class PowMinerBlockEntity extends BlockEntity implements MenuProvider, IC
 
 	static CompoundTag normalizeInventoryTag(CompoundTag tag) {
 		CompoundTag normalized = tag.copy();
-		normalized.putInt("Size", PowMinerOutputRules.normalizedSlotCount(tag.getInt("Size")));
+		normalized.putInt("Size", INVENTORY_SLOTS);
 		return normalized;
 	}
 
@@ -253,7 +266,7 @@ public class PowMinerBlockEntity extends BlockEntity implements MenuProvider, IC
 		if (target == null) {
 			return;
 		}
-		for (int slot = 0; slot < inventory.getSlots(); slot++) {
+		for (int slot = 0; slot < OUTPUT_SLOTS; slot++) {
 			ItemStack output = inventory.getStackInSlot(slot);
 			if (output.isEmpty()) {
 				continue;

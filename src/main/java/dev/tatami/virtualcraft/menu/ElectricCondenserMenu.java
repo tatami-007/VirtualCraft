@@ -4,6 +4,7 @@ import dev.tatami.virtualcraft.blockentity.ElectricCondenserBlockEntity;
 import dev.tatami.virtualcraft.registry.ModBlocks;
 import dev.tatami.virtualcraft.registry.ModItems;
 import dev.tatami.virtualcraft.registry.ModMenuTypes;
+import dev.tatami.virtualcraft.item.PowerCellItem;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
@@ -21,7 +22,7 @@ import net.neoforged.neoforge.items.SlotItemHandler;
 
 @SuppressWarnings("this-escape") // addSlot() in the constructor is the required AbstractContainerMenu pattern.
 public class ElectricCondenserMenu extends AbstractContainerMenu {
-	private static final int MACHINE_SLOTS = 6;
+	private static final int MACHINE_SLOTS = 7;
 	private static final int PLAYER_INV_START = MACHINE_SLOTS;
 	private static final int PLAYER_INV_END = PLAYER_INV_START + 27;
 	private static final int HOTBAR_START = PLAYER_INV_END;
@@ -87,6 +88,7 @@ public class ElectricCondenserMenu extends AbstractContainerMenu {
 		addUpgradeSlot(inventory, 3, UPGRADE_ONE_X, UPGRADE_ONE_Y);
 		addUpgradeSlot(inventory, 4, UPGRADE_TWO_X, UPGRADE_TWO_Y);
 		addUpgradeSlot(inventory, 5, UPGRADE_THREE_X, UPGRADE_THREE_Y);
+		addPowerCellSlot(inventory, ElectricCondenserBlockEntity.POWER_CELL_SLOT, 8, 76);
 
 		addPlayerInventory(playerInventory);
 		addPlayerHotbar(playerInventory);
@@ -146,6 +148,10 @@ public class ElectricCondenserMenu extends AbstractContainerMenu {
 			if (!moveItemStackTo(sourceStack, 3, 6, false)) {
 				return ItemStack.EMPTY;
 			}
+		} else if (PowerCellItem.isPowerCell(sourceStack)) {
+			if (!moveItemStackTo(sourceStack, ElectricCondenserBlockEntity.POWER_CELL_SLOT, ElectricCondenserBlockEntity.POWER_CELL_SLOT + 1, false)) {
+				return ItemStack.EMPTY;
+			}
 		} else if (sourceStack.is(ModItems.ELECTRIC_BALL.get())) {
 			if (!moveItemStackTo(sourceStack, ElectricCondenserBlockEntity.BALL_SLOT, ElectricCondenserBlockEntity.BALL_SLOT + 1, false)) {
 				return ItemStack.EMPTY;
@@ -200,6 +206,15 @@ public class ElectricCondenserMenu extends AbstractContainerMenu {
 	}
 
 	private void addUpgradeSlot(ItemStackHandler inventory, int slot, int x, int y) {
+		addSlot(new SlotItemHandler(inventory, slot, x, y) {
+			@Override
+			public int getMaxStackSize() {
+				return 1;
+			}
+		});
+	}
+
+	private void addPowerCellSlot(ItemStackHandler inventory, int slot, int x, int y) {
 		addSlot(new SlotItemHandler(inventory, slot, x, y) {
 			@Override
 			public int getMaxStackSize() {

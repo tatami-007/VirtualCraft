@@ -1,0 +1,7 @@
+{
+  "replace": false,
+  "values": [
+    "virtual_craft:virtual_titanium_ore",
+    "virtual_craft:virtual_chromium_ore"
+  ]
+}

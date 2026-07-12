@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:smelting",
+  "category": "misc",
+  "group": "virtual_silver_ingot",
+  "ingredient": { "item": "virtual_craft:raw_virtual_silver" },
+  "result": { "id": "virtual_craft:virtual_silver_ingot" },
+  "experience": 0.5,
+  "cookingtime": 200
+}

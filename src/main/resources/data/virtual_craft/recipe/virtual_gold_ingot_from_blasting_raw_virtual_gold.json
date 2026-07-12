@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:blasting",
+  "category": "misc",
+  "group": "virtual_gold_ingot",
+  "ingredient": { "item": "virtual_craft:raw_virtual_gold" },
+  "result": { "id": "virtual_craft:virtual_gold_ingot" },
+  "experience": 1.0,
+  "cookingtime": 100
+}

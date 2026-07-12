@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:smelting",
+  "category": "misc",
+  "group": "virtual_aluminum_ingot",
+  "ingredient": { "item": "virtual_craft:raw_virtual_aluminum" },
+  "result": { "id": "virtual_craft:virtual_aluminum_ingot" },
+  "experience": 0.3,
+  "cookingtime": 200
+}

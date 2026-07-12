@@ -33,6 +33,7 @@ public class ElectricCondenserScreen extends AbstractContainerScreen<ElectricCon
 	private static final int ARROW_W = 22, ARROW_H = 16;
 	private static final int ENERGY_X = 8,  ENERGY_Y = 23;         // v20.13 25→23，中点 (16, 49)，占 23..75 上 8/下 7 ✓
 	private static final int ENERGY_W = 16, ENERGY_H = 52;
+	private static final int CELL_X = 8, CELL_Y = 76;
 	// UPGRADE 3 槽 @ (152, 24/42/60)，组中点 (160, 51) — 离中轴 72
 	// 与 ElectricCondenserMenu.UPGRADE_*_X/Y + GuiTextureGenerator drawSlotPanel(152, 24, 1, 3) 严格对齐。
 	private static final int UPGRADE_GROUP_X = 152, UPGRADE_GROUP_Y = 28;
@@ -44,7 +45,7 @@ public class ElectricCondenserScreen extends AbstractContainerScreen<ElectricCon
 		imageHeight = 178;
 		titleLabelX = 8;
 		titleLabelY = 6;
-		inventoryLabelX = 8;
+		inventoryLabelX = 28;
 		inventoryLabelY = 84;
 	}
 
@@ -70,6 +71,7 @@ public class ElectricCondenserScreen extends AbstractContainerScreen<ElectricCon
 		int left = leftPos;
 		int top = topPos;
 		MachineDraw.drawBackground(guiGraphics, left, top, imageWidth, imageHeight, BG);
+		MachineDraw.drawItemSlot(guiGraphics, left + CELL_X - 1, top + CELL_Y - 1);
 		// 进度箭头动态填充（v16：sprite 在本机器主背景 (180, 0) 22×16 区域）
 		MachineDraw.drawProgressArrow(guiGraphics, left + ARROW_X, top + ARROW_Y,
 				menu.getScaledProgress() / (double) ARROW_W, BG, 180, 0);
@@ -91,8 +93,16 @@ public class ElectricCondenserScreen extends AbstractContainerScreen<ElectricCon
 		// v17 关键修复：vanilla 1.21.1 AbstractContainerScreen.render() 不会自动调 renderTooltip，
 		// hovered slot 物品 tooltip 必须由 subclass 显式调用。
 		renderTooltip(guiGraphics, mouseX, mouseY);
+		renderEmptyCellTooltip(guiGraphics, mouseX, mouseY);
 		// 追加自定义区域 tooltip（能量条/进度条/升级组），仅当 hoveredSlot==null 时画。
 		renderHoverTooltips(guiGraphics, mouseX, mouseY);
+	}
+
+	private void renderEmptyCellTooltip(GuiGraphics guiGraphics, int mouseX, int mouseY) {
+		if (hoveredSlot != null && !hoveredSlot.hasItem()
+				&& MachineDraw.contains(mouseX, mouseY, leftPos + CELL_X, topPos + CELL_Y, 16, 16)) {
+			guiGraphics.renderTooltip(font, Component.translatable("screen.virtual_craft.machine.power_cell"), mouseX, mouseY);
+		}
 	}
 
 	/**

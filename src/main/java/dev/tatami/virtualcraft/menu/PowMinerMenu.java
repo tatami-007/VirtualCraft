@@ -4,6 +4,7 @@ import dev.tatami.virtualcraft.blockentity.PowMinerBlockEntity;
 import dev.tatami.virtualcraft.registry.ModBlocks;
 import dev.tatami.virtualcraft.registry.ModItems;
 import dev.tatami.virtualcraft.registry.ModMenuTypes;
+import dev.tatami.virtualcraft.item.PowerCellItem;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
@@ -23,7 +24,8 @@ public class PowMinerMenu extends AbstractContainerMenu {
 	private static final int BASIC_OUTPUT_SLOT = PowMinerBlockEntity.BASIC_OUTPUT_SLOT;
 	private static final int RARE_OUTPUT_SLOT = PowMinerBlockEntity.RARE_OUTPUT_SLOT;
 	private static final int OUTPUT_SLOT_COUNT = 2;
-	private static final int PLAYER_INV_START = OUTPUT_SLOT_COUNT;
+	private static final int MACHINE_SLOT_COUNT = 3;
+	private static final int PLAYER_INV_START = MACHINE_SLOT_COUNT;
 	private static final int PLAYER_INV_END = PLAYER_INV_START + 27;
 	private static final int HOTBAR_START = PLAYER_INV_END;
 	private static final int HOTBAR_END = HOTBAR_START + 9;
@@ -45,6 +47,7 @@ public class PowMinerMenu extends AbstractContainerMenu {
 		// 双输出：基础凭证保留原槽位；稀有凭证进入右侧槽，避免稀有产物掉地导致自动化链断开。
 		addOutputSlot(BASIC_OUTPUT_SLOT, 69, 32);
 		addOutputSlot(RARE_OUTPUT_SLOT, 91, 32);
+		addSlot(new SlotItemHandler(blockEntity.getInventory(), PowMinerBlockEntity.POWER_CELL_SLOT, 8, 76));
 		addPlayerInventory(playerInventory);
 		addPlayerHotbar(playerInventory);
 		addDataSlots(data);
@@ -92,11 +95,17 @@ public class PowMinerMenu extends AbstractContainerMenu {
 		ItemStack sourceStack = sourceSlot.getItem();
 		ItemStack copy = sourceStack.copy();
 
-		if (index >= 0 && index < OUTPUT_SLOT_COUNT) {
+		if (index >= 0 && index < MACHINE_SLOT_COUNT) {
 			if (!moveItemStackTo(sourceStack, PLAYER_INV_START, HOTBAR_END, true)) {
 				return ItemStack.EMPTY;
 			}
-			sourceSlot.onQuickCraft(sourceStack, copy);
+			if (index < OUTPUT_SLOT_COUNT) {
+				sourceSlot.onQuickCraft(sourceStack, copy);
+			}
+		} else if (PowerCellItem.isPowerCell(sourceStack)) {
+			if (!moveItemStackTo(sourceStack, PowMinerBlockEntity.POWER_CELL_SLOT, PowMinerBlockEntity.POWER_CELL_SLOT + 1, false)) {
+				return ItemStack.EMPTY;
+			}
 		} else if (index < PLAYER_INV_END) {
 			if (!moveItemStackTo(sourceStack, HOTBAR_START, HOTBAR_END, false)) {
 				return ItemStack.EMPTY;

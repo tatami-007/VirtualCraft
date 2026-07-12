@@ -37,6 +37,9 @@ public final class ModCreativeTabs {
 				tabData.accept(ModItems.MINING_SURVEYOR.get());
 				tabData.accept(ModItems.DATA_FRAGMENT.get());
 				tabData.accept(ModItems.SPEED_UPGRADE_CARD.get());
+				tabData.accept(ModItems.BASIC_POWER_CELL.get());
+				tabData.accept(ModItems.ADVANCED_POWER_CELL.get());
+				tabData.accept(ModItems.QUANTUM_POWER_CELL.get());
 				// 1:1 ME-Beam-Former 风格的光束绑定器（替换了 v20 的 LinkCard）
 				tabData.accept(ModItems.LASER_BINDING_TOOL.get());
 				tabData.accept(ModItems.CRYPTO_BTC.get());
@@ -71,11 +74,21 @@ public final class ModCreativeTabs {
 				tabData.accept(ModItems.VIRTUAL_STONE.get());
 				tabData.accept(ModItems.VIRTUAL_COBBLESTONE.get());
 				tabData.accept(ModItems.VIRTUAL_ROCK.get());
-				tabData.accept(ModItems.VIRTUAL_SILVER_ORE.get());
 				tabData.accept(ModItems.VIRTUAL_ALUMINUM_ORE.get());
+				tabData.accept(ModItems.RAW_VIRTUAL_ALUMINUM.get());
+				tabData.accept(ModItems.VIRTUAL_ALUMINUM_INGOT.get());
+				tabData.accept(ModItems.VIRTUAL_SILVER_ORE.get());
+				tabData.accept(ModItems.RAW_VIRTUAL_SILVER.get());
+				tabData.accept(ModItems.VIRTUAL_SILVER_INGOT.get());
 				tabData.accept(ModItems.VIRTUAL_GOLD_ORE.get());
+				tabData.accept(ModItems.RAW_VIRTUAL_GOLD.get());
+				tabData.accept(ModItems.VIRTUAL_GOLD_INGOT.get());
 				tabData.accept(ModItems.VIRTUAL_TITANIUM_ORE.get());
+				tabData.accept(ModItems.RAW_VIRTUAL_TITANIUM.get());
+				tabData.accept(ModItems.VIRTUAL_TITANIUM_INGOT.get());
 				tabData.accept(ModItems.VIRTUAL_CHROMIUM_ORE.get());
+				tabData.accept(ModItems.RAW_VIRTUAL_CHROMIUM.get());
+				tabData.accept(ModItems.VIRTUAL_CHROMIUM_INGOT.get());
 			}).build());
 }
 

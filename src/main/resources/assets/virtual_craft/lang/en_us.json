@@ -489,5 +489,20 @@
   "block.virtual_craft.virtual_aluminum_ore": "Virtual Aluminum Ore",
   "block.virtual_craft.virtual_gold_ore": "Virtual Gold Ore",
   "block.virtual_craft.virtual_titanium_ore": "Virtual Titanium Ore",
-  "block.virtual_craft.virtual_chromium_ore": "Virtual Chromium Ore"
+  "block.virtual_craft.virtual_chromium_ore": "Virtual Chromium Ore",
+  "item.virtual_craft.raw_virtual_aluminum": "Raw Virtual Aluminum",
+  "item.virtual_craft.raw_virtual_silver": "Raw Virtual Silver",
+  "item.virtual_craft.raw_virtual_gold": "Raw Virtual Gold",
+  "item.virtual_craft.raw_virtual_titanium": "Raw Virtual Titanium",
+  "item.virtual_craft.raw_virtual_chromium": "Raw Virtual Chromium",
+  "item.virtual_craft.virtual_aluminum_ingot": "Virtual Aluminum Ingot",
+  "item.virtual_craft.virtual_silver_ingot": "Virtual Silver Ingot",
+  "item.virtual_craft.virtual_gold_ingot": "Virtual Gold Ingot",
+  "item.virtual_craft.virtual_titanium_ingot": "Virtual Titanium Ingot",
+  "item.virtual_craft.virtual_chromium_ingot": "Virtual Chromium Ingot",
+  "item.virtual_craft.basic_power_cell": "Basic Power Cell",
+  "item.virtual_craft.advanced_power_cell": "Advanced Power Cell",
+  "item.virtual_craft.quantum_power_cell": "Quantum Power Cell",
+  "item.virtual_craft.power_cell.multiplier": "Operating speed x%s",
+  "screen.virtual_craft.machine.power_cell": "Power Cell"
 }

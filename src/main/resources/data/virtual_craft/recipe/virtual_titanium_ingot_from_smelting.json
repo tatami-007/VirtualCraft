@@ -1,0 +1,8 @@
+{
+  "type": "minecraft:smelting",
+  "category": "misc",
+  "ingredient": { "item": "virtual_craft:virtual_titanium_ore" },
+  "result": { "id": "virtual_craft:virtual_titanium_ingot" },
+  "experience": 1.2,
+  "cookingtime": 200
+}

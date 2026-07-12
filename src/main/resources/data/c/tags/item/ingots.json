@@ -1,6 +1,11 @@
 {
   "replace": false,
   "values": [
-    "#c:ingots/electric"
+    "#c:ingots/electric",
+    "#c:ingots/aluminum",
+    "#c:ingots/silver",
+    "#c:ingots/gold",
+    "#c:ingots/titanium",
+    "#c:ingots/chromium"
   ]
 }

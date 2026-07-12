@@ -1,6 +1,11 @@
 {
   "replace": false,
   "values": [
-    "#c:ores/electric"
+    "#c:ores/electric",
+    "#c:ores/aluminum",
+    "#c:ores/silver",
+    "#c:ores/gold",
+    "#c:ores/titanium",
+    "#c:ores/chromium"
   ]
 }

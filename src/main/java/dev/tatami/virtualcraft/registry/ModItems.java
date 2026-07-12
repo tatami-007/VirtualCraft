@@ -26,6 +26,7 @@ import dev.tatami.virtualcraft.item.HashVoucherItem;
 import dev.tatami.virtualcraft.item.HolographicTerminalItem;
 import dev.tatami.virtualcraft.item.LaserBindingTool;
 import dev.tatami.virtualcraft.item.MiningSurveyorItem;
+import dev.tatami.virtualcraft.item.PowerCellItem;
 import dev.tatami.virtualcraft.item.SpeedUpgradeCardItem;
 import dev.tatami.virtualcraft.gameplay.ElectricAbsorberChargeHelper;
 
@@ -52,6 +53,12 @@ public final class ModItems {
 			() -> new HashVoucherItem(HashVoucherItem.GENESIS_BTC_PAYOUT_MINOR));
 	public static final DeferredItem<Item> MINING_SURVEYOR = REGISTRY.register("mining_surveyor", MiningSurveyorItem::new);
 	public static final DeferredItem<Item> SPEED_UPGRADE_CARD = REGISTRY.register("speed_upgrade_card", SpeedUpgradeCardItem::new);
+	public static final DeferredItem<Item> BASIC_POWER_CELL = REGISTRY.register("basic_power_cell",
+			() -> new PowerCellItem(PowerCellItem.Tier.BASIC));
+	public static final DeferredItem<Item> ADVANCED_POWER_CELL = REGISTRY.register("advanced_power_cell",
+			() -> new PowerCellItem(PowerCellItem.Tier.ADVANCED));
+	public static final DeferredItem<Item> QUANTUM_POWER_CELL = REGISTRY.register("quantum_power_cell",
+			() -> new PowerCellItem(PowerCellItem.Tier.QUANTUM));
 	/**
 	 * 光束绑定器 — 1:1 还原 ME-Beam-Former 1.21.1 的 LaserBindingTool。
 	 * 交互：Shift+右键塔选源 / Shift+右键机器绑机器 / 右键塔绑塔 / Shift+右键空气清空。
@@ -71,6 +78,16 @@ public final class ModItems {
 	public static final DeferredItem<Item> VIRTUAL_GOLD_ORE = block(ModBlocks.VIRTUAL_GOLD_ORE);
 	public static final DeferredItem<Item> VIRTUAL_TITANIUM_ORE = block(ModBlocks.VIRTUAL_TITANIUM_ORE);
 	public static final DeferredItem<Item> VIRTUAL_CHROMIUM_ORE = block(ModBlocks.VIRTUAL_CHROMIUM_ORE);
+	public static final DeferredItem<Item> RAW_VIRTUAL_ALUMINUM = REGISTRY.register("raw_virtual_aluminum", () -> new Item(new Item.Properties()));
+	public static final DeferredItem<Item> RAW_VIRTUAL_SILVER = REGISTRY.register("raw_virtual_silver", () -> new Item(new Item.Properties()));
+	public static final DeferredItem<Item> RAW_VIRTUAL_GOLD = REGISTRY.register("raw_virtual_gold", () -> new Item(new Item.Properties()));
+	public static final DeferredItem<Item> RAW_VIRTUAL_TITANIUM = REGISTRY.register("raw_virtual_titanium", () -> new Item(new Item.Properties()));
+	public static final DeferredItem<Item> RAW_VIRTUAL_CHROMIUM = REGISTRY.register("raw_virtual_chromium", () -> new Item(new Item.Properties()));
+	public static final DeferredItem<Item> VIRTUAL_ALUMINUM_INGOT = REGISTRY.register("virtual_aluminum_ingot", () -> new Item(new Item.Properties()));
+	public static final DeferredItem<Item> VIRTUAL_SILVER_INGOT = REGISTRY.register("virtual_silver_ingot", () -> new Item(new Item.Properties()));
+	public static final DeferredItem<Item> VIRTUAL_GOLD_INGOT = REGISTRY.register("virtual_gold_ingot", () -> new Item(new Item.Properties()));
+	public static final DeferredItem<Item> VIRTUAL_TITANIUM_INGOT = REGISTRY.register("virtual_titanium_ingot", () -> new Item(new Item.Properties()));
+	public static final DeferredItem<Item> VIRTUAL_CHROMIUM_INGOT = REGISTRY.register("virtual_chromium_ingot", () -> new Item(new Item.Properties()));
 	public static final DeferredItem<Item> VIRTUAL_COBBLESTONE = block(ModBlocks.VIRTUAL_COBBLESTONE);
 	public static final DeferredItem<Item> VIRTUAL_ROCK = block(ModBlocks.VIRTUAL_ROCK);
 	public static final DeferredItem<Item> HOLOGRAPHIC_WALL = block(ModBlocks.HOLOGRAPHIC_WALL);

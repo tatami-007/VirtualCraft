@@ -8,6 +8,7 @@ import dev.tatami.virtualcraft.machine.ElectricCondenserTuning;
 import dev.tatami.virtualcraft.machine.MachineSideConfig;
 import dev.tatami.virtualcraft.machine.SideMode;
 import dev.tatami.virtualcraft.menu.ElectricCondenserMenu;
+import dev.tatami.virtualcraft.item.PowerCellItem;
 import dev.tatami.virtualcraft.registry.ModBlockEntities;
 import dev.tatami.virtualcraft.registry.ModBlocks;
 import dev.tatami.virtualcraft.registry.ModItems;
@@ -46,13 +47,14 @@ public class ElectricCondenserBlockEntity extends BlockEntity implements MenuPro
 	public static final int OUTPUT_SLOT = 2;
 	public static final int UPGRADE_SLOT_START = 3;
 	public static final int UPGRADE_SLOT_END = 6;
+	public static final int POWER_CELL_SLOT = 6;
 	private static final int MAX_PROGRESS = ElectricCondenserTuning.maxProgress();
 	private static final int MAX_ENERGY = 200_000;
 	private static final int MAX_RECEIVE = 4_000;
 	private static final int TRANSFER_PER_SIDE = 16;
 	private static final TagKey<Item> INGOTS_TAG = TagKey.create(Registries.ITEM, ResourceLocation.parse("c:ingots"));
 
-	private final ItemStackHandler inventory = new ItemStackHandler(6) {
+	private final ItemStackHandler inventory = new ItemStackHandler(7) {
 		@Override
 		protected void onContentsChanged(int slot) {
 			setChanged();
@@ -65,6 +67,7 @@ public class ElectricCondenserBlockEntity extends BlockEntity implements MenuPro
 				case BALL_SLOT -> stack.is(ModItems.ELECTRIC_BALL.get());
 				case OUTPUT_SLOT -> false;
 				case 3, 4, 5 -> stack.is(ModItems.SPEED_UPGRADE_CARD.get());
+				case POWER_CELL_SLOT -> PowerCellItem.isPowerCell(stack);
 				default -> false;
 			};
 		}
@@ -122,6 +125,11 @@ public class ElectricCondenserBlockEntity extends BlockEntity implements MenuPro
 		}
 
 		blockEntity.tickAutomation(level, pos);
+		int cellMultiplier = PowerCellItem.multiplier(blockEntity.inventory.getStackInSlot(POWER_CELL_SLOT));
+		if (cellMultiplier == 0) {
+			blockEntity.updateActiveState(level, state, false);
+			return;
+		}
 
 		boolean active = false;
 		if (blockEntity.canCraft()) {
@@ -130,10 +138,10 @@ public class ElectricCondenserBlockEntity extends BlockEntity implements MenuPro
 			// progress, ContainerData GUI sync, plus any debug call). With the
 			// snapshot, the inner code stays branch-free.
 			int speedCards = blockEntity.countSpeedCards();
-			int energyCost = ElectricCondenserTuning.energyPerTick(speedCards);
+			int energyCost = ElectricCondenserTuning.energyPerTick(speedCards) * cellMultiplier;
 			if (blockEntity.energyStorage.getEnergyStored() >= energyCost) {
 				blockEntity.energyStorage.consumeEnergy(energyCost);
-				blockEntity.progress += ElectricCondenserTuning.progressPerTick(speedCards);
+				blockEntity.progress += ElectricCondenserTuning.progressPerTick(speedCards) * cellMultiplier;
 				active = true;
 				blockEntity.setChanged();
 				if (blockEntity.progress >= MAX_PROGRESS) {
@@ -258,7 +266,9 @@ public class ElectricCondenserBlockEntity extends BlockEntity implements MenuPro
 	@Override
 	protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
 		super.loadAdditional(tag, registries);
-		inventory.deserializeNBT(registries, tag.getCompound("inventory"));
+		CompoundTag inventoryTag = tag.getCompound("inventory").copy();
+		inventoryTag.putInt("Size", 7);
+		inventory.deserializeNBT(registries, inventoryTag);
 		energyStorage.deserializeNBT(registries, tag.get("energy"));
 		progress = tag.getInt("progress");
 		autoImport = tag.getBoolean("auto_import");

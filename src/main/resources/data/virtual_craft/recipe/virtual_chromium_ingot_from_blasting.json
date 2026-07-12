@@ -1,0 +1,8 @@
+{
+  "type": "minecraft:blasting",
+  "category": "misc",
+  "ingredient": { "item": "virtual_craft:virtual_chromium_ore" },
+  "result": { "id": "virtual_craft:virtual_chromium_ingot" },
+  "experience": 1.5,
+  "cookingtime": 100
+}

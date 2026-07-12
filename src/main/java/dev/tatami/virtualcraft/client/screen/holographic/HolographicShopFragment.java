@@ -201,6 +201,8 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	private HoloSeekBar miningQuantitySlider;
 	private TextView shopQuantityValue;
 	private LinearLayout shopCatalogList;
+	private Button shopSortButton;
+	private Button shopFavoritesButton;
 	private TextView convertPreviewValue;
 	private TextView miningPreviewValue;
 	/**
@@ -690,6 +692,8 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		shopSearchInput = null;
 		miningAmountInput = null;
 		shopCatalogList = null;
+		shopSortButton = null;
+		shopFavoritesButton = null;
 		convertPreviewValue = null;
 		miningPreviewValue = null;
 
@@ -1268,39 +1272,41 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			}
 		});
 		toolbar.addView(shopSearchInput, weighted(0, dp(CONTROL_HEIGHT_DP), 1f));
-		Button sortButton = compactActionButton(t("screen.virtual_craft.holographic_shop.shop.sort." + shopSortMode.name().toLowerCase(java.util.Locale.ROOT)), () -> {
+		shopSortButton = compactActionButton(shopSortLabel(), () -> {
 			ShopSortMode[] modes = ShopSortMode.values();
 			shopSortMode = modes[(shopSortMode.ordinal() + 1) % modes.length];
+			updateShopToolbarButtons();
 			refreshShopCatalogList();
 		});
 		// v25 ultra-compact sort cycler: labels are now pure-symbol (↕ / 买↑ / 卖↓ /
 		// A→Z), at most 3 chars wide, so dp(132) was 2.4x too wide. Shrink to dp(56)
 		// to free toolbar space for a wider search input. Hover tooltip lists the
 		// cyclable modes so the symbol meaning stays discoverable.
-		sortButton.setTextSize(13f);
-		sortButton.setMinimumHeight(dp(CONTROL_HEIGHT_DP));
-		sortButton.setTooltipText(t("screen.virtual_craft.holographic_shop.shop.sort_tooltip"));
+		shopSortButton.setTextSize(13f);
+		shopSortButton.setMinimumHeight(dp(CONTROL_HEIGHT_DP));
+		shopSortButton.setTooltipText(t("screen.virtual_craft.holographic_shop.shop.sort_tooltip"));
 		var sortParams = new LinearLayout.LayoutParams(dp(56), dp(CONTROL_HEIGHT_DP));
 		sortParams.setMargins(dp(6), 0, 0, 0);
-		toolbar.addView(sortButton, sortParams);
-		Button favButton = compactActionButton(
+		toolbar.addView(shopSortButton, sortParams);
+		shopFavoritesButton = compactActionButton(
 				shopFavoritesOnly
 						? t("screen.virtual_craft.holographic_shop.shop.favorites_on")
 						: t("screen.virtual_craft.holographic_shop.shop.favorites_off"),
 				() -> {
 					shopFavoritesOnly = !shopFavoritesOnly;
+					updateShopToolbarButtons();
 					refreshShopCatalogList();
 				});
 		// v25 favorites toggle is now a pure star glyph (★ filled = only favorites,
 		// ☆ outline = all). dp(40) is just enough for a single 14sp glyph centered
 		// in the toggle background. Hover tooltip carries the full description.
-		favButton.setTextSize(14f);
-		favButton.setTextColor(shopFavoritesOnly ? AMBER : TEXT_DIM);
-		favButton.setMinimumHeight(dp(CONTROL_HEIGHT_DP));
-		favButton.setTooltipText(t("screen.virtual_craft.holographic_shop.shop.favorites_tooltip"));
+		shopFavoritesButton.setTextSize(14f);
+		shopFavoritesButton.setMinimumHeight(dp(CONTROL_HEIGHT_DP));
+		shopFavoritesButton.setTooltipText(t("screen.virtual_craft.holographic_shop.shop.favorites_tooltip"));
 		var favParams = new LinearLayout.LayoutParams(dp(40), dp(CONTROL_HEIGHT_DP));
 		favParams.setMargins(dp(6), 0, 0, 0);
-		toolbar.addView(favButton, favParams);
+		toolbar.addView(shopFavoritesButton, favParams);
+		updateShopToolbarButtons();
 		contentColumn.addView(toolbar, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(40)));
 		contentColumn.addView(spacer(dp(8)));
 
@@ -1309,6 +1315,29 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		listScroll.addView(shopCatalogList, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 		refreshShopCatalogList();
 		contentColumn.addView(listScroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+	}
+
+	private String shopSortLabel() {
+		return t("screen.virtual_craft.holographic_shop.shop.sort."
+				+ shopSortMode.name().toLowerCase(java.util.Locale.ROOT));
+	}
+
+	private void updateShopToolbarButtons() {
+		if (shopSortButton != null) {
+			boolean active = shopSortMode != ShopSortMode.DEFAULT;
+			shopSortButton.setText(shopSortLabel());
+			shopSortButton.setTextColor(active ? CYAN : TEXT_DIM);
+			shopSortButton.setBackground(rounded(active ? PANEL_ACTIVE : PANEL_BUTTON,
+					active ? CYAN : WINDOW_STROKE, 9f, 1));
+		}
+		if (shopFavoritesButton != null) {
+			shopFavoritesButton.setText(t(shopFavoritesOnly
+					? "screen.virtual_craft.holographic_shop.shop.favorites_on"
+					: "screen.virtual_craft.holographic_shop.shop.favorites_off"));
+			shopFavoritesButton.setTextColor(shopFavoritesOnly ? AMBER : TEXT_DIM);
+			shopFavoritesButton.setBackground(rounded(shopFavoritesOnly ? PANEL_ACTIVE : PANEL_BUTTON,
+					shopFavoritesOnly ? AMBER : WINDOW_STROKE, 9f, 1));
+		}
 	}
 
 	private void refreshShopCatalogList() {
@@ -3845,18 +3874,21 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		contentColumn.addView(spacer(dp(4)));
 
 		// Candlestick chart host.
-		marketChartHeightPx = dp(168);
+		marketChartHeightPx = dp(152);
 		marketChartHost = new LinearLayout(requireContext());
 		marketChartHost.setOrientation(LinearLayout.VERTICAL);
 		contentColumn.addView(marketChartHost, new LinearLayout.LayoutParams(
 				ViewGroup.LayoutParams.MATCH_PARENT, marketChartHeightPx));
+		// The first layout pass reports width=0. Repaint once the host has its real
+		// width instead of briefly drawing a narrow fallback chart that later jumps.
+		marketChartHost.post(this::populateMarketDynamic);
 		contentColumn.addView(spacer(dp(4)));
 
 		// Volume sub-chart (Binance-style histogram aligned under the candles).
 		marketVolumeHost = new LinearLayout(requireContext());
 		marketVolumeHost.setOrientation(LinearLayout.VERTICAL);
 		contentColumn.addView(marketVolumeHost, new LinearLayout.LayoutParams(
-				ViewGroup.LayoutParams.MATCH_PARENT, dp(36)));
+				ViewGroup.LayoutParams.MATCH_PARENT, dp(30)));
 		contentColumn.addView(spacer(dp(8)));
 
 		// Stats host (24h high / low / amplitude / volume).
@@ -3946,7 +3978,10 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		// only has the single live-tick candle until the async REST history (150
 		// bars) lands, which otherwise flashes a lone left-aligned candle before
 		// snapping to the full chart. Show the loading placeholder until then.
-		boolean chartReady = candles.size() >= MARKET_MIN_CANDLES;
+		boolean chartMeasured = marketChartHost.getWidth() >= dp(240);
+		boolean chartReady = chartMeasured
+				&& !HolographicMarketData.isLoading(marketSelectedCurrency, marketInterval)
+				&& candles.size() >= MARKET_MIN_CANDLES;
 		String chartKey = marketSelectedCurrency + "/" + marketInterval + "/"
 				+ (chartReady ? candles.size() : "loading");
 		long nowMs = System.currentTimeMillis();
@@ -3968,8 +4003,8 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			if (marketVolumeHost != null) {
 				marketVolumeHost.removeAllViews();
 				if (chartReady) {
-					marketVolumeHost.addView(buildVolumeChart(candles, dp(36)),
-							new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(36)));
+					marketVolumeHost.addView(buildVolumeChart(candles, dp(30)),
+							new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(30)));
 				}
 			}
 			marketChartKey = chartKey;
@@ -4100,11 +4135,14 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	}
 
 	private View buildCandleChart(List<HolographicMarketData.Candle> candles, int chartHeightPx) {
-		// Find price range
-		java.math.BigDecimal minPrice = candles.stream()
+		int start = Math.max(0, candles.size() - MARKET_VISIBLE_CANDLES);
+		List<HolographicMarketData.Candle> visibleCandles = candles.subList(start, candles.size());
+		// Scale against the bars that are actually visible. An older outlier outside
+		// the 60-bar viewport must not squash the current chart into a thin strip.
+		java.math.BigDecimal minPrice = visibleCandles.stream()
 				.map(HolographicMarketData.Candle::low)
 				.min(java.math.BigDecimal::compareTo).orElse(java.math.BigDecimal.ZERO);
-		java.math.BigDecimal maxPrice = candles.stream()
+		java.math.BigDecimal maxPrice = visibleCandles.stream()
 				.map(HolographicMarketData.Candle::high)
 				.max(java.math.BigDecimal::compareTo).orElse(java.math.BigDecimal.ONE);
 		java.math.BigDecimal range = maxPrice.subtract(minPrice);
@@ -4112,9 +4150,9 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 
 		FrameLayout chartFrame = new FrameLayout(requireContext());
 		ShapeDrawable chartBg = new ShapeDrawable();
-		chartBg.setCornerRadius(dp(6));
-		chartBg.setColor(0x20_FFFFFF);
-		chartBg.setStroke(1, WINDOW_STROKE);
+		chartBg.setCornerRadius(dp(8));
+		chartBg.setColor(0x78F4F9FC);
+		chartBg.setStroke(1, 0x247E94B0);
 		chartFrame.setBackground(chartBg);
 		int padV = dp(8);
 		chartFrame.setPadding(dp(4), padV, dp(4), padV);
@@ -4124,13 +4162,13 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		// Faint horizontal grid lines for readability (drawn behind the candles).
 		LinearLayout grid = new LinearLayout(requireContext());
 		grid.setOrientation(LinearLayout.VERTICAL);
-		for (int g = 0; g < 4; g++) {
+		for (int g = 0; g < 3; g++) {
 			View line = new View(requireContext());
 			ShapeDrawable ld = new ShapeDrawable();
-			ld.setColor(0x14_FFFFFF);
+			ld.setColor(0x1C66839A);
 			line.setBackground(ld);
 			grid.addView(line, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(1)));
-			if (g < 3) {
+			if (g < 2) {
 				grid.addView(spacer(0), new LinearLayout.LayoutParams(
 						ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 			}
@@ -4144,9 +4182,6 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 
 		int gap = dp(1);
 		int candleWidth = candleWidthPx(gap);
-		int maxCandles = MARKET_VISIBLE_CANDLES;
-		int start = Math.max(0, candles.size() - maxCandles);
-
 		for (int i = start; i < candles.size(); i++) {
 			HolographicMarketData.Candle candle = candles.get(i);
 			boolean up = candle.isUp();
@@ -4206,13 +4241,13 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 		priceLabels.setPadding(dp(2), dp(4), 0, dp(4));
 
 		TextView highLabel = hintText("$" + fmtPrice(maxPrice));
-		highLabel.setTextColor(0x80_FFFFFF);
+		highLabel.setTextColor(TEXT_SOFT);
 		highLabel.setTextSize(8f);
 		priceLabels.addView(highLabel, new LinearLayout.LayoutParams(
 				ViewGroup.LayoutParams.WRAP_CONTENT, 0, 1f));
 
 		TextView lowLabel = hintText("$" + fmtPrice(minPrice));
-		lowLabel.setTextColor(0x80_FFFFFF);
+		lowLabel.setTextColor(TEXT_SOFT);
 		lowLabel.setTextSize(8f);
 		lowLabel.setGravity(Gravity.BOTTOM);
 		priceLabels.addView(lowLabel, new LinearLayout.LayoutParams(
@@ -4233,7 +4268,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 
 		marketCrossV = new View(requireContext());
 		ShapeDrawable vBg = new ShapeDrawable();
-		vBg.setColor(0x70_FFFFFF);
+		vBg.setColor(0xFF0284C7);
 		marketCrossV.setBackground(vBg);
 		marketCrossV.setVisibility(View.GONE);
 		var vParams = new FrameLayout.LayoutParams(dp(1), chartHeight);
@@ -4242,7 +4277,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 
 		marketCrossH = new View(requireContext());
 		ShapeDrawable hBg = new ShapeDrawable();
-		hBg.setColor(0x70_FFFFFF);
+		hBg.setColor(0xFF0284C7);
 		marketCrossH.setBackground(hBg);
 		marketCrossH.setVisibility(View.GONE);
 		var hParams = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(1));
@@ -4376,9 +4411,9 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	 * stay column-aligned.
 	 */
 	private int candleWidthPx(int gap) {
-		int avail = marketChartHost != null ? marketChartHost.getWidth() : 0;
+		int avail = marketChartHost != null ? marketChartHost.getWidth() - dp(8) : 0;
 		if (avail <= 0) {
-			return dp(5);
+			return 0;
 		}
 		return Math.max(dp(2), (avail - MARKET_VISIBLE_CANDLES * gap) / MARKET_VISIBLE_CANDLES);
 	}
@@ -4387,9 +4422,9 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 	private View buildVolumeChart(List<HolographicMarketData.Candle> candles, int heightPx) {
 		FrameLayout frame = new FrameLayout(requireContext());
 		ShapeDrawable bg = new ShapeDrawable();
-		bg.setCornerRadius(dp(6));
-		bg.setColor(0x20_FFFFFF);
-		bg.setStroke(1, WINDOW_STROKE);
+		bg.setCornerRadius(dp(8));
+		bg.setColor(0x54F4F9FC);
+		bg.setStroke(1, 0x1C7E94B0);
 		frame.setBackground(bg);
 		int padV = dp(4);
 		frame.setPadding(dp(4), padV, dp(4), padV);

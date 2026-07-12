@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "c": { "item": "minecraft:copper_ingot" },
+    "e": { "item": "virtual_craft:electric_ingot" },
+    "r": { "item": "minecraft:redstone_block" }
+  },
+  "pattern": [
+    "cec",
+    "ere",
+    "cec"
+  ],
+  "result": { "count": 1, "id": "virtual_craft:basic_power_cell" }
+}

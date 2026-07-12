@@ -488,6 +488,21 @@
   "block.virtual_craft.virtual_silver_ore": "虚拟银矿石",
   "block.virtual_craft.virtual_aluminum_ore": "虚拟铝矿石",
   "block.virtual_craft.virtual_gold_ore": "虚拟金矿石",
-  "block.virtual_craft.virtual_titanium_ore": "虚拟铛矿石",
-  "block.virtual_craft.virtual_chromium_ore": "虚拟铬矿石"
+  "block.virtual_craft.virtual_titanium_ore": "虚拟钛矿石",
+  "block.virtual_craft.virtual_chromium_ore": "虚拟铬矿石",
+  "item.virtual_craft.raw_virtual_aluminum": "粗虚拟铝",
+  "item.virtual_craft.raw_virtual_silver": "粗虚拟银",
+  "item.virtual_craft.raw_virtual_gold": "粗虚拟金",
+  "item.virtual_craft.raw_virtual_titanium": "粗虚拟钛",
+  "item.virtual_craft.raw_virtual_chromium": "粗虚拟铬",
+  "item.virtual_craft.virtual_aluminum_ingot": "虚拟铝锭",
+  "item.virtual_craft.virtual_silver_ingot": "虚拟银锭",
+  "item.virtual_craft.virtual_gold_ingot": "虚拟金锭",
+  "item.virtual_craft.virtual_titanium_ingot": "虚拟钛锭",
+  "item.virtual_craft.virtual_chromium_ingot": "虚拟铬锭",
+  "item.virtual_craft.basic_power_cell": "基础电芯",
+  "item.virtual_craft.advanced_power_cell": "高级电芯",
+  "item.virtual_craft.quantum_power_cell": "量子电芯",
+  "item.virtual_craft.power_cell.multiplier": "运行倍率 ×%s",
+  "screen.virtual_craft.machine.power_cell": "电芯"
 }

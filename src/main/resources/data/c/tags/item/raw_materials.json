@@ -1,0 +1,10 @@
+{
+  "replace": false,
+  "values": [
+    "#c:raw_materials/aluminum",
+    "#c:raw_materials/silver",
+    "#c:raw_materials/gold",
+    "#c:raw_materials/titanium",
+    "#c:raw_materials/chromium"
+  ]
+}

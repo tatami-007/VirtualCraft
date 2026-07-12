@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "c": { "item": "virtual_craft:virtual_chromium_ingot" },
+    "d": { "item": "minecraft:diamond" },
+    "n": { "item": "minecraft:nether_star" },
+    "p": { "item": "virtual_craft:advanced_power_cell" }
+  },
+  "pattern": [
+    "cdc",
+    "npn",
+    "cdc"
+  ],
+  "result": { "count": 1, "id": "virtual_craft:quantum_power_cell" }
+}
