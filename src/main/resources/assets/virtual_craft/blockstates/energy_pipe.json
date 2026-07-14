@@ -1,0 +1,18 @@
+{
+  "multipart": [
+    { "when": { "active": "false" }, "apply": { "model": "virtual_craft:block/energy_pipe_core" } },
+    { "when": { "active": "true" }, "apply": { "model": "virtual_craft:block/energy_pipe_core_active" } },
+    { "when": { "active": "false", "down": "true" }, "apply": { "model": "virtual_craft:block/energy_pipe_arm_down" } },
+    { "when": { "active": "false", "up": "true" }, "apply": { "model": "virtual_craft:block/energy_pipe_arm_up" } },
+    { "when": { "active": "false", "north": "true" }, "apply": { "model": "virtual_craft:block/energy_pipe_arm_north" } },
+    { "when": { "active": "false", "south": "true" }, "apply": { "model": "virtual_craft:block/energy_pipe_arm_south" } },
+    { "when": { "active": "false", "west": "true" }, "apply": { "model": "virtual_craft:block/energy_pipe_arm_west" } },
+    { "when": { "active": "false", "east": "true" }, "apply": { "model": "virtual_craft:block/energy_pipe_arm_east" } },
+    { "when": { "active": "true", "down": "true" }, "apply": { "model": "virtual_craft:block/energy_pipe_arm_down_active" } },
+    { "when": { "active": "true", "up": "true" }, "apply": { "model": "virtual_craft:block/energy_pipe_arm_up_active" } },
+    { "when": { "active": "true", "north": "true" }, "apply": { "model": "virtual_craft:block/energy_pipe_arm_north_active" } },
+    { "when": { "active": "true", "south": "true" }, "apply": { "model": "virtual_craft:block/energy_pipe_arm_south_active" } },
+    { "when": { "active": "true", "west": "true" }, "apply": { "model": "virtual_craft:block/energy_pipe_arm_west_active" } },
+    { "when": { "active": "true", "east": "true" }, "apply": { "model": "virtual_craft:block/energy_pipe_arm_east_active" } }
+  ]
+}

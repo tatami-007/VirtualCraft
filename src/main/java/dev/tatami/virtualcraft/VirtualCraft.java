@@ -7,6 +7,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.neoforged.neoforge.event.server.ServerAboutToStartEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
@@ -15,6 +16,9 @@ import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.bus.api.IEventBus;
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.TicketType;
+import net.minecraft.world.level.ChunkPos;
 
 import dev.tatami.virtualcraft.client.binding.BoundMachineHighlighter;
 import dev.tatami.virtualcraft.client.binding.LaserBindingClientHandler;
@@ -26,16 +30,20 @@ import dev.tatami.virtualcraft.gameplay.HolographicTerminalSession;
 import dev.tatami.virtualcraft.network.CloseHolographicTerminalPayload;
 import dev.tatami.virtualcraft.network.NetworkMessageRegistry;
 import dev.tatami.virtualcraft.energy.WirelessEnergyNetwork;
+import dev.tatami.virtualcraft.energy.EnergyPipeNetwork;
 import dev.tatami.virtualcraft.registry.ModCreativeTabs;
 import dev.tatami.virtualcraft.registry.ModBlockEntities;
 import dev.tatami.virtualcraft.registry.ModAttachments;
 import dev.tatami.virtualcraft.registry.ModBlocks;
 import dev.tatami.virtualcraft.registry.ModDimensions;
 import dev.tatami.virtualcraft.registry.ModCapabilities;
-import dev.tatami.virtualcraft.registry.ModEntityTypes;
+import dev.tatami.virtualcraft.registry.ModFluids;
+import dev.tatami.virtualcraft.registry.ModFeatures;
 import dev.tatami.virtualcraft.registry.ModItems;
 import dev.tatami.virtualcraft.registry.ModMenuTypes;
 import dev.tatami.virtualcraft.server.ServerWorkQueue;
+import dev.tatami.virtualcraft.world.LightningForestEffects;
+import dev.tatami.virtualcraft.world.VirtualWorldTerrainMigration;
 
 @Mod("virtual_craft")
 @SuppressWarnings("this-escape") // NeoForge.EVENT_BUS.register(this) in the constructor is the standard mod pattern.
@@ -49,7 +57,6 @@ public class VirtualCraft {
 		NetworkMessageRegistry.registerDefaults();
 		modEventBus.addListener(NetworkMessageRegistry::registerPayloadHandlers);
 		modEventBus.addListener(ModCapabilities::register);
-		modEventBus.addListener(ModEntityTypes::registerAttributes);
 		if (FMLEnvironment.dist.isClient()) {
 			AbsorberOreHighlighter highlighter = new AbsorberOreHighlighter();
 			MiningSurveyorHighlighter surveyorHighlighter = new MiningSurveyorHighlighter();
@@ -65,9 +72,10 @@ public class VirtualCraft {
 			// Ctrl + Shift + 右键 机器 → 批量绑定周围机器到选中的源塔
 			LaserBindingClientHandler.register();
 			modEventBus.addListener(VirtualCraftClient::registerScreens);
+			modEventBus.addListener(VirtualCraftClient::registerBlockColors);
+			modEventBus.addListener(VirtualCraftClient::registerItemColors);
 			modEventBus.addListener(VirtualCraftClient::registerShaders);
-			// 1:1 ME-Beam-Former 风格的塔光束渲染：光束从塔顶射向每个绑定目标
-			modEventBus.addListener(VirtualCraftClient::registerBlockEntityRenderers);
+			modEventBus.addListener(dev.tatami.virtualcraft.client.ThunderPoolClient::registerFluidExtensions);
 			NeoForge.EVENT_BUS.addListener(VirtualCraftClient::renderShockOverlay);
 			NeoForge.EVENT_BUS.addListener(surveyorHighlighter::renderGui);
 			// Pre-warm Holographic Terminal currency icons on world join (so the first
@@ -84,12 +92,15 @@ public class VirtualCraft {
 
 		// 1:1 ME-Beam-Former 全局无线塔管理器 — 集中调度所有塔的能量转发，应听 ServerTickEvent.Post + ServerStoppedEvent
 		WirelessEnergyNetwork.registerEvents(NeoForge.EVENT_BUS);
+		EnergyPipeNetwork.registerEvents(NeoForge.EVENT_BUS);
 
+		ModFluids.TYPES.register(modEventBus);
+		ModFluids.REGISTRY.register(modEventBus);
 		ModBlocks.REGISTRY.register(modEventBus);
+		ModFeatures.REGISTRY.register(modEventBus);
 		ModDimensions.CHUNK_GENERATOR_CODECS.register(modEventBus);
 		ModBlockEntities.REGISTRY.register(modEventBus);
 		ModAttachments.REGISTRY.register(modEventBus);
-		ModEntityTypes.REGISTRY.register(modEventBus);
 
 		ModItems.REGISTRY.register(modEventBus);
 		ModMenuTypes.REGISTRY.register(modEventBus);
@@ -105,13 +116,26 @@ public class VirtualCraft {
 	public void tick(ServerTickEvent.Post event) {
 		if (event.getServer() != null) {
 			ExchangeRateService.tick(event.getServer());
+			LightningForestEffects.tick(event.getServer());
 		}
 		ServerWorkQueue.tick(LOGGER);
 	}
 
 	@SubscribeEvent
+	public void onServerAboutToStart(ServerAboutToStartEvent event) {
+		VirtualWorldTerrainMigration.migrateIfNeeded(event.getServer());
+	}
+
+	@SubscribeEvent
 	public void onServerStarted(ServerStartedEvent event) {
 		ExchangeRateService.initialize(event.getServer());
+		var virtualLevel = event.getServer().getLevel(ModDimensions.VIRTUAL_WORLD_LEVEL);
+		if (virtualLevel != null) {
+			// A short-lived portal ticket lets the chunk system prepare the landing
+			// area in the background instead of doing all work when the computer is used.
+			virtualLevel.getChunkSource().addRegionTicket(
+					TicketType.PORTAL, new ChunkPos(0, 0), 3, BlockPos.ZERO);
+		}
 	}
 
 	/**

@@ -1,8 +1,11 @@
 {
-  "parent": "minecraft:block/cube_bottom_top",
+  "parent": "minecraft:block/grass_block",
+  "render_type": "minecraft:cutout_mipped",
   "textures": {
+    "particle": "virtual_craft:block/virtual_dirt",
+    "bottom": "virtual_craft:block/virtual_dirt",
     "top": "virtual_craft:block/virtual_grass_top",
     "side": "virtual_craft:block/virtual_grass",
-    "bottom": "virtual_craft:block/virtual_dirt"
+    "overlay": "virtual_craft:block/virtual_grass_overlay"
   }
 }

@@ -14,9 +14,13 @@ import dev.tatami.virtualcraft.block.HolographicShopBlock;
 import dev.tatami.virtualcraft.block.PowMinerBlock;
 import dev.tatami.virtualcraft.block.CircuitFloorBlock;
 import dev.tatami.virtualcraft.block.EnergyPylonBlock;
+import dev.tatami.virtualcraft.block.EnergyPipeBlock;
 import dev.tatami.virtualcraft.block.HolographicWallBlock;
 import dev.tatami.virtualcraft.block.WirelessPowerTowerBlock;
+import dev.tatami.virtualcraft.block.ThunderPoolBlock;
 import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.LeavesBlock;
+import net.minecraft.world.level.block.RotatedPillarBlock;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
 
@@ -45,6 +49,29 @@ public final class ModBlocks {
 	public static final DeferredBlock<Block> CIRCUIT_FLOOR = REGISTRY.register("circuit_floor", CircuitFloorBlock::new);
 	public static final DeferredBlock<Block> HOLOGRAPHIC_WALL = REGISTRY.register("holographic_wall", HolographicWallBlock::new);
 	public static final DeferredBlock<Block> ENERGY_PYLON = REGISTRY.register("energy_pylon", EnergyPylonBlock::new);
+	public static final DeferredBlock<Block> ENERGY_PIPE = REGISTRY.register("energy_pipe", EnergyPipeBlock::new);
+	public static final DeferredBlock<Block> LIGHTNING_LOG = REGISTRY.register("lightning_log",
+			() -> new RotatedPillarBlock(BlockBehaviour.Properties.of()
+					.mapColor(MapColor.COLOR_PURPLE)
+					.strength(2.0F)
+					.sound(SoundType.WOOD)));
+	public static final DeferredBlock<Block> LIGHTNING_LEAVES = REGISTRY.register("lightning_leaves",
+			() -> new LeavesBlock(BlockBehaviour.Properties.of()
+					.mapColor(MapColor.COLOR_PURPLE)
+					.strength(0.2F)
+					.randomTicks()
+					.sound(SoundType.GRASS)
+					.noOcclusion()));
+	public static final DeferredBlock<ThunderPoolBlock> THUNDER_POOL = REGISTRY.register("thunder_pool",
+			() -> new ThunderPoolBlock((net.minecraft.world.level.material.FlowingFluid) ModFluids.THUNDER_POOL.get(),
+					BlockBehaviour.Properties.of()
+							.mapColor(MapColor.COLOR_PURPLE)
+							.replaceable()
+							.noCollission()
+							.strength(100.0F)
+							.lightLevel(state -> 8)
+							.noLootTable()
+							.liquid()));
 	// === 虚拟世界地表方块(暂用旧版贴图) ===
 	public static final DeferredBlock<Block> VIRTUAL_GRASS = REGISTRY.register("virtual_grass",
 			() -> new Block(BlockBehaviour.Properties.of()
@@ -96,12 +123,6 @@ public final class ModBlocks {
 			() -> new Block(BlockBehaviour.Properties.of()
 					.mapColor(MapColor.COLOR_CYAN)
 					.strength(3.0f, 6.0f)
-					.sound(SoundType.STONE)
-					.requiresCorrectToolForDrops()));
-	public static final DeferredBlock<Block> VIRTUAL_ROCK = REGISTRY.register("virtual_rock",
-			() -> new Block(BlockBehaviour.Properties.of()
-					.mapColor(MapColor.TERRACOTTA_CYAN)
-					.strength(1.8f, 6.0f)
 					.sound(SoundType.STONE)
 					.requiresCorrectToolForDrops()));
 }

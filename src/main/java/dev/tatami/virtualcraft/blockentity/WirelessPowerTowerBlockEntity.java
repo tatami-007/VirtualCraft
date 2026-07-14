@@ -4,7 +4,9 @@ import dev.tatami.virtualcraft.api.energy.ILongEnergyStorage;
 import dev.tatami.virtualcraft.energy.EnergyStorageHelper;
 import dev.tatami.virtualcraft.energy.ILinkable;
 import dev.tatami.virtualcraft.energy.WirelessEnergyNetwork;
+import dev.tatami.virtualcraft.energy.WirelessPowerReceiver;
 import dev.tatami.virtualcraft.registry.ModBlockEntities;
+import dev.tatami.virtualcraft.registry.ModBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
@@ -70,6 +72,9 @@ public class WirelessPowerTowerBlockEntity extends BlockEntity implements ILinka
 	/** 单 tick 单次塔→塔传输的上限。原版用 {@link Long#MAX_VALUE}，本实现一致。 */
 	private static final long MAX_TRANSFER = Long.MAX_VALUE;
 	private static final Direction[] DIRECTIONS = Direction.values();
+	private static final int THUNDER_POOL_RADIUS = 8;
+	private static final int THUNDER_POOL_VERTICAL_RADIUS = 4;
+	private static final int THUNDER_POOL_SCAN_INTERVAL = 40;
 
 	/** 服务端权威的连接目标集合。客户端这个字段为空，渲染只读 {@link #clientLinks}。 */
 	private final Set<BlockPos> links = new HashSet<>();
@@ -79,6 +84,8 @@ public class WirelessPowerTowerBlockEntity extends BlockEntity implements ILinka
 
 	/** 上一次推给客户端的 links 副本，diff 它就知道是否需要 markForUpdate。 */
 	private final Set<BlockPos> lastSyncedLinks = new HashSet<>();
+	private long lastThunderPoolScan = Long.MIN_VALUE;
+	private boolean thunderPoolNearby;
 
 	public WirelessPowerTowerBlockEntity(BlockPos pos, BlockState state) {
 		super(ModBlockEntities.WIRELESS_POWER_TOWER.get(), pos, state);
@@ -121,12 +128,17 @@ public class WirelessPowerTowerBlockEntity extends BlockEntity implements ILinka
 	 * <p>目标若是塔则走 {@link #pushEnergyToTower} 做 BFS 网络中继。</p>
 	 */
 	public void pushEnergyToTarget(BlockEntity target) {
-		if (level == null || target == null) {
+		if (level == null || target == null || !isOperational()) {
 			return;
 		}
 
 		if (target instanceof WirelessPowerTowerBlockEntity targetTower) {
-			pushEnergyToTower(targetTower);
+			if (targetTower.isOperational()) {
+				pushEnergyToTower(targetTower);
+			}
+			return;
+		}
+		if (!canPowerTarget(target)) {
 			return;
 		}
 
@@ -154,6 +166,9 @@ public class WirelessPowerTowerBlockEntity extends BlockEntity implements ILinka
 
 	/** 试目标的 6 面任一可注入面，第一个返回非零的就用。 */
 	private long pushToTargetAllSides(BlockEntity target, long amount, boolean simulate) {
+		if (!canPowerTarget(target)) {
+			return 0;
+		}
 		for (Direction targetDir : DIRECTIONS) {
 			long inserted = EnergyStorageHelper.insertEnergy(target, targetDir, amount, simulate);
 			if (inserted > 0) {
@@ -165,7 +180,7 @@ public class WirelessPowerTowerBlockEntity extends BlockEntity implements ILinka
 
 	/** 塔→塔：用 BFS 在整个目标塔可达的网络中分配能量。 */
 	private void pushEnergyToTower(WirelessPowerTowerBlockEntity targetTower) {
-		if (level == null) {
+		if (level == null || !isOperational() || !targetTower.isOperational()) {
 			return;
 		}
 
@@ -215,6 +230,9 @@ public class WirelessPowerTowerBlockEntity extends BlockEntity implements ILinka
 
 		while (!towerQueue.isEmpty() && totalInserted < amount) {
 			WirelessPowerTowerBlockEntity currentTower = towerQueue.poll();
+			if (!currentTower.isOperational()) {
+				continue;
+			}
 
 			// 1. 当前塔的邻居（非塔）
 			for (Direction dir : DIRECTIONS) {
@@ -293,6 +311,41 @@ public class WirelessPowerTowerBlockEntity extends BlockEntity implements ILinka
 
 	public boolean hasTargets() {
 		return !links.isEmpty();
+	}
+
+	public boolean isOperational() {
+		if (level == null || level.isClientSide) {
+			return false;
+		}
+		long gameTime = level.getGameTime();
+		if (gameTime - lastThunderPoolScan < THUNDER_POOL_SCAN_INTERVAL && lastThunderPoolScan != Long.MIN_VALUE) {
+			return thunderPoolNearby;
+		}
+		lastThunderPoolScan = gameTime;
+		thunderPoolNearby = scanForThunderPool();
+		return thunderPoolNearby;
+	}
+
+	private boolean scanForThunderPool() {
+		BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+		for (int y = -THUNDER_POOL_VERTICAL_RADIUS; y <= THUNDER_POOL_VERTICAL_RADIUS; y++) {
+			for (int x = -THUNDER_POOL_RADIUS; x <= THUNDER_POOL_RADIUS; x++) {
+				for (int z = -THUNDER_POOL_RADIUS; z <= THUNDER_POOL_RADIUS; z++) {
+					if (x * x + z * z > THUNDER_POOL_RADIUS * THUNDER_POOL_RADIUS) {
+						continue;
+					}
+					cursor.setWithOffset(worldPosition, x, y, z);
+					if (level.getBlockState(cursor).is(ModBlocks.THUNDER_POOL.get())) {
+						return true;
+					}
+				}
+			}
+		}
+		return false;
+	}
+
+	private static boolean canPowerTarget(BlockEntity target) {
+		return target instanceof WirelessPowerReceiver receiver && receiver.canReceiveWirelessPower();
 	}
 
 	public List<BlockPos> getClientLinks() {
@@ -454,7 +507,7 @@ public class WirelessPowerTowerBlockEntity extends BlockEntity implements ILinka
 
 	@Override
 	public boolean canExtract() {
-		if (level == null) {
+		if (level == null || !isOperational()) {
 			return false;
 		}
 		for (Direction dir : DIRECTIONS) {
@@ -471,7 +524,7 @@ public class WirelessPowerTowerBlockEntity extends BlockEntity implements ILinka
 
 	@Override
 	public boolean canReceive() {
-		return level != null && !links.isEmpty();
+		return level != null && isOperational() && !links.isEmpty();
 	}
 
 	// ====================================================================
@@ -480,7 +533,7 @@ public class WirelessPowerTowerBlockEntity extends BlockEntity implements ILinka
 
 	@Override
 	public long receiveEnergyL(long maxReceive, boolean simulate) {
-		if (level == null || maxReceive <= 0 || links.isEmpty()) {
+		if (level == null || maxReceive <= 0 || links.isEmpty() || !isOperational()) {
 			return 0;
 		}
 
@@ -523,7 +576,7 @@ public class WirelessPowerTowerBlockEntity extends BlockEntity implements ILinka
 
 	@Override
 	public long extractEnergyL(long maxExtract, boolean simulate) {
-		if (level == null || maxExtract <= 0) {
+		if (level == null || maxExtract <= 0 || !isOperational()) {
 			return 0;
 		}
 		// 从邻居能量源直接抽（第一个能输出的方向就用）
@@ -543,7 +596,7 @@ public class WirelessPowerTowerBlockEntity extends BlockEntity implements ILinka
 
 	@Override
 	public long getEnergyStoredL() {
-		if (level == null) {
+		if (level == null || !isOperational()) {
 			return 0;
 		}
 		long total = 0;

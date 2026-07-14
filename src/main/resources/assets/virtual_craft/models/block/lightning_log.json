@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cube_column",
+  "textures": {
+    "end": "virtual_craft:block/lightning_log_top",
+    "side": "virtual_craft:block/lightning_log"
+  }
+}

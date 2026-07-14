@@ -1,0 +1,4 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": { "layer0": "virtual_craft:item/thunder_pool_bucket" }
+}

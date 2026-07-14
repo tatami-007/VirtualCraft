@@ -31,7 +31,7 @@ public class ElectricCondenserScreen extends AbstractContainerScreen<ElectricCon
 	// v20.13 widget 整体上移 2px 让 ENERGY 上下边距接近对称（用户反馈："电凝聚器对齐了吗"）
 	private static final int ARROW_X = 77, ARROW_Y = 41;           // v20.13 43→41，中点 (88, 49)
 	private static final int ARROW_W = 22, ARROW_H = 16;
-	private static final int ENERGY_X = 8,  ENERGY_Y = 23;         // v20.13 25→23，中点 (16, 49)，占 23..75 上 8/下 7 ✓
+	private static final int ENERGY_X = 8,  ENERGY_Y = 22;         // 与电芯槽外框之间保留 1px 间隔，和 PoW 矿机一致
 	private static final int ENERGY_W = 16, ENERGY_H = 52;
 	private static final int CELL_X = 8, CELL_Y = 76;
 	// UPGRADE 3 槽 @ (152, 24/42/60)，组中点 (160, 51) — 离中轴 72
@@ -71,7 +71,6 @@ public class ElectricCondenserScreen extends AbstractContainerScreen<ElectricCon
 		int left = leftPos;
 		int top = topPos;
 		MachineDraw.drawBackground(guiGraphics, left, top, imageWidth, imageHeight, BG);
-		MachineDraw.drawItemSlot(guiGraphics, left + CELL_X - 1, top + CELL_Y - 1);
 		// 进度箭头动态填充（v16：sprite 在本机器主背景 (180, 0) 22×16 区域）
 		MachineDraw.drawProgressArrow(guiGraphics, left + ARROW_X, top + ARROW_Y,
 				menu.getScaledProgress() / (double) ARROW_W, BG, 180, 0);

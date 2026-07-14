@@ -484,7 +484,6 @@
   "block.virtual_craft.virtual_dirt": "虚拟泥土",
   "block.virtual_craft.virtual_stone": "虚拟石头",
   "block.virtual_craft.virtual_cobblestone": "虚拟圆石",
-  "block.virtual_craft.virtual_rock": "虚拟岩石",
   "block.virtual_craft.virtual_silver_ore": "虚拟银矿石",
   "block.virtual_craft.virtual_aluminum_ore": "虚拟铝矿石",
   "block.virtual_craft.virtual_gold_ore": "虚拟金矿石",
@@ -504,5 +503,11 @@
   "item.virtual_craft.advanced_power_cell": "高级电芯",
   "item.virtual_craft.quantum_power_cell": "量子电芯",
   "item.virtual_craft.power_cell.multiplier": "运行倍率 ×%s",
-  "screen.virtual_craft.machine.power_cell": "电芯"
+  "screen.virtual_craft.machine.power_cell": "电芯",
+  "biome.virtual_craft.lightning_forest": "闪电森林",
+  "block.virtual_craft.lightning_log": "闪电原木",
+  "block.virtual_craft.lightning_leaves": "闪电树叶",
+  "block.virtual_craft.thunder_pool": "雷池",
+  "item.virtual_craft.thunder_pool_bucket": "雷池桶",
+  "block.virtual_craft.energy_pipe": "能量管道"
 }

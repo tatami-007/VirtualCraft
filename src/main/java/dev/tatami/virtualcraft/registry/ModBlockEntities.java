@@ -8,7 +8,7 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 import dev.tatami.virtualcraft.VirtualCraft;
 import dev.tatami.virtualcraft.blockentity.ElectricBallGeneratorBlockEntity;
 import dev.tatami.virtualcraft.blockentity.ElectricCondenserBlockEntity;
-import dev.tatami.virtualcraft.blockentity.HolographicShopBlockEntity;
+import dev.tatami.virtualcraft.blockentity.EnergyPipeBlockEntity;
 import dev.tatami.virtualcraft.blockentity.PowMinerBlockEntity;
 import dev.tatami.virtualcraft.blockentity.WirelessPowerTowerBlockEntity;
 
@@ -20,10 +20,10 @@ public final class ModBlockEntities {
 
 	public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<ElectricCondenserBlockEntity>> ELECTRIC_CONDENSER = REGISTRY.register("electric_condenser",
 			() -> BlockEntityType.Builder.of(ElectricCondenserBlockEntity::new, ModBlocks.ELECTRIC_CONDENSER.get()).build(null));
+	public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<EnergyPipeBlockEntity>> ENERGY_PIPE = REGISTRY.register("energy_pipe",
+			() -> BlockEntityType.Builder.of(EnergyPipeBlockEntity::new, ModBlocks.ENERGY_PIPE.get()).build(null));
 	public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<ElectricBallGeneratorBlockEntity>> ELECTRIC_BALL_GENERATOR = REGISTRY.register("electric_ball_generator",
 			() -> BlockEntityType.Builder.of(ElectricBallGeneratorBlockEntity::new, ModBlocks.ELECTRIC_BALL_GENERATOR.get()).build(null));
-	public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<HolographicShopBlockEntity>> HOLOGRAPHIC_SHOP = REGISTRY.register("holographic_shop",
-			() -> BlockEntityType.Builder.of(HolographicShopBlockEntity::new, ModBlocks.HOLOGRAPHIC_SHOP.get()).build(null));
 	public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<PowMinerBlockEntity>> POW_MINER = REGISTRY.register("pow_miner",
 			() -> BlockEntityType.Builder.of(PowMinerBlockEntity::new, ModBlocks.POW_MINER.get()).build(null));
 	public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<WirelessPowerTowerBlockEntity>> WIRELESS_POWER_TOWER = REGISTRY.register("wireless_power_tower",

@@ -1,0 +1,48 @@
+{
+  "temperature": 0.35,
+  "downfall": 0.9,
+  "has_precipitation": true,
+  "temperature_modifier": "none",
+  "effects": {
+    "sky_color": 10389208,
+    "fog_color": 12579583,
+    "water_color": 12098286,
+    "water_fog_color": 7889064,
+    "grass_color": 14199039,
+    "foliage_color": 13279472,
+    "mood_sound": {
+      "sound": "minecraft:ambient.cave",
+      "tick_delay": 3000,
+      "block_search_extent": 8,
+      "offset": 2.0
+    }
+  },
+  "carvers": { "air": ["minecraft:cave", "minecraft:cave_extra_underground", "minecraft:canyon"] },
+  "features": [
+    [],
+    ["virtual_craft:lightning_forest_thunder_pool"],
+    [],
+    [],
+    [],
+    [],
+    [
+      "virtual_craft:virtual_world_virtual_aluminum_ore",
+      "virtual_craft:virtual_world_virtual_silver_ore",
+      "virtual_craft:virtual_world_virtual_gold_ore",
+      "virtual_craft:virtual_world_virtual_gold_ore_buried",
+      "virtual_craft:virtual_world_virtual_titanium_ore",
+      "virtual_craft:virtual_world_virtual_titanium_ore_buried",
+      "virtual_craft:virtual_world_virtual_chromium_ore",
+      "virtual_craft:virtual_world_virtual_chromium_ore_buried"
+    ],
+    [],
+    [],
+    ["virtual_craft:lightning_forest_trees"],
+    []
+  ],
+  "spawners": {
+    "monster": [], "creature": [], "ambient": [], "axolotls": [],
+    "underground_water_creature": [], "water_creature": [], "water_ambient": [], "misc": []
+  },
+  "spawn_costs": {}
+}

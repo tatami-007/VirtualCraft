@@ -1,0 +1,10 @@
+{
+  "ambientocclusion": false,
+  "textures": { "all": "virtual_craft:block/energy_pipe", "particle": "virtual_craft:block/energy_pipe" },
+  "elements": [
+    { "from": [5, 0, 5], "to": [11, 5, 11], "faces": {
+      "north": { "uv": [5, 0, 11, 5], "texture": "#all" }, "south": { "uv": [11, 0, 5, 5], "texture": "#all" },
+      "west": { "uv": [5, 0, 11, 5], "texture": "#all" }, "east": { "uv": [11, 0, 5, 5], "texture": "#all" }
+    } }
+  ]
+}

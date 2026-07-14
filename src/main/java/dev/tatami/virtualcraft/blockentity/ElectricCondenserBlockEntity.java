@@ -7,6 +7,7 @@ import dev.tatami.virtualcraft.machine.IConfigurableSidedMachine;
 import dev.tatami.virtualcraft.machine.ElectricCondenserTuning;
 import dev.tatami.virtualcraft.machine.MachineSideConfig;
 import dev.tatami.virtualcraft.machine.SideMode;
+import dev.tatami.virtualcraft.energy.WirelessPowerReceiver;
 import dev.tatami.virtualcraft.menu.ElectricCondenserMenu;
 import dev.tatami.virtualcraft.item.PowerCellItem;
 import dev.tatami.virtualcraft.registry.ModBlockEntities;
@@ -41,7 +42,7 @@ import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemHandlerHelper;
 import net.neoforged.neoforge.items.ItemStackHandler;
 
-public class ElectricCondenserBlockEntity extends BlockEntity implements MenuProvider, IConfigurableSidedMachine {
+public class ElectricCondenserBlockEntity extends BlockEntity implements MenuProvider, IConfigurableSidedMachine, WirelessPowerReceiver {
 	public static final int INGOT_SLOT = 0;
 	public static final int BALL_SLOT = 1;
 	public static final int OUTPUT_SLOT = 2;
@@ -159,6 +160,11 @@ public class ElectricCondenserBlockEntity extends BlockEntity implements MenuPro
 
 	public ItemStackHandler getInventory() {
 		return inventory;
+	}
+
+	@Override
+	public boolean canReceiveWirelessPower() {
+		return inventory.getStackInSlot(POWER_CELL_SLOT).is(ModItems.QUANTUM_POWER_CELL.get());
 	}
 
 	public IEnergyStorage getEnergyStorage(Direction side) {

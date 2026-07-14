@@ -26,6 +26,7 @@ public final class ModCreativeTabs {
 				tabData.accept(ModItems.HOLOGRAPHIC_SHOP.get());
 				tabData.accept(ModBlocks.POW_MINER.get().asItem());
 				tabData.accept(ModBlocks.WIRELESS_POWER_TOWER.get().asItem());
+				tabData.accept(ModBlocks.ENERGY_PIPE.get().asItem());
 				tabData.accept(ModItems.ELECTRIC_BALL.get());
 				tabData.accept(ModItems.ELECTRIC_INGOT.get());
 				tabData.accept(ModItems.ELECTRIC_ABSORBER.get());
@@ -69,11 +70,13 @@ public final class ModCreativeTabs {
 				tabData.accept(ModItems.CIRCUIT_FLOOR.get());
 				tabData.accept(ModItems.HOLOGRAPHIC_WALL.get());
 				tabData.accept(ModItems.ENERGY_PYLON.get());
+				tabData.accept(ModItems.LIGHTNING_LOG.get());
+				tabData.accept(ModItems.LIGHTNING_LEAVES.get());
+				tabData.accept(ModItems.THUNDER_POOL_BUCKET.get());
 				tabData.accept(ModItems.VIRTUAL_GRASS.get());
 				tabData.accept(ModItems.VIRTUAL_DIRT.get());
 				tabData.accept(ModItems.VIRTUAL_STONE.get());
 				tabData.accept(ModItems.VIRTUAL_COBBLESTONE.get());
-				tabData.accept(ModItems.VIRTUAL_ROCK.get());
 				tabData.accept(ModItems.VIRTUAL_ALUMINUM_ORE.get());
 				tabData.accept(ModItems.RAW_VIRTUAL_ALUMINUM.get());
 				tabData.accept(ModItems.VIRTUAL_ALUMINUM_INGOT.get());

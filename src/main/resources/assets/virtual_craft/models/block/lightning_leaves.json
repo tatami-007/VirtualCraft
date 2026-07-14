@@ -1,0 +1,5 @@
+{
+  "parent": "minecraft:block/cube_all",
+  "render_type": "minecraft:cutout_mipped",
+  "textures": { "all": "virtual_craft:block/lightning_leaves" }
+}

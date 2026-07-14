@@ -9,6 +9,7 @@
     "virtual_craft:virtual_silver_ore",
     "virtual_craft:virtual_gold_ore",
     "virtual_craft:virtual_titanium_ore",
-    "virtual_craft:virtual_chromium_ore"
+    "virtual_craft:virtual_chromium_ore",
+    "virtual_craft:energy_pipe"
   ]
 }

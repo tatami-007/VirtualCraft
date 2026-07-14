@@ -14,9 +14,14 @@ import dev.tatami.virtualcraft.client.screen.holographic.HolographicShopClientCa
 import dev.tatami.virtualcraft.client.screen.PowMinerScreen;
 import dev.tatami.virtualcraft.client.screen.holographic.HolographicIconCache;
 import dev.tatami.virtualcraft.registry.ModMenuTypes;
-import net.neoforged.neoforge.client.event.EntityRenderersEvent;
+import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
+import net.minecraft.client.renderer.BiomeColors;
+import dev.tatami.virtualcraft.registry.ModBlocks;
+import dev.tatami.virtualcraft.registry.ModItems;
 
 public final class VirtualCraftClient {
+	private static final int VIRTUAL_GRASS_COLOR = 0x82BFFF;
+
 	private VirtualCraftClient() {
 	}
 
@@ -30,18 +35,6 @@ public final class VirtualCraftClient {
 		// MuiModApi.openScreen(...) 直接拉起一个 SimpleScreen（非 AbstractContainerScreen）——
 		// JEI 默认不识别这种 Screen 为容器 GUI，不会绘 Ingredient Overlay。
 		// WirelessPowerTower 重做后无 GUI — 玩家用 LaserBindingTool 直接绑定，无需 Screen
-	}
-
-	/**
-	 * 注册方块实体渲染器。
-	 *
-	 * <p>无线供电塔原本有个 {@code WirelessPowerTowerRenderer}（BER）负责画光束，已被客户端独立
-	 * 渲染器 {@link BoundMachineHighlighter} 取代 —— 后者走 {@code RenderLevelStageEvent}，
-	 * 不受 chunk section culling 影响，解决“光束在屏幕边缘消失”问题。</p>
-	 *
-	 * <p>目前本 mod 没有需要 BER 的方块实体，这个方法作为未来加新 BER 的预留入口存在。</p>
-	 */
-	public static void registerBlockEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
 	}
 
 	public static void registerShaders(RegisterShadersEvent event) {
@@ -79,6 +72,23 @@ public final class VirtualCraftClient {
 
 	public static void onClientTick(ClientTickEvent.Post event) {
 		HolographicIconCache.tickCurrencyPrewarm();
+		LightningForestClientEffects.tick();
+	}
+
+	public static void registerBlockColors(RegisterColorHandlersEvent.Block event) {
+		event.register((state, level, pos, tintIndex) -> {
+			if (tintIndex != 0) {
+				return 0xFFFFFF;
+			}
+			return level != null && pos != null
+					? BiomeColors.getAverageGrassColor(level, pos)
+					: VIRTUAL_GRASS_COLOR;
+		}, ModBlocks.VIRTUAL_GRASS.get());
+	}
+
+	public static void registerItemColors(RegisterColorHandlersEvent.Item event) {
+		event.register((stack, tintIndex) -> tintIndex == 0 ? VIRTUAL_GRASS_COLOR : 0xFFFFFF,
+				ModItems.VIRTUAL_GRASS.get());
 	}
 }
 

@@ -66,9 +66,10 @@ public class ComputerItem extends Item {
 			}
 			sp.setData(ModAttachments.VIRTUAL_WORLD_RETURN_POINT, new VirtualWorldReturnPoint(current, sp.getX(),
 					sp.getY(), sp.getZ(), sp.getYRot(), sp.getXRot()));
-			// Force chunk at spawn to generate before querying heightmap
-			vw.getChunk(0, 0);
-			int surfaceY = vw.getHeight(Heightmap.Types.MOTION_BLOCKING, 0, 0) + 1;
+			// Avoid synchronously generating the destination chunk before teleporting.
+			int surfaceY = vw.getChunkSource().getGenerator().getBaseHeight(
+					0, 0, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, vw,
+					vw.getChunkSource().randomState()) + 1;
 			if (surfaceY <= vw.getMinBuildHeight()) {
 				surfaceY = 80;
 			}

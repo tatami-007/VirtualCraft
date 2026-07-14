@@ -8,8 +8,8 @@
     "fog_color": 12579583,
     "water_color": 58879,
     "water_fog_color": 19558,
-    "grass_color": 65436,
-    "foliage_color": 59018,
+    "grass_color": 8568831,
+    "foliage_color": 7383523,
     "mood_sound": {
       "sound": "minecraft:ambient.cave",
       "tick_delay": 6000,
@@ -38,13 +38,14 @@
     [],
     [],
     [
-      "virtual_craft:virtual_world_electric_ore",
-      "virtual_craft:virtual_world_deepslate_electric_ore",
       "virtual_craft:virtual_world_virtual_aluminum_ore",
       "virtual_craft:virtual_world_virtual_silver_ore",
       "virtual_craft:virtual_world_virtual_gold_ore",
+      "virtual_craft:virtual_world_virtual_gold_ore_buried",
       "virtual_craft:virtual_world_virtual_titanium_ore",
-      "virtual_craft:virtual_world_virtual_chromium_ore"
+      "virtual_craft:virtual_world_virtual_titanium_ore_buried",
+      "virtual_craft:virtual_world_virtual_chromium_ore",
+      "virtual_craft:virtual_world_virtual_chromium_ore_buried"
     ],
     [],
     [],

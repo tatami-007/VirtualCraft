@@ -1,0 +1,3 @@
+{
+  "multipart": [{ "apply": { "model": "virtual_craft:block/lightning_leaves" } }]
+}

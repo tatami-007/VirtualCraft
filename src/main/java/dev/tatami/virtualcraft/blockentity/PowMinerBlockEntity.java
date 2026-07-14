@@ -7,6 +7,7 @@ import dev.tatami.virtualcraft.machine.IConfigurableSidedMachine;
 import dev.tatami.virtualcraft.machine.MachineSideConfig;
 import dev.tatami.virtualcraft.machine.PowMinerOutputRules;
 import dev.tatami.virtualcraft.machine.SideMode;
+import dev.tatami.virtualcraft.energy.WirelessPowerReceiver;
 import dev.tatami.virtualcraft.menu.PowMinerMenu;
 import dev.tatami.virtualcraft.item.PowerCellItem;
 import dev.tatami.virtualcraft.registry.ModBlockEntities;
@@ -37,7 +38,7 @@ import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemHandlerHelper;
 import net.neoforged.neoforge.items.ItemStackHandler;
 
-public class PowMinerBlockEntity extends BlockEntity implements MenuProvider, IConfigurableSidedMachine {
+public class PowMinerBlockEntity extends BlockEntity implements MenuProvider, IConfigurableSidedMachine, WirelessPowerReceiver {
 	public static final int BASIC_OUTPUT_SLOT = PowMinerOutputRules.BASIC_OUTPUT_SLOT;
 	public static final int RARE_OUTPUT_SLOT = PowMinerOutputRules.RARE_OUTPUT_SLOT;
 	public static final int POWER_CELL_SLOT = 2;
@@ -139,6 +140,11 @@ public class PowMinerBlockEntity extends BlockEntity implements MenuProvider, IC
 
 	public ItemStackHandler getInventory() {
 		return inventory;
+	}
+
+	@Override
+	public boolean canReceiveWirelessPower() {
+		return inventory.getStackInSlot(POWER_CELL_SLOT).is(ModItems.QUANTUM_POWER_CELL.get());
 	}
 
 	public IItemHandler getItemHandler(Direction direction) {

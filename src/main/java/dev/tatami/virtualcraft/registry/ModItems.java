@@ -14,6 +14,8 @@ import net.neoforged.api.distmarker.Dist;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.BucketItem;
+import net.minecraft.world.item.Items;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.client.renderer.item.ItemProperties;
 
@@ -21,7 +23,6 @@ import dev.tatami.virtualcraft.VirtualCraft;
 import dev.tatami.virtualcraft.currency.CryptoCurrency;
 import dev.tatami.virtualcraft.item.ComputerItem;
 import dev.tatami.virtualcraft.item.ElectricAbsorberItem;
-import dev.tatami.virtualcraft.item.ElectricBallItem;
 import dev.tatami.virtualcraft.item.HashVoucherItem;
 import dev.tatami.virtualcraft.item.HolographicTerminalItem;
 import dev.tatami.virtualcraft.item.LaserBindingTool;
@@ -39,7 +40,7 @@ public final class ModItems {
 	public static final DeferredItem<Item> DEEPSLATE_ELECTRIC_ORE = block(ModBlocks.DEEPSLATE_ELECTRIC_ORE);
 	public static final DeferredItem<Item> ELECTRIC_CONDENSER = block(ModBlocks.ELECTRIC_CONDENSER);
 	public static final DeferredItem<Item> ELECTRIC_BALL_GENERATOR = block(ModBlocks.ELECTRIC_BALL_GENERATOR);
-	public static final DeferredItem<Item> ELECTRIC_BALL = REGISTRY.register("electric_ball", ElectricBallItem::new);
+	public static final DeferredItem<Item> ELECTRIC_BALL = REGISTRY.register("electric_ball", () -> new Item(new Item.Properties()));
 	public static final DeferredItem<Item> ELECTRIC_INGOT = REGISTRY.register("electric_ingot", () -> new Item(new Item.Properties()));
 	public static final DeferredItem<Item> ELECTRIC_ABSORBER = REGISTRY.register("electric_absorber", ElectricAbsorberItem::new);
 	public static final DeferredItem<Item> HASH_VOUCHER = REGISTRY.register("hash_voucher", () -> new HashVoucherItem());
@@ -89,9 +90,13 @@ public final class ModItems {
 	public static final DeferredItem<Item> VIRTUAL_TITANIUM_INGOT = REGISTRY.register("virtual_titanium_ingot", () -> new Item(new Item.Properties()));
 	public static final DeferredItem<Item> VIRTUAL_CHROMIUM_INGOT = REGISTRY.register("virtual_chromium_ingot", () -> new Item(new Item.Properties()));
 	public static final DeferredItem<Item> VIRTUAL_COBBLESTONE = block(ModBlocks.VIRTUAL_COBBLESTONE);
-	public static final DeferredItem<Item> VIRTUAL_ROCK = block(ModBlocks.VIRTUAL_ROCK);
 	public static final DeferredItem<Item> HOLOGRAPHIC_WALL = block(ModBlocks.HOLOGRAPHIC_WALL);
 	public static final DeferredItem<Item> ENERGY_PYLON = block(ModBlocks.ENERGY_PYLON);
+	public static final DeferredItem<Item> ENERGY_PIPE = block(ModBlocks.ENERGY_PIPE);
+	public static final DeferredItem<Item> LIGHTNING_LOG = block(ModBlocks.LIGHTNING_LOG);
+	public static final DeferredItem<Item> LIGHTNING_LEAVES = block(ModBlocks.LIGHTNING_LEAVES);
+	public static final DeferredItem<Item> THUNDER_POOL_BUCKET = REGISTRY.register("thunder_pool_bucket",
+			() -> new BucketItem(ModFluids.THUNDER_POOL.get(), new Item.Properties().craftRemainder(Items.BUCKET).stacksTo(1)));
 	public static final DeferredItem<Item> CRYPTO_BTC = REGISTRY.register(CryptoCurrency.BTC.itemName(), () -> new Item(new Item.Properties().stacksTo(CryptoCurrency.BTC.stackLimit())));
 	public static final DeferredItem<Item> CRYPTO_ETH = REGISTRY.register(CryptoCurrency.ETH.itemName(), () -> new Item(new Item.Properties().stacksTo(CryptoCurrency.ETH.stackLimit())));
 	public static final DeferredItem<Item> CRYPTO_USDT = REGISTRY.register(CryptoCurrency.USDT.itemName(), () -> new Item(new Item.Properties().stacksTo(CryptoCurrency.USDT.stackLimit())));

@@ -6,6 +6,7 @@
     "virtual_craft:electric_ball_generator",
     "virtual_craft:pow_miner",
     "virtual_craft:virtual_silver_ore",
-    "virtual_craft:virtual_gold_ore"
+    "virtual_craft:virtual_gold_ore",
+    "virtual_craft:energy_pipe"
   ]
 }

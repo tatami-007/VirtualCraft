@@ -1,0 +1,4 @@
+{
+  "parent": "virtual_craft:block/energy_pipe_core",
+  "textures": { "all": "virtual_craft:block/energy_pipe_active", "particle": "virtual_craft:block/energy_pipe_active" }
+}

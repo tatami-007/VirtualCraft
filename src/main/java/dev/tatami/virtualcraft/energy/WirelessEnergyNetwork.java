@@ -98,7 +98,10 @@ public final class WirelessEnergyNetwork {
 			return;
 		}
 		registeredTowers.put(tower.getBlockPos(), tower);
-		towersByLevel.computeIfAbsent(level, k -> new ArrayList<>()).add(tower);
+		List<WirelessPowerTowerBlockEntity> towers = towersByLevel.computeIfAbsent(level, k -> new ArrayList<>());
+		if (!towers.contains(tower)) {
+			towers.add(tower);
+		}
 	}
 
 	public void unregisterTower(WirelessPowerTowerBlockEntity tower) {
@@ -170,6 +173,9 @@ public final class WirelessEnergyNetwork {
 		}
 		Level level = tower.getLevel();
 		if (level == null) {
+			return;
+		}
+		if (!tower.isOperational()) {
 			return;
 		}
 

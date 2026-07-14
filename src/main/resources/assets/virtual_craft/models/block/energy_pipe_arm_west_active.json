@@ -1,0 +1,1 @@
+{ "parent": "virtual_craft:block/energy_pipe_arm_west", "textures": { "all": "virtual_craft:block/energy_pipe_active" } }

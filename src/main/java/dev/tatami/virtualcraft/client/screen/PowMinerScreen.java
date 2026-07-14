@@ -68,7 +68,6 @@ public class PowMinerScreen extends AbstractContainerScreen<PowMinerMenu> {
 		int left = leftPos;
 		int top = topPos;
 		MachineDraw.drawBackground(guiGraphics, left, top, imageWidth, imageHeight, BG);
-		MachineDraw.drawItemSlot(guiGraphics, left + CELL_X - 1, top + CELL_Y - 1);
 		// 算力进度条动态填充（v15：sprite 从公用 sheet 移到本机器主背景 (180, 0) 36×8 区域）
 		MachineDraw.drawHorizontalBar(guiGraphics, left + ARROW_X, top + ARROW_Y, ARROW_W, ARROW_H,
 				menu.getScaledProgress() / (double) ARROW_W, BG, 180, 0);

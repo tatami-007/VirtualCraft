@@ -484,7 +484,6 @@
   "block.virtual_craft.virtual_dirt": "Virtual Dirt",
   "block.virtual_craft.virtual_stone": "Virtual Stone",
   "block.virtual_craft.virtual_cobblestone": "Virtual Cobblestone",
-  "block.virtual_craft.virtual_rock": "Virtual Rock",
   "block.virtual_craft.virtual_silver_ore": "Virtual Silver Ore",
   "block.virtual_craft.virtual_aluminum_ore": "Virtual Aluminum Ore",
   "block.virtual_craft.virtual_gold_ore": "Virtual Gold Ore",
@@ -504,5 +503,11 @@
   "item.virtual_craft.advanced_power_cell": "Advanced Power Cell",
   "item.virtual_craft.quantum_power_cell": "Quantum Power Cell",
   "item.virtual_craft.power_cell.multiplier": "Operating speed x%s",
-  "screen.virtual_craft.machine.power_cell": "Power Cell"
+  "screen.virtual_craft.machine.power_cell": "Power Cell",
+  "biome.virtual_craft.lightning_forest": "Lightning Forest",
+  "block.virtual_craft.lightning_log": "Lightning Log",
+  "block.virtual_craft.lightning_leaves": "Lightning Leaves",
+  "block.virtual_craft.thunder_pool": "Thunder Pool",
+  "item.virtual_craft.thunder_pool_bucket": "Thunder Pool Bucket",
+  "block.virtual_craft.energy_pipe": "Energy Pipe"
 }
