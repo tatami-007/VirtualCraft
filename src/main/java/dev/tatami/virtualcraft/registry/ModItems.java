@@ -29,6 +29,7 @@ import dev.tatami.virtualcraft.item.LaserBindingTool;
 import dev.tatami.virtualcraft.item.MiningSurveyorItem;
 import dev.tatami.virtualcraft.item.PowerCellItem;
 import dev.tatami.virtualcraft.item.SpeedUpgradeCardItem;
+import dev.tatami.virtualcraft.item.SnakeKingKeyItem;
 import dev.tatami.virtualcraft.gameplay.ElectricAbsorberChargeHelper;
 
 public final class ModItems {
@@ -60,6 +61,7 @@ public final class ModItems {
 			() -> new PowerCellItem(PowerCellItem.Tier.ADVANCED));
 	public static final DeferredItem<Item> QUANTUM_POWER_CELL = REGISTRY.register("quantum_power_cell",
 			() -> new PowerCellItem(PowerCellItem.Tier.QUANTUM));
+	public static final DeferredItem<Item> SNAKE_KING_KEY = REGISTRY.register("snake_king_key", SnakeKingKeyItem::new);
 	/**
 	 * 光束绑定器 — 1:1 还原 ME-Beam-Former 1.21.1 的 LaserBindingTool。
 	 * 交互：Shift+右键塔选源 / Shift+右键机器绑机器 / 右键塔绑塔 / Shift+右键空气清空。
@@ -69,29 +71,28 @@ public final class ModItems {
 	public static final DeferredItem<Item> HOLOGRAPHIC_SHOP = REGISTRY.register("holographic_shop", HolographicTerminalItem::new);
 	public static final DeferredItem<Item> POW_MINER = block(ModBlocks.POW_MINER);
 	public static final DeferredItem<Item> WIRELESS_POWER_TOWER = block(ModBlocks.WIRELESS_POWER_TOWER);
-	public static final DeferredItem<Item> DATA_FRAGMENT = REGISTRY.register("data_fragment", () -> new Item(new Item.Properties()));
-	public static final DeferredItem<Item> CIRCUIT_FLOOR = block(ModBlocks.CIRCUIT_FLOOR);
 	public static final DeferredItem<Item> VIRTUAL_GRASS = block(ModBlocks.VIRTUAL_GRASS);
 	public static final DeferredItem<Item> VIRTUAL_DIRT = block(ModBlocks.VIRTUAL_DIRT);
 	public static final DeferredItem<Item> VIRTUAL_STONE = block(ModBlocks.VIRTUAL_STONE);
+	public static final DeferredItem<Item> VIRTUAL_IRON_ORE = block(ModBlocks.VIRTUAL_IRON_ORE);
 	public static final DeferredItem<Item> VIRTUAL_SILVER_ORE = block(ModBlocks.VIRTUAL_SILVER_ORE);
 	public static final DeferredItem<Item> VIRTUAL_ALUMINUM_ORE = block(ModBlocks.VIRTUAL_ALUMINUM_ORE);
 	public static final DeferredItem<Item> VIRTUAL_GOLD_ORE = block(ModBlocks.VIRTUAL_GOLD_ORE);
 	public static final DeferredItem<Item> VIRTUAL_TITANIUM_ORE = block(ModBlocks.VIRTUAL_TITANIUM_ORE);
 	public static final DeferredItem<Item> VIRTUAL_CHROMIUM_ORE = block(ModBlocks.VIRTUAL_CHROMIUM_ORE);
+	public static final DeferredItem<Item> RAW_VIRTUAL_IRON = REGISTRY.register("raw_virtual_iron", () -> new Item(new Item.Properties()));
 	public static final DeferredItem<Item> RAW_VIRTUAL_ALUMINUM = REGISTRY.register("raw_virtual_aluminum", () -> new Item(new Item.Properties()));
 	public static final DeferredItem<Item> RAW_VIRTUAL_SILVER = REGISTRY.register("raw_virtual_silver", () -> new Item(new Item.Properties()));
 	public static final DeferredItem<Item> RAW_VIRTUAL_GOLD = REGISTRY.register("raw_virtual_gold", () -> new Item(new Item.Properties()));
 	public static final DeferredItem<Item> RAW_VIRTUAL_TITANIUM = REGISTRY.register("raw_virtual_titanium", () -> new Item(new Item.Properties()));
 	public static final DeferredItem<Item> RAW_VIRTUAL_CHROMIUM = REGISTRY.register("raw_virtual_chromium", () -> new Item(new Item.Properties()));
+	public static final DeferredItem<Item> VIRTUAL_IRON_INGOT = REGISTRY.register("virtual_iron_ingot", () -> new Item(new Item.Properties()));
 	public static final DeferredItem<Item> VIRTUAL_ALUMINUM_INGOT = REGISTRY.register("virtual_aluminum_ingot", () -> new Item(new Item.Properties()));
 	public static final DeferredItem<Item> VIRTUAL_SILVER_INGOT = REGISTRY.register("virtual_silver_ingot", () -> new Item(new Item.Properties()));
 	public static final DeferredItem<Item> VIRTUAL_GOLD_INGOT = REGISTRY.register("virtual_gold_ingot", () -> new Item(new Item.Properties()));
 	public static final DeferredItem<Item> VIRTUAL_TITANIUM_INGOT = REGISTRY.register("virtual_titanium_ingot", () -> new Item(new Item.Properties()));
 	public static final DeferredItem<Item> VIRTUAL_CHROMIUM_INGOT = REGISTRY.register("virtual_chromium_ingot", () -> new Item(new Item.Properties()));
 	public static final DeferredItem<Item> VIRTUAL_COBBLESTONE = block(ModBlocks.VIRTUAL_COBBLESTONE);
-	public static final DeferredItem<Item> HOLOGRAPHIC_WALL = block(ModBlocks.HOLOGRAPHIC_WALL);
-	public static final DeferredItem<Item> ENERGY_PYLON = block(ModBlocks.ENERGY_PYLON);
 	public static final DeferredItem<Item> ENERGY_PIPE = block(ModBlocks.ENERGY_PIPE);
 	public static final DeferredItem<Item> LIGHTNING_LOG = block(ModBlocks.LIGHTNING_LOG);
 	public static final DeferredItem<Item> LIGHTNING_LEAVES = block(ModBlocks.LIGHTNING_LEAVES);

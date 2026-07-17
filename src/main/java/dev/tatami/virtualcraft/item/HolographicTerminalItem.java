@@ -38,11 +38,12 @@ public class HolographicTerminalItem extends Item {
 		ItemStack stack = player.getItemInHand(usedHand);
 		if (!level.isClientSide && player instanceof ServerPlayer serverPlayer) {
 			int sessionId = HolographicTerminalSession.open(serverPlayer);
-			PacketDistributor.sendToPlayer(serverPlayer, new OpenHolographicTerminalPayload(sessionId, /*itemMode=*/ true, BlockPos.ZERO));
-			// Push initial snapshot AFTER the open packet — TCP 保序，客户端 Open 包先被处理
-			// （setScreen + Fragment.onCreate），Sync 包随后到达时 Fragment 已在 currentScreen，
-			// {@code fromCurrentScreen(menuId)} 能正确定位。
+			// Prime the client cache before constructing the ModernUI tree. The four
+			// sync handlers can cache data without an active Fragment, and TCP keeps
+			// them ahead of the following open packet. The first frame therefore uses
+			// real data and avoids an immediate second full-page rebuild.
 			HolographicShopSyncDispatcher.pushInitialSnapshot(serverPlayer);
+			PacketDistributor.sendToPlayer(serverPlayer, new OpenHolographicTerminalPayload(sessionId, /*itemMode=*/ true, BlockPos.ZERO));
 		}
 		return InteractionResultHolder.sidedSuccess(stack, level.isClientSide);
 	}

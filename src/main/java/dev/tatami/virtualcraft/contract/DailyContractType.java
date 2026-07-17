@@ -4,7 +4,6 @@ public enum DailyContractType {
 	SETTLE_VOUCHERS("settle_vouchers"),
 	SHOP_TRADE("shop_trade"),
 	SURVEY_VEIN("survey_vein"),
-	DECODE_RELIC("decode_relic"),
 	CONVERT_CURRENCY("convert_currency");
 
 	private final String id;

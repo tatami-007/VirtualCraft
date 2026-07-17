@@ -22,8 +22,8 @@ public final class DailyContractGenerator {
 				DailyContractType.SHOP_TRADE,
 				DailyContractType.SURVEY_VEIN,
 				DailyContractType.SURVEY_VEIN,
-				DailyContractType.DECODE_RELIC,
-				DailyContractType.DECODE_RELIC,
+				DailyContractType.SETTLE_VOUCHERS,
+				DailyContractType.CONVERT_CURRENCY,
 				DailyContractType.CONVERT_CURRENCY));
 		EnumSet<DailyContractType> picked = EnumSet.noneOf(DailyContractType.class);
 		List<DailyContract> contracts = new ArrayList<>(CONTRACTS_PER_DAY);
@@ -49,7 +49,6 @@ public final class DailyContractGenerator {
 			case SETTLE_VOUCHERS -> 3L + random.nextInt(4);
 			case SHOP_TRADE -> USDT_MINOR * (100L + random.nextInt(151));
 			case SURVEY_VEIN -> 2L + random.nextInt(3);
-			case DECODE_RELIC -> 1L + random.nextInt(2);
 			case CONVERT_CURRENCY -> USDT_MINOR * (50L + random.nextInt(101));
 		};
 		DailyContractReward reward = rewardFor(type, slot, random);
@@ -65,11 +64,8 @@ public final class DailyContractGenerator {
 	}
 
 	private static DailyContractReward rewardFor(DailyContractType type, int slot, Random random) {
-		if (type == DailyContractType.DECODE_RELIC) {
-			return new DailyContractReward(DailyContractReward.Kind.ENCRYPTED_HASH_VOUCHER, 1L);
-		}
 		if (type == DailyContractType.SURVEY_VEIN) {
-			return new DailyContractReward(DailyContractReward.Kind.DATA_FRAGMENT, 6L + slot * 2L);
+			return new DailyContractReward(DailyContractReward.Kind.EXPLORER_HASH_VOUCHER, 1L);
 		}
 		if (slot == 2 && random.nextInt(100) < 12) {
 			return new DailyContractReward(DailyContractReward.Kind.QUANTUM_HASH_VOUCHER, 1L);
@@ -84,7 +80,7 @@ public final class DailyContractGenerator {
 
 	private static String targetText(DailyContractType type, long target) {
 		return switch (type) {
-			case SETTLE_VOUCHERS, SURVEY_VEIN, DECODE_RELIC -> Long.toString(target);
+			case SETTLE_VOUCHERS, SURVEY_VEIN -> Long.toString(target);
 			case SHOP_TRADE, CONVERT_CURRENCY -> formatUsdt(target) + " USDT";
 		};
 	}
@@ -93,7 +89,7 @@ public final class DailyContractGenerator {
 		return switch (reward.kind()) {
 			case USDT -> formatUsdt(reward.amount()) + " USDT";
 			case BTC -> formatBtc(reward.amount()) + " BTC";
-			case DATA_FRAGMENT, EXPLORER_HASH_VOUCHER, ENCRYPTED_HASH_VOUCHER, QUANTUM_HASH_VOUCHER -> reward.amount() + "x";
+			case EXPLORER_HASH_VOUCHER, ENCRYPTED_HASH_VOUCHER, QUANTUM_HASH_VOUCHER -> reward.amount() + "x";
 		};
 	}
 
@@ -102,7 +98,6 @@ public final class DailyContractGenerator {
 			case SETTLE_VOUCHERS -> MOD_ID + ":hash_voucher";
 			case SHOP_TRADE -> "minecraft:emerald";
 			case SURVEY_VEIN -> MOD_ID + ":mining_surveyor";
-			case DECODE_RELIC -> MOD_ID + ":data_fragment";
 			case CONVERT_CURRENCY -> MOD_ID + ":crypto_usdt";
 		};
 	}

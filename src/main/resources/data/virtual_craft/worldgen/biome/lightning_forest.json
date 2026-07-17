@@ -26,6 +26,7 @@
     [],
     [],
     [
+	  "virtual_craft:virtual_world_virtual_iron_ore",
       "virtual_craft:virtual_world_virtual_aluminum_ore",
       "virtual_craft:virtual_world_virtual_silver_ore",
       "virtual_craft:virtual_world_virtual_gold_ore",

@@ -88,6 +88,8 @@ public record SyncExchangePayload(int menuId, String status, long updatedAtEpoch
 			HolographicShopFragment fragment = HolographicShopFragment.fromCurrentScreen(payload.menuId());
 			if (fragment != null) {
 				fragment.applyExchangeSync(snapshot);
+			} else {
+				dev.tatami.virtualcraft.client.screen.holographic.HolographicShopClientCache.storeExchange(snapshot);
 			}
 		}
 	}

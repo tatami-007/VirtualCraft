@@ -1,0 +1,113 @@
+{
+  "snake_king.summon": {
+    "subtitle": "subtitle.virtual_craft.snake_king.summon",
+    "sounds": [{"name": "virtual_craft:snake_king/summon", "volume": 1.25, "attenuation_distance": 48}]
+  },
+  "snake_king.roar": {
+    "subtitle": "subtitle.virtual_craft.snake_king.roar",
+    "sounds": [{"name": "virtual_craft:snake_king/roar", "volume": 1.3, "attenuation_distance": 56}]
+  },
+  "snake_king.bite": {
+    "subtitle": "subtitle.virtual_craft.snake_king.bite",
+    "sounds": [{"name": "virtual_craft:snake_king/bite", "volume": 1.15, "attenuation_distance": 32}]
+  },
+  "snake_king.tail": {
+    "subtitle": "subtitle.virtual_craft.snake_king.tail",
+    "sounds": [{"name": "virtual_craft:snake_king/tail", "volume": 1.2, "attenuation_distance": 40}]
+  },
+  "snake_king.cast": {
+    "subtitle": "subtitle.virtual_craft.snake_king.cast",
+    "sounds": [{"name": "virtual_craft:snake_king/cast", "volume": 1.12, "attenuation_distance": 40}]
+  },
+  "snake_king.cast_pulse": {
+    "subtitle": "subtitle.virtual_craft.snake_king.cast",
+    "sounds": [{"name": "virtual_craft:snake_king/cast_pulse", "volume": 1.05, "attenuation_distance": 44}]
+  },
+  "snake_king.cast_lock": {
+    "subtitle": "subtitle.virtual_craft.snake_king.cast",
+    "sounds": [{"name": "virtual_craft:snake_king/cast_lock", "volume": 1.1, "attenuation_distance": 44}]
+  },
+  "snake_king.cast_release": {
+    "subtitle": "subtitle.virtual_craft.snake_king.cast",
+    "sounds": [{"name": "virtual_craft:snake_king/cast_release", "volume": 1.2, "attenuation_distance": 48}]
+  },
+  "snake_king.fang": {
+    "subtitle": "subtitle.virtual_craft.snake_king.fang",
+    "sounds": [{"name": "virtual_craft:snake_king/fang", "volume": 1.12, "attenuation_distance": 36}]
+  },
+  "snake_king.chain": {
+    "subtitle": "subtitle.virtual_craft.snake_king.chain",
+    "sounds": [{"name": "virtual_craft:snake_king/chain", "volume": 1.25, "attenuation_distance": 48}]
+  },
+  "snake_king.dash": {
+    "subtitle": "subtitle.virtual_craft.snake_king.dash",
+    "sounds": [{"name": "virtual_craft:snake_king/dash", "volume": 1.2, "attenuation_distance": 44}]
+  },
+  "snake_king.impact": {
+    "subtitle": "subtitle.virtual_craft.snake_king.impact",
+    "sounds": [{"name": "virtual_craft:snake_king/impact", "volume": 1.2, "attenuation_distance": 40}]
+  },
+  "snake_king.parry": {
+    "subtitle": "subtitle.virtual_craft.snake_king.parry",
+    "sounds": [{"name": "virtual_craft:snake_king/parry", "volume": 1.15, "attenuation_distance": 32}]
+  },
+  "snake_king.dodge": {
+    "subtitle": "subtitle.virtual_craft.snake_king.dodge",
+    "sounds": [{"name": "virtual_craft:snake_king/dash", "volume": 0.7, "pitch": 1.15, "attenuation_distance": 24}]
+  },
+  "snake_king.high_dodge": {
+    "subtitle": "subtitle.virtual_craft.snake_king.dodge",
+    "sounds": [{"name": "virtual_craft:snake_king/high_dodge", "volume": 0.95, "attenuation_distance": 24}]
+  },
+  "snake_king.low_dodge": {
+    "subtitle": "subtitle.virtual_craft.snake_king.dodge",
+    "sounds": [{"name": "virtual_craft:snake_king/low_dodge", "volume": 1.0, "attenuation_distance": 24}]
+  },
+  "snake_king.bite_windup": {
+    "subtitle": "subtitle.virtual_craft.snake_king.bite",
+    "sounds": [{"name": "virtual_craft:snake_king/bite_windup", "volume": 1.1, "attenuation_distance": 32}]
+  },
+  "snake_king.bite_hit": {
+    "subtitle": "subtitle.virtual_craft.snake_king.bite",
+    "sounds": [{"name": "virtual_craft:snake_king/bite_hit", "volume": 1.2, "attenuation_distance": 36}]
+  },
+  "snake_king.tail_windup": {
+    "subtitle": "subtitle.virtual_craft.snake_king.tail",
+    "sounds": [{"name": "virtual_craft:snake_king/tail_windup", "volume": 1.2, "attenuation_distance": 40}]
+  },
+  "snake_king.tail_hit": {
+    "subtitle": "subtitle.virtual_craft.snake_king.tail",
+    "sounds": [{"name": "virtual_craft:snake_king/tail_hit", "volume": 1.3, "attenuation_distance": 44}]
+  },
+  "snake_king.poison_ground_charge": {
+    "subtitle": "subtitle.virtual_craft.snake_king.cast",
+    "sounds": [{"name": "virtual_craft:snake_king/poison_ground_charge", "volume": 1.1, "attenuation_distance": 40}]
+  },
+  "snake_king.poison_ground_release": {
+    "subtitle": "subtitle.virtual_craft.snake_king.cast",
+    "sounds": [{"name": "virtual_craft:snake_king/poison_ground_release", "volume": 1.25, "attenuation_distance": 44}]
+  },
+  "snake_king.poison_head_charge": {
+    "subtitle": "subtitle.virtual_craft.snake_king.fang",
+    "sounds": [{"name": "virtual_craft:snake_king/poison_head_charge", "volume": 1.1, "attenuation_distance": 40}]
+  },
+  "snake_king.poison_head_release": {
+    "subtitle": "subtitle.virtual_craft.snake_king.fang",
+    "sounds": [{"name": "virtual_craft:snake_king/poison_head_release", "volume": 1.25, "attenuation_distance": 44}]
+  },
+  "snake_king.shield_break": {
+    "subtitle": "subtitle.virtual_craft.snake_king.impact",
+    "sounds": [{"name": "virtual_craft:snake_king/shield_break", "volume": 1.2, "attenuation_distance": 32}]
+  },
+  "snake_king.judgment": {
+    "subtitle": "subtitle.virtual_craft.snake_king.judgment",
+    "sounds": [{"name": "virtual_craft:snake_king/judgment", "volume": 1.35, "attenuation_distance": 64}]
+  },
+  "snake_king.death": {
+    "subtitle": "subtitle.virtual_craft.snake_king.death",
+    "sounds": [{"name": "virtual_craft:snake_king/death", "volume": 1.3, "attenuation_distance": 56}]
+  },
+  "snake_king.music": {
+    "sounds": [{"name": "virtual_craft:snake_king/music", "stream": true, "volume": 0.9}]
+  }
+}

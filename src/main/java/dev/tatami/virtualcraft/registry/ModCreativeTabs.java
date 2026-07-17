@@ -36,11 +36,11 @@ public final class ModCreativeTabs {
 				tabData.accept(ModItems.QUANTUM_HASH_VOUCHER.get());
 				tabData.accept(ModItems.GENESIS_HASH_VOUCHER.get());
 				tabData.accept(ModItems.MINING_SURVEYOR.get());
-				tabData.accept(ModItems.DATA_FRAGMENT.get());
 				tabData.accept(ModItems.SPEED_UPGRADE_CARD.get());
 				tabData.accept(ModItems.BASIC_POWER_CELL.get());
 				tabData.accept(ModItems.ADVANCED_POWER_CELL.get());
 				tabData.accept(ModItems.QUANTUM_POWER_CELL.get());
+				tabData.accept(ModItems.SNAKE_KING_KEY.get());
 				// 1:1 ME-Beam-Former 风格的光束绑定器（替换了 v20 的 LinkCard）
 				tabData.accept(ModItems.LASER_BINDING_TOOL.get());
 				tabData.accept(ModItems.CRYPTO_BTC.get());
@@ -67,9 +67,6 @@ public final class ModCreativeTabs {
 				tabData.accept(ModItems.COMPUTER_MAINFRAME.get());
 				tabData.accept(ModItems.COMPUTER.get());
 				// === 虚拟世界维度方块 ===
-				tabData.accept(ModItems.CIRCUIT_FLOOR.get());
-				tabData.accept(ModItems.HOLOGRAPHIC_WALL.get());
-				tabData.accept(ModItems.ENERGY_PYLON.get());
 				tabData.accept(ModItems.LIGHTNING_LOG.get());
 				tabData.accept(ModItems.LIGHTNING_LEAVES.get());
 				tabData.accept(ModItems.THUNDER_POOL_BUCKET.get());
@@ -77,6 +74,9 @@ public final class ModCreativeTabs {
 				tabData.accept(ModItems.VIRTUAL_DIRT.get());
 				tabData.accept(ModItems.VIRTUAL_STONE.get());
 				tabData.accept(ModItems.VIRTUAL_COBBLESTONE.get());
+				tabData.accept(ModItems.VIRTUAL_IRON_ORE.get());
+				tabData.accept(ModItems.RAW_VIRTUAL_IRON.get());
+				tabData.accept(ModItems.VIRTUAL_IRON_INGOT.get());
 				tabData.accept(ModItems.VIRTUAL_ALUMINUM_ORE.get());
 				tabData.accept(ModItems.RAW_VIRTUAL_ALUMINUM.get());
 				tabData.accept(ModItems.VIRTUAL_ALUMINUM_INGOT.get());

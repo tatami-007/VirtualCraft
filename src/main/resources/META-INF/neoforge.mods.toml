@@ -31,3 +31,10 @@ description="Explore different ways to play in Virtual Craft."
     versionRange="[3.12.0,)"
     ordering="AFTER"
     side="CLIENT"
+
+[[dependencies.virtual_craft]]
+    modId="geckolib"
+    type="required"
+    versionRange="[4.8.4,5)"
+    ordering="AFTER"
+    side="BOTH"

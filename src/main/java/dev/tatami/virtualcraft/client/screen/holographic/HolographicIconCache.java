@@ -1,6 +1,7 @@
 package dev.tatami.virtualcraft.client.screen.holographic;
 
-import java.io.ByteArrayInputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -8,6 +9,7 @@ import java.util.concurrent.ConcurrentMap;
 import dev.tatami.virtualcraft.VirtualCraft;
 import dev.tatami.virtualcraft.currency.CryptoCurrency;
 import icyllis.modernui.graphics.drawable.ImageDrawable;
+import icyllis.modernui.graphics.Image;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
@@ -17,19 +19,19 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
 
 /**
- * Caches decoded PNG bytes for currency and item icons so that the
+ * Caches decoded GPU images for currency and item icons so that the
  * Holographic Terminal can re-use them during frequent UI rebuilds without
  * paying the cost of re-reading the resource pack every time.
  *
- * <p>We intentionally cache the raw bytes instead of the {@link ImageDrawable}
- * itself because {@code Drawable#setBounds} is per-instance state; sharing a
- * single drawable between multiple {@code ImageView}s would cause them to
- * fight over sizing. A new {@code ImageDrawable} is cheap once the PNG is
- * already decoded into memory.</p>
+ * <p>The immutable {@link Image} is shared while every call receives its own
+ * {@link ImageDrawable}, because bounds are mutable per view. This avoids the
+ * previous hot path where cached PNG bytes were still decoded and uploaded to
+ * the GPU every time a page rebuilt.</p>
  */
 public final class HolographicIconCache {
-	private static final ConcurrentMap<ResourceLocation, Optional<byte[]>> TEXTURE_BYTES = new ConcurrentHashMap<>();
-	private static volatile int currencyPrewarmIndex = CryptoCurrency.values().length;
+	private static final ConcurrentMap<ResourceLocation, Optional<Image>> TEXTURE_IMAGES = new ConcurrentHashMap<>();
+	private static final ResourceLocation[] PREWARM_TEXTURES = createPrewarmTextures();
+	private static volatile int prewarmIndex = PREWARM_TEXTURES.length;
 
 	private HolographicIconCache() {
 	}
@@ -39,9 +41,7 @@ public final class HolographicIconCache {
 	}
 
 	public static ImageDrawable itemIcon(ResourceLocation itemId, int pxSize) {
-		ResourceLocation texture = ResourceLocation.fromNamespaceAndPath(
-				itemId.getNamespace(),
-				"textures/item/" + itemId.getPath() + ".png");
+		ResourceLocation texture = itemTexture(itemId);
 		ImageDrawable item = load(texture, pxSize);
 		if (item != null) {
 			return item;
@@ -60,42 +60,39 @@ public final class HolographicIconCache {
 	}
 
 	public static void invalidate() {
-		TEXTURE_BYTES.clear();
-		currencyPrewarmIndex = CryptoCurrency.values().length;
+		// Do not close shared images here: an already-open screen may still own
+		// drawables referencing them during F3+T. Clearing the cache lets those
+		// views keep rendering safely; Image's Cleaner releases the texture after
+		// the old view tree is collected.
+		TEXTURE_IMAGES.clear();
+		prewarmIndex = PREWARM_TEXTURES.length;
 	}
 
 	/**
-	 * Starts a tiny staggered icon prewarm instead of reading every currency
-	 * PNG during the login event. This keeps world entry responsive while
-	 * still making the terminal cheap to open a few ticks later.
-	 *
-	 * <p>Decoding the PNG into a {@code ImageDrawable} is intentionally left
-	 * to the actual UI build pass: that step requires an OpenGL/render-thread
-	 * context and depends on the dp() of the call site, while the byte array
-	 * is identical regardless of size.</p>
+	 * Starts a staggered render-thread prewarm. One icon is decoded and uploaded
+	 * per client tick, avoiding both login spikes and first-open spikes.
 	 */
 	public static void scheduleCurrencyPrewarm() {
-		currencyPrewarmIndex = 0;
+		prewarmIndex = 0;
 	}
 
 	public static void tickCurrencyPrewarm() {
-		CryptoCurrency[] currencies = CryptoCurrency.values();
-		int index = currencyPrewarmIndex;
-		if (index < 0 || index >= currencies.length) {
+		int index = prewarmIndex;
+		if (index < 0 || index >= PREWARM_TEXTURES.length) {
 			return;
 		}
-		TEXTURE_BYTES.computeIfAbsent(currencies[index].iconTexture(), HolographicIconCache::readBytes);
-		currencyPrewarmIndex = index + 1;
+		TEXTURE_IMAGES.computeIfAbsent(PREWARM_TEXTURES[index], HolographicIconCache::decodeImage);
+		prewarmIndex = index + 1;
 	}
 
 	@SuppressWarnings("deprecation")
 	private static ImageDrawable load(ResourceLocation texture, int pxSize) {
-		Optional<byte[]> bytes = TEXTURE_BYTES.computeIfAbsent(texture, HolographicIconCache::readBytes);
-		if (bytes.isEmpty()) {
+		Optional<Image> image = TEXTURE_IMAGES.computeIfAbsent(texture, HolographicIconCache::decodeImage);
+		if (image.isEmpty() || image.get().isClosed()) {
 			return null;
 		}
 		try {
-			ImageDrawable drawable = new ImageDrawable(new ByteArrayInputStream(bytes.get()));
+			ImageDrawable drawable = new ImageDrawable(image.get());
 			// nearest-neighbor 采样：与 vanilla 物品栏的像素艺术渲染风格一致——
 			// 16x16 物品贴图保留清晰锐利的像素边缘，绝不出现 bilinear 双线性
 			// 插值带来的"糊"。代价是非整数倍缩放（如 16→20）时像素行宽略不均，
@@ -108,18 +105,39 @@ public final class HolographicIconCache {
 		}
 	}
 
-	private static Optional<byte[]> readBytes(ResourceLocation texture) {
+	@SuppressWarnings("deprecation")
+	private static Optional<Image> decodeImage(ResourceLocation texture) {
 		try {
 			var resource = Minecraft.getInstance().getResourceManager().getResource(texture);
 			if (resource.isEmpty()) {
 				return Optional.empty();
 			}
 			try (var stream = resource.get().open()) {
-				return Optional.of(stream.readAllBytes());
+				Image image = new ImageDrawable(stream).getImage();
+				return Optional.ofNullable(image);
 			}
 		} catch (Exception ignored) {
 			return Optional.empty();
 		}
+	}
+
+	private static ResourceLocation itemTexture(ResourceLocation itemId) {
+		return ResourceLocation.fromNamespaceAndPath(
+				itemId.getNamespace(), "textures/item/" + itemId.getPath() + ".png");
+	}
+
+	private static ResourceLocation[] createPrewarmTextures() {
+		List<ResourceLocation> textures = new ArrayList<>();
+		for (CryptoCurrency currency : CryptoCurrency.values()) {
+			textures.add(currency.iconTexture());
+		}
+		for (String item : new String[]{
+				"minecraft:emerald", "minecraft:spyglass", "minecraft:ender_pearl",
+				"minecraft:writable_book", "minecraft:paper", "minecraft:gold_ingot",
+				"virtual_craft:encrypted_hash_voucher"}) {
+			textures.add(itemTexture(ResourceLocation.parse(item)));
+		}
+		return textures.stream().distinct().toArray(ResourceLocation[]::new);
 	}
 
 	/**

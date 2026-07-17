@@ -105,6 +105,9 @@ public record SyncWalletPayload(int menuId, long[] balances, String walletAddres
 			HolographicShopFragment fragment = HolographicShopFragment.fromCurrentScreen(payload.menuId());
 			if (fragment != null) {
 				fragment.applyWalletSync(payload.balances(), payload.walletAddress(), payload.entries());
+			} else {
+				dev.tatami.virtualcraft.client.screen.holographic.HolographicShopClientCache.storeWallet(
+						payload.balances(), payload.walletAddress(), payload.entries());
 			}
 		}
 	}

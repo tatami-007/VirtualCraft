@@ -14,6 +14,8 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.ModContainer;
+import net.neoforged.fml.config.ModConfig;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.bus.api.IEventBus;
 import net.minecraft.core.BlockPos;
@@ -25,6 +27,7 @@ import dev.tatami.virtualcraft.client.binding.LaserBindingClientHandler;
 import dev.tatami.virtualcraft.client.highlight.AbsorberOreHighlighter;
 import dev.tatami.virtualcraft.client.highlight.MiningSurveyorHighlighter;
 import dev.tatami.virtualcraft.client.VirtualCraftClient;
+import dev.tatami.virtualcraft.config.SnakeBossConfig;
 import dev.tatami.virtualcraft.exchange.ExchangeRateService;
 import dev.tatami.virtualcraft.gameplay.HolographicTerminalSession;
 import dev.tatami.virtualcraft.network.CloseHolographicTerminalPayload;
@@ -39,8 +42,11 @@ import dev.tatami.virtualcraft.registry.ModDimensions;
 import dev.tatami.virtualcraft.registry.ModCapabilities;
 import dev.tatami.virtualcraft.registry.ModFluids;
 import dev.tatami.virtualcraft.registry.ModFeatures;
+import dev.tatami.virtualcraft.registry.ModEntityTypes;
 import dev.tatami.virtualcraft.registry.ModItems;
 import dev.tatami.virtualcraft.registry.ModMenuTypes;
+import dev.tatami.virtualcraft.registry.ModParticleTypes;
+import dev.tatami.virtualcraft.registry.ModSounds;
 import dev.tatami.virtualcraft.server.ServerWorkQueue;
 import dev.tatami.virtualcraft.world.LightningForestEffects;
 import dev.tatami.virtualcraft.world.VirtualWorldTerrainMigration;
@@ -52,7 +58,8 @@ public class VirtualCraft {
 	public static final String MODID = "virtual_craft";
 	public static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-	public VirtualCraft(IEventBus modEventBus) {
+	public VirtualCraft(IEventBus modEventBus, ModContainer modContainer) {
+		modContainer.registerConfig(ModConfig.Type.COMMON, SnakeBossConfig.SPEC, "virtual_craft-boss.toml");
 		NeoForge.EVENT_BUS.register(this);
 		NetworkMessageRegistry.registerDefaults();
 		modEventBus.addListener(NetworkMessageRegistry::registerPayloadHandlers);
@@ -67,6 +74,8 @@ public class VirtualCraft {
 					surveyorHighlighter.renderInGame(event.getPoseStack());
 					// 手持光束绑定器时、在已绑定机器中心画半透明小红方块，让塔顶发出的红色光束看起来是“打在小方块上”的效果
 					boundMachineHighlighter.renderInGame(event.getPoseStack());
+					dev.tatami.virtualcraft.client.render.SnakeAttackTelegraphRenderer.render(event.getPoseStack());
+					dev.tatami.virtualcraft.client.render.SnakeAttackEffectRenderer.render(event.getPoseStack());
 				}
 			});
 			// Ctrl + Shift + 右键 机器 → 批量绑定周围机器到选中的源塔
@@ -75,8 +84,12 @@ public class VirtualCraft {
 			modEventBus.addListener(VirtualCraftClient::registerBlockColors);
 			modEventBus.addListener(VirtualCraftClient::registerItemColors);
 			modEventBus.addListener(VirtualCraftClient::registerShaders);
+			modEventBus.addListener(VirtualCraftClient::registerEntityRenderers);
+			modEventBus.addListener(VirtualCraftClient::registerParticles);
 			modEventBus.addListener(dev.tatami.virtualcraft.client.ThunderPoolClient::registerFluidExtensions);
 			NeoForge.EVENT_BUS.addListener(VirtualCraftClient::renderShockOverlay);
+			NeoForge.EVENT_BUS.addListener(VirtualCraftClient::renderSnakeBossBar);
+			NeoForge.EVENT_BUS.addListener(dev.tatami.virtualcraft.client.SnakeBossCombatFeedback::onCameraAngles);
 			NeoForge.EVENT_BUS.addListener(surveyorHighlighter::renderGui);
 			// Pre-warm Holographic Terminal currency icons on world join (so the first
 			// open of the terminal does not pay synchronous resource-pack IO),
@@ -97,6 +110,10 @@ public class VirtualCraft {
 		ModFluids.TYPES.register(modEventBus);
 		ModFluids.REGISTRY.register(modEventBus);
 		ModBlocks.REGISTRY.register(modEventBus);
+		ModParticleTypes.REGISTRY.register(modEventBus);
+		ModSounds.REGISTRY.register(modEventBus);
+		ModEntityTypes.REGISTRY.register(modEventBus);
+		modEventBus.addListener(ModEntityTypes::registerAttributes);
 		ModFeatures.REGISTRY.register(modEventBus);
 		ModDimensions.CHUNK_GENERATOR_CODECS.register(modEventBus);
 		ModBlockEntities.REGISTRY.register(modEventBus);

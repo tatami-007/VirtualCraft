@@ -37,6 +37,8 @@ class DailyContractServiceTest {
 			assertTrue(contract.target() > 0L);
 			assertTrue(contract.reward().amount() > 0L);
 			assertTrue(contract.iconItemId().contains(":"));
+			assertNotEquals("decode_relic", contract.type().id());
+			assertNotEquals("data_fragment", contract.reward().kind().name().toLowerCase(java.util.Locale.ROOT));
 		}
 	}
 }

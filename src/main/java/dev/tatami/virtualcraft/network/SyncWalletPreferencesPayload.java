@@ -235,6 +235,8 @@ public record SyncWalletPreferencesPayload(
 			HolographicShopFragment fragment = HolographicShopFragment.fromCurrentScreen(payload.menuId());
 			if (fragment != null) {
 				fragment.applyPreferencesSync(payload);
+			} else {
+				dev.tatami.virtualcraft.client.screen.holographic.HolographicShopClientCache.storePreferences(payload);
 			}
 		}
 	}

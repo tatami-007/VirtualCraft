@@ -2,6 +2,7 @@
   "replace": false,
   "values": [
     "#c:ingots/electric",
+	"#c:ingots/iron",
     "#c:ingots/aluminum",
     "#c:ingots/silver",
     "#c:ingots/gold",

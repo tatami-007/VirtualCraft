@@ -24,7 +24,10 @@ public final class ModFluids {
 					.density(1200)
 					.viscosity(1400)
 					.lightLevel(8)
-					.canDrown(false)));
+					.canDrown(false)
+					.canSwim(false)
+					.canPushEntity(false)
+					.motionScale(0.0)));
 
 	public static final DeferredHolder<Fluid, BaseFlowingFluid.Source> THUNDER_POOL = REGISTRY.register("thunder_pool",
 			() -> new BaseFlowingFluid.Source(properties()));

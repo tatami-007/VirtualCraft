@@ -375,11 +375,9 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			terminalWindow.setLayoutParams(params);
 			HolographicTheme.enterWindow(terminalWindow);
 		});
-		// Note: the server pushes the initial wallet/exchange/preferences/catalog
-		// snapshot itself right after openMenu (see HolographicShopSyncDispatcher),
-		// so we no longer need a client → server REQUEST_SYNC round-trip here.
-		// Removing it eliminates the most visible "blank window for ~RTT" delay
-		// that used to be the dominant cost of opening the Holographic Terminal.
+		// The server primes the process-wide wallet/exchange/preferences/catalog
+		// cache before sending the open payload, so this first tree already contains
+		// real data and needs no REQUEST_SYNC round-trip or immediate rebuild.
 		return root;
 	}
 
@@ -393,9 +391,11 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 
 	@Override
 	public boolean shouldBlurBackground() {
-		// Real frosted glass: let ModernUI gaussian-blur the game backdrop so the
-		// translucent panels actually show a blurred scene through them.
-		return true;
+		// The terminal already uses 85-98% opaque acrylic layers. Running a
+		// full-resolution Gaussian post-process behind them is barely visible but
+		// causes the large frame-time spike when the screen opens and keeps taxing
+		// the GPU while it is displayed.
+		return false;
 	}
 
 	@Override
@@ -1640,12 +1640,7 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 
 		LinearLayout metrics = new LinearLayout(requireContext());
 		metrics.setOrientation(LinearLayout.HORIZONTAL);
-		metrics.addView(metricCard(
-				t("screen.virtual_craft.holographic_shop.mining.fragments"),
-				Integer.toString(countDataFragments()),
-				CYAN), weighted(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
 		var settlementsParams = weighted(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
-		settlementsParams.setMargins(dp(8), 0, 0, 0);
 		metrics.addView(metricCard(
 				t("screen.virtual_craft.holographic_shop.mining.stats.total_settlements"),
 				Long.toString(miningStatsCache.totalSettlements()),
@@ -2076,7 +2071,6 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 			case "explorer_hash_voucher" -> CYAN;
 			case "btc" -> 0xFFF59E0B;
 			case "usdt" -> GREEN;
-			case "data_fragment" -> 0xFF38BDF8;
 			default -> TEXT_DIM;
 		};
 	}
@@ -2132,7 +2126,6 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 
 	private String contractRewardText(DailyContractSnapshot contract) {
 		String itemKey = switch (contract.rewardKind() == null ? "" : contract.rewardKind()) {
-			case "data_fragment" -> "item.virtual_craft.data_fragment";
 			case "explorer_hash_voucher" -> "item.virtual_craft.explorer_hash_voucher";
 			case "encrypted_hash_voucher" -> "item.virtual_craft.encrypted_hash_voucher";
 			case "quantum_hash_voucher" -> "item.virtual_craft.quantum_hash_voucher";
@@ -5101,20 +5094,6 @@ public class HolographicShopFragment extends Fragment implements ScreenCallback 
 
 	private int countHashVouchers() {
 		return hashVoucherSummary().totalCount();
-	}
-
-	private int countDataFragments() {
-		var player = Minecraft.getInstance().player;
-		if (player == null) {
-			return 0;
-		}
-		int total = 0;
-		for (var stack : player.getInventory().items) {
-			if (stack.is(ModItems.DATA_FRAGMENT.get())) {
-				total += stack.getCount();
-			}
-		}
-		return total;
 	}
 
 	private long miningBtcMinor(long count) {

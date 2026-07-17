@@ -86,6 +86,8 @@ public record SyncShopCatalogPayload(int menuId, List<Entry> entries) implements
 			HolographicShopFragment fragment = HolographicShopFragment.fromCurrentScreen(payload.menuId());
 			if (fragment != null) {
 				fragment.applyCatalogSync(payload.entries());
+			} else {
+				dev.tatami.virtualcraft.client.screen.holographic.HolographicShopClientCache.storeCatalog(payload.entries());
 			}
 		}
 	}

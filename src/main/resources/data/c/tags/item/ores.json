@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
+	"#c:ores/iron",
     "#c:ores/aluminum",
     "#c:ores/silver",
     "#c:ores/gold",

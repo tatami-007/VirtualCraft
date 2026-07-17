@@ -10,12 +10,8 @@ import dev.tatami.virtualcraft.block.DeepslateElectricOreBlock;
 import dev.tatami.virtualcraft.block.ElectricBallGeneratorBlock;
 import dev.tatami.virtualcraft.block.ElectricCondenserBlock;
 import dev.tatami.virtualcraft.block.ElectricOreBlock;
-import dev.tatami.virtualcraft.block.HolographicShopBlock;
 import dev.tatami.virtualcraft.block.PowMinerBlock;
-import dev.tatami.virtualcraft.block.CircuitFloorBlock;
-import dev.tatami.virtualcraft.block.EnergyPylonBlock;
 import dev.tatami.virtualcraft.block.EnergyPipeBlock;
-import dev.tatami.virtualcraft.block.HolographicWallBlock;
 import dev.tatami.virtualcraft.block.WirelessPowerTowerBlock;
 import dev.tatami.virtualcraft.block.ThunderPoolBlock;
 import net.minecraft.world.level.block.SoundType;
@@ -33,7 +29,6 @@ public final class ModBlocks {
 	public static final DeferredBlock<Block> DEEPSLATE_ELECTRIC_ORE = REGISTRY.register("deepslate_electric_ore", DeepslateElectricOreBlock::new);
 	public static final DeferredBlock<Block> ELECTRIC_CONDENSER = REGISTRY.register("electric_condenser", ElectricCondenserBlock::new);
 	public static final DeferredBlock<Block> ELECTRIC_BALL_GENERATOR = REGISTRY.register("electric_ball_generator", ElectricBallGeneratorBlock::new);
-	public static final DeferredBlock<Block> HOLOGRAPHIC_SHOP = REGISTRY.register("holographic_shop", HolographicShopBlock::new);
 	public static final DeferredBlock<Block> POW_MINER = REGISTRY.register("pow_miner", PowMinerBlock::new);
 	/**
 	 * 无线供电塔 1:1 沿用 ME-Beam-Former 1.21.1 的 properties：
@@ -46,9 +41,6 @@ public final class ModBlocks {
 					.sound(SoundType.METAL)
 					.requiresCorrectToolForDrops()
 					.noOcclusion()));
-	public static final DeferredBlock<Block> CIRCUIT_FLOOR = REGISTRY.register("circuit_floor", CircuitFloorBlock::new);
-	public static final DeferredBlock<Block> HOLOGRAPHIC_WALL = REGISTRY.register("holographic_wall", HolographicWallBlock::new);
-	public static final DeferredBlock<Block> ENERGY_PYLON = REGISTRY.register("energy_pylon", EnergyPylonBlock::new);
 	public static final DeferredBlock<Block> ENERGY_PIPE = REGISTRY.register("energy_pipe", EnergyPipeBlock::new);
 	public static final DeferredBlock<Block> LIGHTNING_LOG = REGISTRY.register("lightning_log",
 			() -> new RotatedPillarBlock(BlockBehaviour.Properties.of()
@@ -93,6 +85,12 @@ public final class ModBlocks {
 			() -> new Block(BlockBehaviour.Properties.of()
 					.mapColor(MapColor.COLOR_CYAN)
 					.strength(2.0f, 6.0f)
+					.sound(SoundType.STONE)
+					.requiresCorrectToolForDrops()));
+	public static final DeferredBlock<Block> VIRTUAL_IRON_ORE = REGISTRY.register("virtual_iron_ore",
+			() -> new Block(BlockBehaviour.Properties.of()
+					.mapColor(MapColor.COLOR_CYAN)
+					.strength(3.0f, 6.0f)
 					.sound(SoundType.STONE)
 					.requiresCorrectToolForDrops()));
 	public static final DeferredBlock<Block> VIRTUAL_SILVER_ORE = REGISTRY.register("virtual_silver_ore",

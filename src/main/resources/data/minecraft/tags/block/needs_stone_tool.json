@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
-    "virtual_craft:virtual_aluminum_ore"
+	"virtual_craft:virtual_aluminum_ore",
+	"virtual_craft:virtual_iron_ore"
   ]
 }

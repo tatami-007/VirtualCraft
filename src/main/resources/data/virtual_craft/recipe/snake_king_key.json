@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "b": { "item": "virtual_craft:electric_ball" },
+    "e": { "item": "virtual_craft:electric_ingot" },
+    "q": { "item": "virtual_craft:quantum_power_cell" },
+    "v": { "item": "virtual_craft:encrypted_hash_voucher" }
+  },
+  "pattern": [
+    "eve",
+    "bqb",
+    "eve"
+  ],
+  "result": {
+    "count": 1,
+    "id": "virtual_craft:snake_king_key"
+  }
+}

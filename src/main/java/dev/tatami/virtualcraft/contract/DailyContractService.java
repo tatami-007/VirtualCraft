@@ -113,7 +113,6 @@ public final class DailyContractService {
 		switch (reward.kind()) {
 			case USDT -> WalletService.depositMinorUnits(player, CryptoCurrency.USDT, reward.amount());
 			case BTC -> WalletService.depositMinorUnits(player, CryptoCurrency.BTC, reward.amount());
-			case DATA_FRAGMENT -> give(player, new ItemStack(ModItems.DATA_FRAGMENT.get(), safeItemCount(reward.amount())));
 			case EXPLORER_HASH_VOUCHER -> give(player, new ItemStack(ModItems.EXPLORER_HASH_VOUCHER.get(), safeItemCount(reward.amount())));
 			case ENCRYPTED_HASH_VOUCHER -> give(player, new ItemStack(ModItems.ENCRYPTED_HASH_VOUCHER.get(), safeItemCount(reward.amount())));
 			case QUANTUM_HASH_VOUCHER -> give(player, new ItemStack(ModItems.QUANTUM_HASH_VOUCHER.get(), safeItemCount(reward.amount())));

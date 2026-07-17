@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
+	"#c:raw_materials/iron",
     "#c:raw_materials/aluminum",
     "#c:raw_materials/silver",
     "#c:raw_materials/gold",

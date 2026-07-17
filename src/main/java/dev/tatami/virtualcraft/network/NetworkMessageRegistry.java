@@ -23,6 +23,7 @@ public final class NetworkMessageRegistry {
 
 	public static void registerDefaults() {
 		add(TriggerShockOverlayPayload.TYPE, TriggerShockOverlayPayload.STREAM_CODEC, TriggerShockOverlayPayload::handle);
+		add(SnakeCombatFeedbackPayload.TYPE, SnakeCombatFeedbackPayload.STREAM_CODEC, SnakeCombatFeedbackPayload::handle);
 		add(SyncWalletPayload.TYPE, SyncWalletPayload.STREAM_CODEC, SyncWalletPayload::handle);
 		add(SyncWalletLedgerPagePayload.TYPE, SyncWalletLedgerPagePayload.STREAM_CODEC, SyncWalletLedgerPagePayload::handle);
 		add(SyncWalletPreferencesPayload.TYPE, SyncWalletPreferencesPayload.STREAM_CODEC, SyncWalletPreferencesPayload::handle);

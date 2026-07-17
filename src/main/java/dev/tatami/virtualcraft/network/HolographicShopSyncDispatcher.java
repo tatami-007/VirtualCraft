@@ -14,16 +14,13 @@ import java.util.List;
 /**
  * Pushes the full snapshot the Holographic Terminal needs (wallet balances,
  * exchange rates, persisted preferences and the shop catalog) immediately
- * after the open packet has been queued. Doing it server-side and unsolicited
+ * before the open packet is queued. Doing it server-side and unsolicited
  * removes the client → server REQUEST_SYNC round-trip that used to be the
  * dominant source of "blank window for ~RTT" delay when opening the terminal.
  *
- * <p>Call this <strong>after</strong> {@link HolographicTerminalSession#open}
- * has registered the player and {@code OpenHolographicTerminalPayload} has
- * been sent on the same connection. NeoForge / TCP keep packet order, so the
- * client receives Open first (which constructs the Fragment with the right
- * sessionId) and then the four sync packets arriving here, which the Fragment
- * matches via {@code fromCurrentScreen(menuId)}.</p>
+ * <p>Call this after {@link HolographicTerminalSession#open} but before sending
+ * {@code OpenHolographicTerminalPayload}. NeoForge / TCP preserve packet order,
+ * so the client cache receives all four snapshots before the Fragment builds.</p>
  */
 public final class HolographicShopSyncDispatcher {
 	private HolographicShopSyncDispatcher() {
@@ -31,10 +28,8 @@ public final class HolographicShopSyncDispatcher {
 
 	/**
 	 * Pushes a full initial snapshot to the player who just opened a Holographic
-	 * Terminal. Call this <strong>after</strong> {@link HolographicTerminalSession#open}
-	 * has been called and the {@code OpenHolographicTerminalPayload} has been
-	 * queued; the sync packets pushed here will arrive at the client right after
-	 * the Open packet so the client-side Fragment exists by the time they hit.
+	 * Terminal. Call this after {@link HolographicTerminalSession#open} and before
+	 * the open payload so the first UI frame can be built from the primed cache.
 	 */
 	public static void pushInitialSnapshot(ServerPlayer player) {
 		if (player == null) {

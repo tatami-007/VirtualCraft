@@ -1,0 +1,24 @@
+{
+  "parent": "minecraft:adventure/root",
+  "display": {
+    "icon": { "id": "virtual_craft:genesis_hash_voucher" },
+    "title": { "translate": "advancement.virtual_craft.defeat_snake_king.title" },
+    "description": { "translate": "advancement.virtual_craft.defeat_snake_king.description" },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "defeated": {
+      "trigger": "minecraft:player_killed_entity",
+      "conditions": {
+        "entity": {
+          "type": "virtual_craft:virtual_snake_king"
+        }
+      }
+    }
+  },
+  "requirements": [["defeated"]],
+  "rewards": { "experience": 500 }
+}

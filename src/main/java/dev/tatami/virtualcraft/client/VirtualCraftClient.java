@@ -5,6 +5,9 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.client.event.RegisterShadersEvent;
 import net.neoforged.neoforge.client.event.RenderGuiLayerEvent;
+import net.neoforged.neoforge.client.event.EntityRenderersEvent;
+import net.neoforged.neoforge.client.event.RegisterParticleProvidersEvent;
+import net.neoforged.neoforge.client.event.CustomizeGuiOverlayEvent;
 
 import dev.tatami.virtualcraft.client.screen.ElectricBallGeneratorScreen;
 import dev.tatami.virtualcraft.client.screen.ElectricCondenserScreen;
@@ -18,6 +21,12 @@ import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
 import net.minecraft.client.renderer.BiomeColors;
 import dev.tatami.virtualcraft.registry.ModBlocks;
 import dev.tatami.virtualcraft.registry.ModItems;
+import dev.tatami.virtualcraft.registry.ModEntityTypes;
+import dev.tatami.virtualcraft.client.render.VirtualSnakeKingRenderer;
+import dev.tatami.virtualcraft.client.render.SnakeFangRenderer;
+import dev.tatami.virtualcraft.client.render.SnakeSpellNodeRenderer;
+import dev.tatami.virtualcraft.client.particle.SnakeParticle;
+import dev.tatami.virtualcraft.registry.ModParticleTypes;
 
 public final class VirtualCraftClient {
 	private static final int VIRTUAL_GRASS_COLOR = 0x82BFFF;
@@ -47,15 +56,17 @@ public final class VirtualCraftClient {
 
 	public static void renderShockOverlay(RenderGuiLayerEvent.Post event) {
 		dev.tatami.virtualcraft.client.overlay.ShockTextOverlay.render(event);
+		dev.tatami.virtualcraft.client.overlay.SnakeBossScreenEffects.render(event);
 	}
 
 	/**
-	 * Schedules a staggered Holographic Terminal icon prewarm. Reading all PNGs
-	 * during login makes the first world tick feel heavier, so the cache warms
-	 * one small icon per client tick instead.
+	 * Schedules a staggered Holographic Terminal icon prewarm. Decoding and
+	 * uploading every icon during login would make one world tick heavy, so the
+	 * cache warms one small icon per client tick instead.
 	 */
 	public static void onClientLogin(ClientPlayerNetworkEvent.LoggingIn event) {
-		HolographicIconCache.scheduleCurrencyPrewarm();
+		// ModernUI images must be created on its UI thread. The terminal now warms
+		// icons on demand when its fragment is built instead of from this game tick.
 	}
 
 	/**
@@ -71,8 +82,43 @@ public final class VirtualCraftClient {
 	}
 
 	public static void onClientTick(ClientTickEvent.Post event) {
-		HolographicIconCache.tickCurrencyPrewarm();
 		LightningForestClientEffects.tick();
+		SnakeKingSummonPreview.tick();
+		SnakeBossCombatFeedback.tick();
+		SnakeBossMusic.tick();
+	}
+
+	public static void registerEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
+		event.registerEntityRenderer(ModEntityTypes.VIRTUAL_SNAKE_KING.get(), VirtualSnakeKingRenderer::new);
+		event.registerEntityRenderer(ModEntityTypes.SNAKE_FANG.get(), SnakeFangRenderer::new);
+		event.registerEntityRenderer(ModEntityTypes.SNAKE_SPELL_NODE.get(), SnakeSpellNodeRenderer::new);
+	}
+
+	public static void registerParticles(RegisterParticleProvidersEvent event) {
+		event.registerSpriteSet(ModParticleTypes.SNAKE_DATA_RUNE.get(), sprites ->
+				SnakeParticle.provider(sprites, SnakeParticle.Style.RUNE));
+		event.registerSpriteSet(ModParticleTypes.SNAKE_ARC.get(), sprites ->
+				SnakeParticle.provider(sprites, SnakeParticle.Style.ARC));
+		event.registerSpriteSet(ModParticleTypes.SNAKE_SHARD.get(), sprites ->
+				SnakeParticle.provider(sprites, SnakeParticle.Style.SHARD));
+		event.registerSpriteSet(ModParticleTypes.SNAKE_TRAIL.get(), sprites ->
+				SnakeParticle.provider(sprites, SnakeParticle.Style.TRAIL));
+		event.registerSpriteSet(ModParticleTypes.SNAKE_HIGH_WARNING.get(), sprites ->
+				SnakeParticle.provider(sprites, SnakeParticle.Style.HIGH_WARNING));
+		event.registerSpriteSet(ModParticleTypes.SNAKE_MID_WARNING.get(), sprites ->
+				SnakeParticle.provider(sprites, SnakeParticle.Style.MID_WARNING));
+		event.registerSpriteSet(ModParticleTypes.SNAKE_LOW_WARNING.get(), sprites ->
+				SnakeParticle.provider(sprites, SnakeParticle.Style.LOW_WARNING));
+		event.registerSpriteSet(ModParticleTypes.SNAKE_POISON_RED.get(), sprites ->
+				SnakeParticle.provider(sprites, SnakeParticle.Style.POISON_RED));
+		event.registerSpriteSet(ModParticleTypes.SNAKE_POISON_BLUE.get(), sprites ->
+				SnakeParticle.provider(sprites, SnakeParticle.Style.POISON_BLUE));
+		event.registerSpriteSet(ModParticleTypes.SNAKE_PARRY_FLASH.get(), sprites ->
+				SnakeParticle.provider(sprites, SnakeParticle.Style.PARRY_FLASH));
+	}
+
+	public static void renderSnakeBossBar(CustomizeGuiOverlayEvent.BossEventProgress event) {
+		dev.tatami.virtualcraft.client.overlay.SnakeBossOverlay.render(event);
 	}
 
 	public static void registerBlockColors(RegisterColorHandlersEvent.Block event) {

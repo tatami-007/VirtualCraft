@@ -1,0 +1,5 @@
+{
+  "variants": {
+    "": { "model": "virtual_craft:block/virtual_iron_ore" }
+  }
+}

@@ -1,6 +1,6 @@
 {
   "parent": "item/generated",
   "textures": {
-    "layer0": "virtual_craft:block/holographic_shop"
+    "layer0": "virtual_craft:item/holographic_shop"
   }
 }
