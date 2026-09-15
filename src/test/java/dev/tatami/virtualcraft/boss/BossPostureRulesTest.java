@@ -20,7 +20,11 @@ class BossPostureRulesTest {
 
 	@Test
 	void parryAndJumpStrikeUseFixedSekiroValues() {
-		assertEquals(8.0F, BossPostureRules.preciseParryDamage());
+		assertEquals(6, BossPostureRules.SNAKE_SEGMENT_COUNT);
+		assertEquals(120, BossPostureRules.SNAKE_MAX_POSTURE);
+		assertEquals(6, BossPostureRules.MUSHROOM_SEGMENT_COUNT);
+		assertEquals(120, BossPostureRules.MUSHROOM_MAX_POSTURE);
+		assertEquals(20.0F, BossPostureRules.preciseParryDamage());
 		assertEquals(3.0F, BossPostureRules.jumpStrikeDamage());
 		assertEquals(4.0F, BossPostureRules.HIGH_WHIFF_POSTURE_DAMAGE);
 	}
@@ -49,5 +53,13 @@ class BossPostureRulesTest {
 		assertEquals(true, BossPostureRules.isLowDodgeWindow(true, false, false, true));
 		assertEquals(false, BossPostureRules.isLowDodgeWindow(false, false, false, false));
 		assertEquals(false, BossPostureRules.isLowDodgeWindow(false, true, true, true));
+	}
+
+	@Test
+	void legacyMushroomPostureKeepsItsPercentageAcrossSixSegments() {
+		assertEquals(120, BossPostureRules.scaleSavedPosture(100, 100, 120));
+		assertEquals(60, BossPostureRules.scaleSavedPosture(50, 100, 120));
+		assertEquals(0, BossPostureRules.scaleSavedPosture(0, 100, 120));
+		assertEquals(120, BossPostureRules.scaleSavedPosture(180, 100, 120));
 	}
 }

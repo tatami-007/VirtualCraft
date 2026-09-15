@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "combat",
+  "key": {
+    "b": { "item": "virtual_craft:circuit_board" },
+    "e": { "item": "virtual_craft:electric_ingot" },
+    "i": { "item": "virtual_craft:virtual_silver_ingot" }
+  },
+  "pattern": ["i i", "iei", "ibi"],
+  "result": { "count": 1, "id": "virtual_craft:virtual_silver_chestplate" }
+}

@@ -4,6 +4,21 @@
     {
       "rolls": 1,
       "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "virtual_craft:snake_scale",
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": { "type": "minecraft:uniform", "min": 8, "max": 12 }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "rolls": 1,
+      "entries": [
         { "type": "minecraft:item", "name": "virtual_craft:genesis_hash_voucher" }
       ]
     },

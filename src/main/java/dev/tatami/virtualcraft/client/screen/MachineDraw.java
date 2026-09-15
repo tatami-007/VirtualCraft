@@ -49,6 +49,20 @@ public final class MachineDraw {
 				MachineAssets.ICONS_TEX_W, MachineAssets.ICONS_TEX_H);
 	}
 
+	public static void drawVerticalSolidBar(GuiGraphics guiGraphics, int x, int y, int w, int height,
+			double fraction, int darkColor, int lightColor) {
+		int innerH = height - 2;
+		int filled = Math.max(0, Math.min(innerH, (int) Math.round(innerH * clamp01(fraction))));
+		if (filled <= 0) {
+			return;
+		}
+		int targetY = y + height - 1 - filled;
+		guiGraphics.fill(x + 1, targetY, x + w - 1, y + height - 1, darkColor);
+		if (w > 6) {
+			guiGraphics.fill(x + 4, targetY, x + w - 4, y + height - 1, lightColor);
+		}
+	}
+
 	public static void drawItemSlot(GuiGraphics guiGraphics, int x, int y) {
 		guiGraphics.fill(x, y, x + 18, y + 18, SLOT_LIGHT);
 		guiGraphics.fill(x, y, x + 17, y + 1, SLOT_DARK);

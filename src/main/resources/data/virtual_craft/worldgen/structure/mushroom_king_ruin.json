@@ -1,0 +1,8 @@
+{
+  "type": "virtual_craft:boss_ruin",
+  "biomes": "virtual_craft:mushroom_realm",
+  "kind": "mushroom",
+  "spawn_overrides": {},
+  "step": "surface_structures",
+  "terrain_adaptation": "beard_box"
+}

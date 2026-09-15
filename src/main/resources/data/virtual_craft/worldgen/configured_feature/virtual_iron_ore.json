@@ -5,8 +5,8 @@
     "discard_chance_on_air_exposure": 0.0,
     "targets": [{
       "target": {
-        "predicate_type": "block_match",
-        "block": "virtual_craft:virtual_stone"
+        "predicate_type": "tag_match",
+        "tag": "virtual_craft:virtual_world_ore_replaceables"
       },
       "state": { "Name": "virtual_craft:virtual_iron_ore" }
     }]

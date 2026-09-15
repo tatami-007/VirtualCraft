@@ -23,9 +23,12 @@ public final class MachineAssets {
 
 	public static final int ICON_GEAR_U = 0;
 	public static final int ICON_BACK_U = 16;
+	public static final int ICON_NEXT_U = 32;
 	public static final int ICON_INPUT_U = 48;
 	public static final int ICON_OUTPUT_U = 64;
 	public static final int ICON_DISABLE_U = 80;
+	public static final int ICON_OVERCLOCK_U = 144;
+	public static final int ICON_START_U = 160;
 	public static final int ICON_V = 40;
 	public static final int ICON_SIZE = 16;
 

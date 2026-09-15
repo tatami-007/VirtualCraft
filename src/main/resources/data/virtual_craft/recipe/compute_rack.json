@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "t": { "item": "virtual_craft:virtual_titanium_ingot" },
+    "c": { "item": "virtual_craft:circuit_board" },
+    "p": { "item": "virtual_craft:power_supply" },
+    "m": { "item": "virtual_craft:memory_stick" }
+  },
+  "pattern": [
+    "tct",
+    "tpt",
+    "tmt"
+  ],
+  "result": {
+    "count": 1,
+    "id": "virtual_craft:compute_rack"
+  }
+}

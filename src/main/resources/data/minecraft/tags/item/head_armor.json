@@ -1,0 +1,10 @@
+{
+  "replace": false,
+  "values": [
+    "virtual_craft:virtual_iron_helmet",
+    "virtual_craft:virtual_silver_helmet",
+    "virtual_craft:virtual_titanium_helmet",
+    "virtual_craft:virtual_chromium_helmet",
+    "virtual_craft:virtual_snake_king_helmet"
+  ]
+}

@@ -2,11 +2,6 @@
   "replace": false,
   "values": [
     "#c:ingots/electric",
-	"#c:ingots/iron",
-    "#c:ingots/aluminum",
-    "#c:ingots/silver",
-    "#c:ingots/gold",
-    "#c:ingots/titanium",
-    "#c:ingots/chromium"
+    "#virtual_craft:virtual_metals/ingots"
   ]
 }

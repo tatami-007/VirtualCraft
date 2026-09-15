@@ -1,0 +1,9 @@
+{
+  "type": "virtual_craft:quantum_simulation",
+  "program": "relic_topology",
+  "duration_ticks": 2400,
+  "total_energy": 1200000,
+  "resonance_cost": 240,
+  "minimum_compute": 4,
+  "base_range_chunks": 6
+}

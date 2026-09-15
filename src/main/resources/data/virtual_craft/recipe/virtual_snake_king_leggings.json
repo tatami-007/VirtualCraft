@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:smithing_transform",
+  "template": { "item": "virtual_craft:virtual_snake_king_smithing_template" },
+  "base": { "item": "virtual_craft:virtual_iron_leggings" },
+  "addition": { "item": "virtual_craft:snake_scale" },
+  "result": { "id": "virtual_craft:virtual_snake_king_leggings" }
+}

@@ -2,9 +2,9 @@ package dev.tatami.virtualcraft.boss;
 
 public record SnakeAttackVolume(Shape shape, double originX, double originY, double originZ,
 		double forwardX, double forwardZ, double range, double width, double minY, double maxY) {
-	public static final double BITE_RANGE = 6.5;
-	public static final double BITE_HALF_ANGLE = Math.toRadians(55.0);
-	public static final double TAIL_INNER_RADIUS = 1.43;
+	public static final double BITE_RANGE = 6.8;
+	public static final double BITE_HALF_ANGLE = Math.toRadians(62.0);
+	public static final double TAIL_INNER_RADIUS = 1.0;
 	public static final double TAIL_OUTER_RADIUS = 7.02;
 	public static final double HIGH_POISON_RANGE = 12.0;
 	public static final double HIGH_POISON_HALF_WIDTH = 1.5;
@@ -52,6 +52,26 @@ public record SnakeAttackVolume(Shape shape, double originX, double originY, dou
 		}
 		double angle = Math.atan2(lateral, Math.max(1.0E-6, along));
 		return angle <= width;
+	}
+
+	public boolean intersects(double minX, double minY, double minZ,
+			double maxX, double maxY, double maxZ) {
+		if (maxY < originY + minY() || minY > originY + maxY()) {
+			return false;
+		}
+		double centerX = (minX + maxX) * 0.5;
+		double centerZ = (minZ + maxZ) * 0.5;
+		double sampleY = Math.max(minY, Math.min(maxY, originY + (minY() + maxY()) * 0.5));
+		double[] xs = {minX, centerX, maxX};
+		double[] zs = {minZ, centerZ, maxZ};
+		for (double x : xs) {
+			for (double z : zs) {
+				if (contains(x, sampleY, z)) {
+					return true;
+				}
+			}
+		}
+		return minX <= originX && maxX >= originX && minZ <= originZ && maxZ >= originZ;
 	}
 
 	private SnakeAttackVolume normalized() {

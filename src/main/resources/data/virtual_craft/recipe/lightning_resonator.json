@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "c": { "item": "virtual_craft:virtual_chromium_ingot" },
+    "e": { "item": "virtual_craft:electric_ball" },
+    "f": { "item": "virtual_craft:fulgurite" },
+    "p": { "item": "virtual_craft:advanced_power_cell" }
+  },
+  "pattern": [
+    "cec",
+    "fpf",
+    "cec"
+  ],
+  "result": {
+    "count": 1,
+    "id": "virtual_craft:lightning_resonator"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "EVE",
+    "ISI",
+    "EVE"
+  ],
+  "key": {
+    "E": { "item": "virtual_craft:electric_ingot" },
+    "V": { "item": "virtual_craft:venom_crystal" },
+    "I": { "item": "virtual_craft:virtual_iron_ingot" },
+    "S": { "item": "virtual_craft:snake_scale" }
+  },
+  "result": {
+    "id": "virtual_craft:virtual_snake_king_smithing_template",
+    "count": 1
+  }
+}

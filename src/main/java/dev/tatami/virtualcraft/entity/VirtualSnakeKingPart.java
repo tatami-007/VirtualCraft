@@ -48,6 +48,17 @@ public final class VirtualSnakeKingPart extends PartEntity<VirtualSnakeKing> {
 	}
 
 	@Override
+	public boolean isPushable() {
+		return false;
+	}
+
+	@Override
+	public void push(double x, double y, double z) {
+		// Player.attack() pushes non-LivingEntity targets directly. Multipart
+		// hitboxes must ignore that impulse or a weapon hit visibly displaces them.
+	}
+
+	@Override
 	public boolean hurt(DamageSource source, float amount) {
 		return !isInvulnerableTo(source) && getParent().hurt(this, source, amount * damageMultiplier);
 	}

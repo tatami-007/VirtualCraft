@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:smithing_transform",
+  "template": { "item": "virtual_craft:virtual_mushroom_king_smithing_template" },
+  "base": { "item": "virtual_craft:virtual_silver_boots" },
+  "addition": { "item": "virtual_craft:mushroom_king_spore" },
+  "result": { "id": "virtual_craft:virtual_mushroom_king_boots" }
+}

@@ -49,7 +49,7 @@
   },
   "snake_king.parry": {
     "subtitle": "subtitle.virtual_craft.snake_king.parry",
-    "sounds": [{"name": "virtual_craft:snake_king/parry", "volume": 1.15, "attenuation_distance": 32}]
+    "sounds": [{"name": "virtual_craft:snake_king/parry", "volume": 1.0, "attenuation_distance": 32}]
   },
   "snake_king.dodge": {
     "subtitle": "subtitle.virtual_craft.snake_king.dodge",
@@ -57,7 +57,7 @@
   },
   "snake_king.high_dodge": {
     "subtitle": "subtitle.virtual_craft.snake_king.dodge",
-    "sounds": [{"name": "virtual_craft:snake_king/high_dodge", "volume": 0.95, "attenuation_distance": 24}]
+    "sounds": [{"name": "virtual_craft:snake_king/high_dodge", "volume": 1.0, "attenuation_distance": 24}]
   },
   "snake_king.low_dodge": {
     "subtitle": "subtitle.virtual_craft.snake_king.dodge",
@@ -109,5 +109,72 @@
   },
   "snake_king.music": {
     "sounds": [{"name": "virtual_craft:snake_king/music", "stream": true, "volume": 0.9}]
+  },
+  "mushroom_king.summon": {
+    "subtitle": "subtitle.virtual_craft.mushroom_king.summon",
+    "sounds": [{"name": "virtual_craft:mushroom_king/summon", "volume": 1.25, "attenuation_distance": 56}]
+  },
+  "mushroom_king.roar": {
+    "subtitle": "subtitle.virtual_craft.mushroom_king.roar",
+    "sounds": [{"name": "virtual_craft:mushroom_king/roar", "volume": 1.3, "attenuation_distance": 56}]
+  },
+  "mushroom_king.windup": {
+    "subtitle": "subtitle.virtual_craft.mushroom_king.windup",
+    "sounds": [{"name": "virtual_craft:mushroom_king/windup", "volume": 1.0, "attenuation_distance": 40}]
+  },
+  "mushroom_king.strike": {
+    "subtitle": "subtitle.virtual_craft.mushroom_king.strike",
+    "sounds": [{"name": "virtual_craft:mushroom_king/strike", "volume": 1.2, "attenuation_distance": 42}]
+  },
+  "mushroom_king.root_cadence": {
+    "subtitle": "subtitle.virtual_craft.mushroom_king.root_cadence",
+    "sounds": [{"name": "virtual_craft:mushroom_king/root_cadence", "volume": 1.2, "attenuation_distance": 44}]
+  },
+  "mushroom_king.stem_hammer": {
+    "subtitle": "subtitle.virtual_craft.mushroom_king.stem_hammer",
+    "sounds": [{"name": "virtual_craft:mushroom_king/stem_hammer", "volume": 1.3, "attenuation_distance": 48}]
+  },
+  "mushroom_king.spore_needle": {
+    "subtitle": "subtitle.virtual_craft.mushroom_king.spore_needle",
+    "sounds": [{"name": "virtual_craft:mushroom_king/spore_needle", "volume": 1.15, "attenuation_distance": 46}]
+  },
+  "mushroom_king.cap_clap": {
+    "subtitle": "subtitle.virtual_craft.mushroom_king.cap_clap",
+    "sounds": [{"name": "virtual_craft:mushroom_king/cap_clap", "volume": 1.3, "attenuation_distance": 48}]
+  },
+  "mushroom_king.canopy_closure": {
+    "subtitle": "subtitle.virtual_craft.mushroom_king.canopy_closure",
+    "sounds": [{"name": "virtual_craft:mushroom_king/canopy_closure", "volume": 1.3, "attenuation_distance": 52}]
+  },
+  "mushroom_king.spore_breath": {
+    "subtitle": "subtitle.virtual_craft.mushroom_king.spore_breath",
+    "sounds": [{"name": "virtual_craft:mushroom_king/spore_breath", "volume": 1.25, "attenuation_distance": 52}]
+  },
+  "mushroom_king.mycelial_surge": {
+    "subtitle": "subtitle.virtual_craft.mushroom_king.mycelial_surge",
+    "sounds": [{"name": "virtual_craft:mushroom_king/mycelial_surge", "volume": 1.25, "attenuation_distance": 52}]
+  },
+  "mushroom_king.root_convergence": {
+    "subtitle": "subtitle.virtual_craft.mushroom_king.root_convergence",
+    "sounds": [{"name": "virtual_craft:mushroom_king/root_convergence", "volume": 1.3, "attenuation_distance": 56}]
+  },
+  "mushroom_king.plate_break": {
+    "subtitle": "subtitle.virtual_craft.mushroom_king.plate_break",
+    "sounds": [{"name": "virtual_craft:mushroom_king/plate_break", "volume": 1.2, "attenuation_distance": 44}]
+  },
+  "mushroom_king.stagger": {
+    "subtitle": "subtitle.virtual_craft.mushroom_king.stagger",
+    "sounds": [{"name": "virtual_craft:mushroom_king/stagger", "volume": 1.2, "attenuation_distance": 48}]
+  },
+  "mushroom_king.death": {
+    "subtitle": "subtitle.virtual_craft.mushroom_king.death",
+    "sounds": [{"name": "virtual_craft:mushroom_king/death", "volume": 1.35, "attenuation_distance": 64}]
+  },
+  "mushroom_king.music": {
+    "sounds": [{"name": "virtual_craft:mushroom_king/music", "stream": true, "volume": 0.9}]
+  },
+  "mushroom_king.shield_break": {
+    "subtitle": "subtitle.virtual_craft.mushroom_king.shield_break",
+    "sounds": [{"name": "virtual_craft:mushroom_king/shield_break", "volume": 1.1, "attenuation_distance": 36}]
   }
 }

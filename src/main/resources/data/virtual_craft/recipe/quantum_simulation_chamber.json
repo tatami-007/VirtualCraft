@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "c": { "item": "virtual_craft:virtual_chromium_ingot" },
+    "m": { "item": "virtual_craft:computer_mainframe" },
+    "p": { "item": "virtual_craft:quantum_power_cell" },
+    "g": { "item": "virtual_craft:gpu" }
+  },
+  "pattern": [
+    "cpc",
+    "mgm",
+    "cpc"
+  ],
+  "result": {
+    "count": 1,
+    "id": "virtual_craft:quantum_simulation_chamber"
+  }
+}

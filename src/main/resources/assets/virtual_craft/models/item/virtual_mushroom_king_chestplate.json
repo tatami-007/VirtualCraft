@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "virtual_craft:item/equipment/virtual_mushroom_king/virtual_mushroom_king_chestplate"
+  }
+}

@@ -13,12 +13,8 @@ import software.bernie.geckolib.renderer.GeoRenderer;
 import software.bernie.geckolib.renderer.layer.GeoRenderLayer;
 
 final class SnakeKingSignalLayer extends GeoRenderLayer<VirtualSnakeKing> {
-	private static final ResourceLocation SIGNAL_RED = signalTexture("red", false);
-	private static final ResourceLocation SIGNAL_RED_CORE = signalTexture("red", true);
-	private static final ResourceLocation SIGNAL_BLUE = signalTexture("blue", false);
-	private static final ResourceLocation SIGNAL_BLUE_CORE = signalTexture("blue", true);
-	private static final ResourceLocation SIGNAL_WHITE = signalTexture("white", false);
-	private static final ResourceLocation SIGNAL_WHITE_CORE = signalTexture("white", true);
+	private static final ResourceLocation SIGNAL_BODY = signalTexture(false);
+	private static final ResourceLocation SIGNAL_CORE = signalTexture(true);
 
 	SnakeKingSignalLayer(GeoRenderer<VirtualSnakeKing> renderer) {
 		super(renderer);
@@ -36,14 +32,14 @@ final class SnakeKingSignalLayer extends GeoRenderLayer<VirtualSnakeKing> {
 
 		// The body pass makes the attack direction readable across the entire snake,
 		// while the core pass keeps the crown, eyes and hood as the visual focus.
-		float pulse = strength >= 0.70F
-				? 0.5F + 0.5F * Mth.sin((snake.getAttackTick() + partialTick) * 2.35F)
+		float pulse = strength >= 0.76F
+				? 0.5F + 0.5F * Mth.sin((snake.getAttackTick() + partialTick) * 1.55F)
 				: 0.0F;
-		float bodyStrength = Mth.clamp((strength - 0.16F) / 0.84F, 0.0F, 1.0F);
+		float bodyStrength = Mth.clamp((strength - 0.10F) / 0.90F, 0.0F, 1.0F);
 		renderMask(poseStack, snake, bakedModel, bufferSource, partialTick, packedOverlay,
-				textureFor(signal, false), signalAlpha(bodyStrength, pulse, false));
+				SIGNAL_BODY, signalColor(signal, bodyStrength, pulse, false));
 		renderMask(poseStack, snake, bakedModel, bufferSource, partialTick, packedOverlay,
-				textureFor(signal, true), signalAlpha(strength, pulse, true));
+				SIGNAL_CORE, signalColor(signal, strength, pulse, true));
 	}
 
 	private void renderMask(PoseStack poseStack, VirtualSnakeKing snake, BakedGeoModel bakedModel,
@@ -55,25 +51,22 @@ final class SnakeKingSignalLayer extends GeoRenderLayer<VirtualSnakeKing> {
 				bufferSource.getBuffer(signalType), partialTick, 0xF000F0, packedOverlay, color);
 	}
 
-	private static int signalAlpha(float strength, float pulse, boolean core) {
-		float baseAlpha = core ? 0.48F : 0.28F;
-		float peakGain = core ? 0.44F : 0.48F;
-		float pulseGain = core ? 0.09F : 0.07F;
+	private static int signalColor(int signal, float strength, float pulse, boolean core) {
+		float baseAlpha = core ? 0.30F : 0.10F;
+		float peakGain = core ? 0.48F : 0.40F;
+		float pulseGain = core ? 0.08F : 0.05F;
 		int alpha = Math.round(Mth.clamp(baseAlpha + strength * peakGain + pulse * pulseGain,
-				0.0F, core ? 0.96F : 0.82F) * 255.0F);
-		return alpha << 24 | 0xFFFFFF;
-	}
-
-	private static ResourceLocation textureFor(int signal, boolean core) {
-		return switch (signal) {
-			case VirtualSnakeKing.SIGNAL_RED -> core ? SIGNAL_RED_CORE : SIGNAL_RED;
-			case VirtualSnakeKing.SIGNAL_BLUE -> core ? SIGNAL_BLUE_CORE : SIGNAL_BLUE;
-			default -> core ? SIGNAL_WHITE_CORE : SIGNAL_WHITE;
+				0.0F, core ? 0.86F : 0.56F) * 255.0F);
+		int rgb = switch (signal) {
+			case VirtualSnakeKing.SIGNAL_AMBER -> core ? 0xF2C45B : 0xB87816;
+			case VirtualSnakeKing.SIGNAL_BLUE -> core ? 0x84D9F4 : 0x176FAE;
+			default -> core ? 0xF2C45B : 0xB87816;
 		};
+		return alpha << 24 | rgb;
 	}
 
-	private static ResourceLocation signalTexture(String color, boolean core) {
+	private static ResourceLocation signalTexture(boolean core) {
 		return ResourceLocation.fromNamespaceAndPath(VirtualCraft.MODID,
-				"textures/entity/virtual_snake_king_signal_" + color + (core ? "_core" : "") + ".png");
+				"textures/entity/snake_king/virtual_snake_king_signal" + (core ? "_core" : "") + ".png");
 	}
 }

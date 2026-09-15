@@ -6,86 +6,122 @@
       "type": "minecraft:multi_noise",
       "biomes": [
         {
-          "biome": "virtual_craft:virtual_plains",
+          "biome": "virtual_craft:virtual_mountains",
           "parameters": {
-            "temperature": -0.8,
-            "humidity": -0.8,
-            "continentalness": 0.0,
-            "erosion": 0.0,
-            "weirdness": 0.0,
-            "depth": 0.0,
+            "temperature": [-1.0, 1.0],
+            "humidity": [-1.0, 1.0],
+            "continentalness": [0.15, 1.0],
+            "erosion": [-1.0, -0.55],
+            "weirdness": [-0.7666667, -0.56666666],
+            "depth": [-1.0, 1.0],
             "offset": 0.0
           }
         },
         {
-          "biome": "virtual_craft:virtual_plains",
+          "biome": "virtual_craft:virtual_mountains",
           "parameters": {
-            "temperature": -0.8,
-            "humidity": 0.6,
-            "continentalness": 0.0,
-            "erosion": 0.0,
-            "weirdness": 0.0,
-            "depth": 0.0,
+            "temperature": [-1.0, 1.0],
+            "humidity": [-1.0, 1.0],
+            "continentalness": [0.15, 1.0],
+            "erosion": [-1.0, -0.55],
+            "weirdness": [0.56666666, 0.7666667],
+            "depth": [-1.0, 1.0],
             "offset": 0.0
           }
         },
         {
-          "biome": "virtual_craft:virtual_plains",
+          "biome": "virtual_craft:virtual_mountains",
           "parameters": {
-            "temperature": 0.6,
-            "humidity": -0.8,
-            "continentalness": 0.0,
-            "erosion": 0.0,
-            "weirdness": 0.0,
-            "depth": 0.0,
+            "temperature": [-1.0, 1.0],
+            "humidity": [-1.0, 1.0],
+            "continentalness": [0.3, 1.0],
+            "erosion": [-1.0, -0.78],
+            "weirdness": [-0.93333334, -0.7666667],
+            "depth": [-1.0, 1.0],
             "offset": 0.0
           }
         },
         {
-          "biome": "virtual_craft:virtual_plains",
+          "biome": "virtual_craft:virtual_mountains",
           "parameters": {
-            "temperature": 0.25,
-            "humidity": 0.25,
-            "continentalness": 0.0,
-            "erosion": 0.0,
-            "weirdness": 0.0,
-            "depth": 0.0,
+            "temperature": [-1.0, 1.0],
+            "humidity": [-1.0, 1.0],
+            "continentalness": [0.3, 1.0],
+            "erosion": [-1.0, -0.78],
+            "weirdness": [-0.56666666, -0.4],
+            "depth": [-1.0, 1.0],
             "offset": 0.0
           }
         },
         {
-          "biome": "virtual_craft:virtual_plains",
+          "biome": "virtual_craft:virtual_mountains",
           "parameters": {
-            "temperature": 0.95,
-            "humidity": -0.15,
-            "continentalness": 0.0,
-            "erosion": 0.0,
-            "weirdness": 0.0,
-            "depth": 0.0,
+            "temperature": [-1.0, 1.0],
+            "humidity": [-1.0, 1.0],
+            "continentalness": [0.3, 1.0],
+            "erosion": [-1.0, -0.78],
+            "weirdness": [0.4, 0.56666666],
+            "depth": [-1.0, 1.0],
             "offset": 0.0
           }
         },
         {
-          "biome": "virtual_craft:virtual_plains",
+          "biome": "virtual_craft:virtual_mountains",
           "parameters": {
-            "temperature": -0.15,
-            "humidity": 0.95,
-            "continentalness": 0.0,
-            "erosion": 0.0,
-            "weirdness": 0.0,
-            "depth": 0.0,
+            "temperature": [-1.0, 1.0],
+            "humidity": [-1.0, 1.0],
+            "continentalness": [0.3, 1.0],
+            "erosion": [-1.0, -0.78],
+            "weirdness": [0.7666667, 0.93333334],
+            "depth": [-1.0, 1.0],
             "offset": 0.0
           }
         },
         {
           "biome": "virtual_craft:lightning_forest",
           "parameters": {
-            "temperature": 0.55,
-            "humidity": 0.55,
-            "continentalness": 0.0,
-            "erosion": 0.0,
-            "weirdness": 0.0,
-            "depth": 0.0,
+            "temperature": [0.55, 1.0],
+            "humidity": [-0.35, 0.3],
+            "continentalness": [-1.0, 1.0],
+            "erosion": [-1.0, 1.0],
+            "weirdness": [-1.0, 1.0],
+            "depth": [-1.0, 1.0],
+            "offset": 0.0
+          }
+        },
+        {
+          "biome": "virtual_craft:toxic_abyss",
+          "parameters": {
+            "temperature": [-1.0, -0.45],
+            "humidity": [-0.35, 0.3],
+            "continentalness": [-1.0, 1.0],
+            "erosion": [-1.0, 1.0],
+            "weirdness": [-1.0, 1.0],
+            "depth": [-1.0, 1.0],
+            "offset": 0.0
+          }
+        },
+        {
+          "biome": "virtual_craft:mushroom_realm",
+          "parameters": {
+            "temperature": [-0.35, 0.35],
+            "humidity": [0.3, 1.0],
+            "continentalness": [-1.0, 1.0],
+            "erosion": [-1.0, 1.0],
+            "weirdness": [-1.0, 1.0],
+            "depth": [-1.0, 1.0],
+            "offset": 0.0
+          }
+        },
+        {
+          "biome": "virtual_craft:virtual_plains",
+          "parameters": {
+            "temperature": [-0.45, 0.55],
+            "humidity": [-1.0, 0.3],
+            "continentalness": [-1.0, 1.0],
+            "erosion": [-1.0, 1.0],
+            "weirdness": [-1.0, 1.0],
+            "depth": [-1.0, 1.0],
             "offset": 0.0
           }
         }

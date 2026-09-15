@@ -28,4 +28,16 @@ class SnakeAttackVolumeTest {
 		assertTrue(ring.contains(5.5, 1.0, 0.0));
 		assertFalse(ring.contains(0.5, 1.0, 0.0));
 	}
+
+	@Test
+	void playerBoundsTouchingAnAttackEdgeStillIntersect() {
+		SnakeAttackVolume beam = SnakeAttackVolume.beam(0.0, 0.0, 0.0,
+				1.0, 0.0, 12.0, 1.5, 0.0, 3.0);
+		assertTrue(beam.intersects(7.7, 0.0, 1.45, 8.3, 1.8, 2.05));
+		assertFalse(beam.intersects(7.7, 0.0, 2.1, 8.3, 1.8, 2.7));
+
+		SnakeAttackVolume cone = SnakeAttackVolume.cone(0.0, 0.0, 0.0,
+				0.0, 1.0, 6.0, Math.toRadians(45.0), -0.5, 2.5);
+		assertTrue(cone.intersects(2.8, 0.0, 3.2, 3.4, 1.8, 3.8));
+	}
 }

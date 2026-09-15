@@ -14,7 +14,7 @@ import net.minecraft.world.level.storage.LevelResource;
 
 /** Clears stale virtual-world chunks once when the terrain schema changes. */
 public final class VirtualWorldTerrainMigration {
-	private static final String TERRAIN_VERSION = "6-virtual-iron-ore";
+	private static final String TERRAIN_VERSION = "28-flat-mushroom-boss-arena";
 	private static final String MARKER_FILE = "virtual_craft_virtual_world_terrain.version";
 
 	private VirtualWorldTerrainMigration() {

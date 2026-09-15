@@ -8,15 +8,24 @@ import java.util.Iterator;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public final class ServerWorkQueue {
+	private static final int MAX_PENDING_WORK = 4096;
 	private static final ConcurrentLinkedQueue<Tuple<Runnable, Integer>> WORK_QUEUE = new ConcurrentLinkedQueue<>();
 
 	private ServerWorkQueue() {
 	}
 
 	public static void queue(int tick, Runnable action) {
-		if (Thread.currentThread().getThreadGroup() == SidedThreadGroups.SERVER) {
-			WORK_QUEUE.add(new Tuple<>(action, tick));
+		if (action == null || Thread.currentThread().getThreadGroup() != SidedThreadGroups.SERVER) {
+			return;
 		}
+		if (WORK_QUEUE.size() >= MAX_PENDING_WORK) {
+			return;
+		}
+		WORK_QUEUE.add(new Tuple<>(action, Math.max(1, tick)));
+	}
+
+	public static void clear() {
+		WORK_QUEUE.clear();
 	}
 
 	public static void tick(Logger logger) {

@@ -42,7 +42,7 @@ public final class ThunderPoolFeature extends Feature<NoneFeatureConfiguration> 
 				int surfaceY = level.getHeight(Heightmap.Types.WORLD_SURFACE_WG, x, z);
 				cursor.set(x, surfaceY - 1, z);
 				if (!level.getBiome(cursor).is(LightningForestEffects.LIGHTNING_FOREST)
-						|| !level.getBlockState(cursor).is(ModBlocks.VIRTUAL_GRASS.get())) {
+						|| !level.getBlockState(cursor).is(ModBlocks.CHARGED_GRASS_BLOCK.get())) {
 					return false;
 				}
 				minimumSurfaceY = Math.min(minimumSurfaceY, surfaceY);
@@ -64,7 +64,7 @@ public final class ThunderPoolFeature extends Feature<NoneFeatureConfiguration> 
 				int z = centerZ + dz;
 				int columnSurfaceY = level.getHeight(Heightmap.Types.WORLD_SURFACE_WG, x, z);
 				setBlock(level, cursor.set(x, waterSurfaceY - depth, z),
-						ModBlocks.VIRTUAL_STONE.get().defaultBlockState());
+						ModBlocks.LIGHTNING_STONE.get().defaultBlockState());
 				for (int y = waterSurfaceY - depth + 1; y <= waterSurfaceY; y++) {
 					setBlock(level, cursor.set(x, y, z), ModBlocks.THUNDER_POOL.get().defaultBlockState());
 				}

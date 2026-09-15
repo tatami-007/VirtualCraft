@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "virtual_craft:item/equipment/virtual_snake_king/virtual_snake_king_chestplate"
+  }
+}

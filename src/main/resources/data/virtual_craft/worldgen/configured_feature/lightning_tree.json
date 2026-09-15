@@ -4,7 +4,7 @@
     "decorators": [],
     "dirt_provider": {
       "type": "minecraft:simple_state_provider",
-      "state": { "Name": "virtual_craft:virtual_dirt" }
+      "state": { "Name": "virtual_craft:charged_dirt" }
     },
     "foliage_placer": {
       "type": "minecraft:blob_foliage_placer",
@@ -22,7 +22,7 @@
     },
     "trunk_placer": {
       "type": "minecraft:straight_trunk_placer",
-      "base_height": 6,
+      "base_height": 4,
       "height_rand_a": 2,
       "height_rand_b": 1
     },

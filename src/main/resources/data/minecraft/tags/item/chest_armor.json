@@ -1,0 +1,10 @@
+{
+  "replace": false,
+  "values": [
+    "virtual_craft:virtual_iron_chestplate",
+    "virtual_craft:virtual_silver_chestplate",
+    "virtual_craft:virtual_titanium_chestplate",
+    "virtual_craft:virtual_chromium_chestplate",
+    "virtual_craft:virtual_snake_king_chestplate"
+  ]
+}

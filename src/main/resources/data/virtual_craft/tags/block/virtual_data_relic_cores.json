@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    {
+      "id": "virtual_craft:virtual_data_core",
+      "required": false
+    }
+  ]
+}

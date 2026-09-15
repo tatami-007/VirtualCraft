@@ -17,23 +17,28 @@ public final class SnakeAttackMotionRules {
 
 	public static double horizontalRetention(int attack, int attackTick, SnakeHuntPattern huntPattern) {
 		return switch (attack) {
-			case ATTACK_BITE -> impulseRetention(attackTick, 8, 3);
+			case ATTACK_BITE -> impulseRetention(attackTick, SnakeHuntPattern.BITE_LUNGE_TICK, 3);
 			case ATTACK_DOUBLE_HUNT -> comboRetention(attackTick, huntPattern);
-			case ATTACK_VOID_DASH -> Math.max(
-					impulseRetention(attackTick, 16, 3),
-					impulseRetention(attackTick, 41, 3));
-			case ATTACK_OVERHEAD_FANG -> impulseRetention(attackTick, 19, 4);
+			// The dash writes an authored velocity throughout its active window.
+			// Never retain it into recovery or the second wind-up.
+			case ATTACK_VOID_DASH -> 0.0;
+			case ATTACK_OVERHEAD_FANG -> impulseRetention(
+					attackTick, SnakeKingAttackRules.OVERHEAD_HIT_TICK - 3, 4);
 			default -> 0.0;
 		};
 	}
 
 	private static double comboRetention(int attackTick, SnakeHuntPattern huntPattern) {
-		int segment = SnakeHuntPattern.segment(attackTick);
+		if (SnakeHuntPattern.isComboOpening(attackTick)) {
+			return 0.0;
+		}
+		int segment = huntPattern.comboSegmentAt(attackTick);
 		if (segment >= huntPattern.segmentCount()
 				|| huntPattern.move(segment) != SnakeHuntPattern.Move.BITE) {
 			return 0.0;
 		}
-		return impulseRetention(SnakeHuntPattern.localTick(attackTick), 8, 3);
+		return impulseRetention(huntPattern.comboLocalTickAt(attackTick),
+				SnakeHuntPattern.BITE_LUNGE_TICK, 3);
 	}
 
 	private static double impulseRetention(int tick, int impulseTick, int coastTicks) {

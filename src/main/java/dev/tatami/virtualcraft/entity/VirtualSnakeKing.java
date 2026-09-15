@@ -8,6 +8,7 @@ import dev.tatami.virtualcraft.boss.PostureBoss;
 import dev.tatami.virtualcraft.boss.SnakeKingAttackRules;
 import dev.tatami.virtualcraft.boss.SnakeAttackVolume;
 import dev.tatami.virtualcraft.boss.SnakeAttackMotionRules;
+import dev.tatami.virtualcraft.boss.SnakeDashRules;
 import dev.tatami.virtualcraft.boss.SnakeKingCombatDirector;
 import dev.tatami.virtualcraft.boss.SnakeHuntPattern;
 import dev.tatami.virtualcraft.config.SnakeBossConfig;
@@ -25,8 +26,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import javax.annotation.Nullable;
-import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -85,16 +86,13 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 	public static final int ATTACK_CROWN_JUDGMENT = 9;
 	public static final int ATTACK_OVERHEAD_FANG = 10;
 	public static final int SIGNAL_NONE = 0;
-	public static final int SIGNAL_WHITE = 1;
-	public static final int SIGNAL_RED = 2;
+	public static final int SIGNAL_AMBER = 2;
 	public static final int SIGNAL_BLUE = 3;
 
 	private static final int[] ATTACK_DURATIONS = {
-			0, 30, 68, 38, 42, 44, 62, 62, 72, 104, 48
+			0, 34, 68, 44, 48, 50, 62, 68, 72, 104, 54
 	};
 	private static final double COMBAT_HOLD_DISTANCE = 5.8;
-	private static final double COMBAT_RETREAT_DISTANCE = 4.5;
-	private static final double LUNGE_STOP_DISTANCE = 3.4;
 	private static final String[] ATTACK_ANIMATIONS = {
 			"", "bite", "double_hunt", "tail_sweep", "data_fangs", "rune_sigil",
 			"crown_chain", "void_dash", "corrosive_coil", "crown_judgment", "overhead_fang"
@@ -178,6 +176,9 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 	private float posturePressure;
 	private boolean configAttributesApplied;
 	private int encounterPlayerCount = 1;
+	private double dashTravelSpeed;
+	private int clientVisualAttackState = ATTACK_NONE;
+	private double clientVisualAttackTick;
 	@Nullable
 	private UUID activeFangVolley;
 	@Nullable
@@ -193,12 +194,15 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 		nextAttackTick = 30;
 		attackReadyTicks[ATTACK_CROWN_JUDGMENT] = 600;
 		setPersistenceRequired();
-		headPart = new VirtualSnakeKingPart(this, "head", scaled(2.3F), scaled(1.9F), 1.25F);
-		bodyPart = new VirtualSnakeKingPart(this, "body", scaled(2.8F), scaled(1.8F), 1.0F);
-		middlePart = new VirtualSnakeKingPart(this, "middle", scaled(2.35F), scaled(1.55F), 0.9F);
-		tailPart = new VirtualSnakeKingPart(this, "tail", scaled(1.75F), scaled(1.2F), 0.75F);
-		tailMidPart = new VirtualSnakeKingPart(this, "tail_mid", scaled(1.25F), scaled(0.95F), 0.65F);
-		tailTipPart = new VirtualSnakeKingPart(this, "tail_tip", scaled(0.8F), scaled(0.7F), 0.55F);
+		// Dimensions follow the rendered cuboids instead of the boss-wide scale.
+		// The hood remains targetable, while the body no longer has a box twice
+		// as wide as its visible segment.
+		headPart = new VirtualSnakeKingPart(this, "head", 2.35F, 1.7F, 1.25F);
+		bodyPart = new VirtualSnakeKingPart(this, "body", 1.55F, 1.35F, 1.0F);
+		middlePart = new VirtualSnakeKingPart(this, "middle", 1.4F, 1.15F, 0.9F);
+		tailPart = new VirtualSnakeKingPart(this, "tail", 1.1F, 0.85F, 0.75F);
+		tailMidPart = new VirtualSnakeKingPart(this, "tail_mid", 0.78F, 0.62F, 0.65F);
+		tailTipPart = new VirtualSnakeKingPart(this, "tail_tip", 0.5F, 0.42F, 0.55F);
 		parts = new VirtualSnakeKingPart[]{headPart, bodyPart, middlePart, tailPart, tailMidPart, tailTipPart};
 		setId(ENTITY_COUNTER.getAndAdd(parts.length + 1) + 1);
 	}
@@ -212,7 +216,7 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 				.add(Attributes.FOLLOW_RANGE, 48.0)
 				.add(Attributes.ATTACK_DAMAGE, 15.0)
 				.add(Attributes.ATTACK_KNOCKBACK, 1.8)
-				.add(Attributes.KNOCKBACK_RESISTANCE, 0.9)
+				.add(Attributes.KNOCKBACK_RESISTANCE, 1.0)
 				.add(Attributes.STEP_HEIGHT, 1.25);
 	}
 
@@ -243,7 +247,7 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 		builder.define(DATA_SUMMON_TICKS, 0);
 		builder.define(DATA_SWEEP_LEFT, false);
 		builder.define(DATA_ALERT, false);
-		builder.define(DATA_POSTURE, BossPostureRules.MAX_POSTURE);
+		builder.define(DATA_POSTURE, BossPostureRules.SNAKE_MAX_POSTURE);
 		builder.define(DATA_STAGGER_TICKS, 0);
 		builder.define(DATA_ATTACK_DIRECTION, BossAttackDirection.MID.ordinal());
 		builder.define(DATA_COMBO_PATTERN, 0);
@@ -275,6 +279,17 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 	}
 
 	@Override
+	public void knockback(double strength, double x, double z) {
+		// Boss positioning is controlled by its attack timeline and multipart body.
+	}
+
+	@Override
+	public void push(double x, double y, double z) {
+		// Ignore direct impulses from attacks, explosions, and entity collisions.
+		// Scripted boss movement uses setDeltaMovement directly.
+	}
+
+	@Override
 	protected void pushEntities() {
 		if (getSummonTicks() > 0 || !isAlive()) {
 			return;
@@ -300,19 +315,53 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 			if (!nearest.getBoundingBox().intersects(player.getBoundingBox())) {
 				continue;
 			}
-			double dx = player.getX() - nearest.getX();
-			double dz = player.getZ() - nearest.getZ();
-			double length = Math.sqrt(dx * dx + dz * dz);
-			if (length < 1.0E-4) {
-				dx = -Mth.sin(getYRot() * Mth.DEG_TO_RAD);
-				dz = Mth.cos(getYRot() * Mth.DEG_TO_RAD);
-				length = 1.0;
+			Vec3 movement = player.getDeltaMovement();
+			AABB playerBounds = player.getBoundingBox();
+			AABB obstacleBounds = nearest.getBoundingBox();
+			Vec3 separation = horizontalSeparation(playerBounds, obstacleBounds);
+			if (!trySeparatePlayer(player, separation)) {
+				trySeparatePlayer(player, alternateHorizontalSeparation(
+						playerBounds, obstacleBounds, separation));
 			}
-			// Resolve overlap horizontally only. This blocks pass-through without
-			// changing pose, vertical velocity, or pulling players with an attack.
-			player.push(dx / length * 0.22, 0.0, dz / length * 0.22);
+			player.setDeltaMovement(movement);
 			restoreStandingPoseAfterBossOverlap(player);
 		}
+	}
+
+	private boolean trySeparatePlayer(Player player, Vec3 separation) {
+		if (separation.horizontalDistanceSqr() < 1.0E-8) {
+			return false;
+		}
+		AABB movedBounds = player.getBoundingBox().move(separation);
+		if (!level().noCollision(player, movedBounds)) {
+			return false;
+		}
+		player.setPos(player.getX() + separation.x, player.getY(),
+				player.getZ() + separation.z);
+		return true;
+	}
+
+	private static Vec3 horizontalSeparation(AABB player, AABB obstacle) {
+		double negativeX = obstacle.minX - player.maxX - 0.002;
+		double positiveX = obstacle.maxX - player.minX + 0.002;
+		double x = Math.abs(negativeX) < Math.abs(positiveX) ? negativeX : positiveX;
+		double negativeZ = obstacle.minZ - player.maxZ - 0.002;
+		double positiveZ = obstacle.maxZ - player.minZ + 0.002;
+		double z = Math.abs(negativeZ) < Math.abs(positiveZ) ? negativeZ : positiveZ;
+		return Math.abs(x) <= Math.abs(z) ? new Vec3(x, 0.0, 0.0) : new Vec3(0.0, 0.0, z);
+	}
+
+	private static Vec3 alternateHorizontalSeparation(AABB player, AABB obstacle, Vec3 primary) {
+		if (primary.x != 0.0) {
+			double negativeZ = obstacle.minZ - player.maxZ - 0.002;
+			double positiveZ = obstacle.maxZ - player.minZ + 0.002;
+			return new Vec3(0.0, 0.0,
+					Math.abs(negativeZ) < Math.abs(positiveZ) ? negativeZ : positiveZ);
+		}
+		double negativeX = obstacle.minX - player.maxX - 0.002;
+		double positiveX = obstacle.maxX - player.minX + 0.002;
+		return new Vec3(Math.abs(negativeX) < Math.abs(positiveX) ? negativeX : positiveX,
+				0.0, 0.0);
 	}
 
 	private void restoreStandingPoseAfterBossOverlap(Player player) {
@@ -362,11 +411,16 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 		}));
 		AnimationController<VirtualSnakeKing> combat = new AnimationController<>(this, "combat", 2, state -> PlayState.STOP);
 		for (int attack = 1; attack < ATTACK_ANIMATIONS.length; attack++) {
-			combat.triggerableAnim(ATTACK_ANIMATIONS[attack], RawAnimation.begin()
-					.thenPlay("animation.virtual_snake_king." + ATTACK_ANIMATIONS[attack]));
+			String animation = ATTACK_ANIMATIONS[attack];
+			if (!animation.isEmpty()) {
+				combat.triggerableAnim(animation, RawAnimation.begin()
+						.thenPlay("animation.virtual_snake_king." + animation));
+			}
 		}
 		combat.triggerableAnim("tail_sweep_left", RawAnimation.begin()
 				.thenPlay("animation.virtual_snake_king.tail_sweep_left"));
+		combat.triggerableAnim("combo_ready", RawAnimation.begin()
+				.thenPlay("animation.virtual_snake_king.combo_ready"));
 		combat.triggerableAnim("combo_bite_left", RawAnimation.begin()
 				.thenPlay("animation.virtual_snake_king.combo_bite_left"));
 		combat.triggerableAnim("combo_bite_right", RawAnimation.begin()
@@ -380,6 +434,8 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 			int attack = getAttackState();
 			if (deathTime > 0 || getSummonTicks() > 0 || isStaggered()
 					|| attack == ATTACK_TAIL_SWEEP || attack == ATTACK_CORROSIVE_COIL
+					|| (attack == ATTACK_DOUBLE_HUNT
+							&& SnakeHuntPattern.isComboOpening(getAttackTick()))
 					|| isComboTailStage()) {
 				return PlayState.STOP;
 			}
@@ -423,8 +479,30 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 			tickPostureState();
 			damageBucket = BossDamageRules.decayedBucket(damageBucket,
 					SnakeBossConfig.VALUES.dpsCap.get().floatValue());
+		} else {
+			tickClientVisualAttackClock();
 		}
 		updatePartPositions();
+	}
+
+	private void tickClientVisualAttackClock() {
+		int state = getAttackState();
+		int syncedTick = Math.max(0, entityData.get(DATA_ATTACK_TICK));
+		if (state == ATTACK_NONE) {
+			clientVisualAttackState = ATTACK_NONE;
+			clientVisualAttackTick = 0.0;
+			return;
+		}
+		if (state != clientVisualAttackState) {
+			clientVisualAttackState = state;
+			clientVisualAttackTick = syncedTick;
+			return;
+		}
+		clientVisualAttackTick += 1.0;
+		double drift = syncedTick - clientVisualAttackTick;
+		if (Math.abs(drift) > 1.5) {
+			clientVisualAttackTick += Mth.clamp(drift, -0.2, 0.2);
+		}
 	}
 
 	@Override
@@ -437,8 +515,12 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 			triggerAnim("reaction", "stagger");
 		} else if (!level().isClientSide && getAttackState() != ATTACK_NONE) {
 			if (getAttackState() == ATTACK_DOUBLE_HUNT) {
-				triggerComboAnimation(Math.min(getHuntPattern().segmentCount() - 1,
-						SnakeHuntPattern.segment(getAttackTick())));
+				if (SnakeHuntPattern.isComboOpening(getAttackTick())) {
+					triggerAnim("combat", "combo_ready");
+				} else {
+					triggerComboAnimation(Math.min(getHuntPattern().segmentCount() - 1,
+							getHuntPattern().comboSegmentAt(getAttackTick())));
+				}
 			} else {
 				String animation = getAttackState() == ATTACK_TAIL_SWEEP && entityData.get(DATA_SWEEP_LEFT)
 						? "tail_sweep_left" : ATTACK_ANIMATIONS[getAttackState()];
@@ -476,7 +558,7 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 		setPos(homePos.getX() + 0.5, homePos.getY() - 1.35 + progress * 2.35, homePos.getZ() + 0.5);
 		setDeltaMovement(Vec3.ZERO);
 		float signalPulse = 0.08F * (1.0F + Mth.sin(progress * Mth.TWO_PI * 5.0F));
-		entityData.set(DATA_SIGNAL_TYPE, progress < 0.62F ? SIGNAL_BLUE : SIGNAL_WHITE);
+		entityData.set(DATA_SIGNAL_TYPE, progress < 0.62F ? SIGNAL_BLUE : SIGNAL_AMBER);
 		entityData.set(DATA_SIGNAL_STRENGTH, Mth.clamp(0.3F + progress * 0.58F + signalPulse, 0.0F, 1.0F));
 		if (level() instanceof ServerLevel serverLevel) {
 			if (remaining % 5 == 0) {
@@ -531,20 +613,28 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 		Vec3 headBase = samplePosition(0);
 		float headYaw = sampleYaw(0) * Mth.DEG_TO_RAD;
 		Vec3 forward = new Vec3(-Mth.sin(headYaw), 0.0, Mth.cos(headYaw));
-		movePart(headPart, headBase.add(forward.scale(scaled(1.55))).add(0.0, scaled(1.05), 0.0));
-		movePart(bodyPart, trailPoint(2, scaled(0.8), 0.0).add(0.0, scaled(0.75), 0.0));
-		movePart(middlePart, trailPoint(7, scaled(2.75), 0.28).add(0.0, scaled(0.62), 0.0));
-		movePart(tailPart, trailPoint(11, scaled(4.45), 0.72).add(0.0, scaled(0.48), 0.0));
-		movePart(tailMidPart, trailPoint(14, scaled(5.65), 1.18).add(0.0, scaled(0.38), 0.0));
-		movePart(tailTipPart, trailPoint(15, scaled(6.75), 1.72).add(0.0, scaled(0.28), 0.0));
+		movePart(headPart, headBase.add(forward.scale(1.35)).add(0.0, 1.15, 0.0));
+		movePart(bodyPart, trailPoint(0, 0.5, 0.0).add(0.0, 0.72, 0.0));
+		movePart(middlePart, trailPoint(1, 2.35, 0.24).add(0.0, 0.62, 0.0));
+		movePart(tailPart, trailPoint(2, 4.15, 0.62).add(0.0, 0.48, 0.0));
+		movePart(tailMidPart, trailPoint(3, 5.55, 1.0).add(0.0, 0.36, 0.0));
+		movePart(tailTipPart, trailPoint(5, 6.75, 1.42).add(0.0, 0.24, 0.0));
 		int tailSweepTick = activeTailSweepTick();
-		if (tailSweepTick >= 3 && tailSweepTick <= SnakeHuntPattern.TAIL_HIT_TICK) {
-				float progress = (tailSweepTick - 3) / 16.0F;
-				float direction = entityData.get(DATA_SWEEP_LEFT) ? -1.0F : 1.0F;
-				float angle = getYRot() * Mth.DEG_TO_RAD + direction * Mth.lerp(progress, -1.35F, 1.35F);
-				movePart(tailPart, sweepTailPoint(angle, scaled(4.4), scaled(0.55)));
-				movePart(tailMidPart, sweepTailPoint(angle + direction * 0.14F, scaled(5.55), scaled(0.42)));
-				movePart(tailTipPart, sweepTailPoint(angle + direction * 0.26F, scaled(6.65), scaled(0.3)));
+		if (tailSweepTick >= 0 && tailSweepTick <= SnakeHuntPattern.TAIL_HIT_TICK) {
+			float direction = SnakeHuntPattern.tailSweepDirection(entityData.get(DATA_SWEEP_LEFT));
+			float bodyAngle = getYRot() * Mth.DEG_TO_RAD + direction
+					* (float)SnakeHuntPattern.tailBodySpinPhase(tailSweepTick);
+			float baseAngle = bodyAngle + Mth.PI;
+			SnakeHuntPattern.TailPose pose = SnakeHuntPattern.tailPose(tailSweepTick);
+			float rootAngle = baseAngle + direction * (float)pose.root();
+			float middleAngle = baseAngle + direction * (float)pose.middle();
+			float tipAngle = baseAngle + direction * (float)pose.tip();
+			movePart(headPart, sweepTailPoint(bodyAngle, 1.35, 1.15));
+			movePart(bodyPart, sweepTailPoint(baseAngle, 0.5, 0.72));
+			movePart(middlePart, sweepTailPoint(baseAngle, 2.35, 0.62));
+			movePart(tailPart, sweepTailPoint(rootAngle, 4.45, 0.58));
+			movePart(tailMidPart, sweepTailPoint(middleAngle, 5.7, 0.42));
+			movePart(tailTipPart, sweepTailPoint(tipAngle, 6.85, 0.28));
 		}
 	}
 
@@ -577,7 +667,7 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 		if (getAttackState() == ATTACK_TAIL_SWEEP) {
 			return getAttackTick();
 		}
-		return isComboTailStage() ? SnakeHuntPattern.localTick(getAttackTick()) : -1;
+		return isComboTailStage() ? getHuntPattern().comboLocalTickAt(getAttackTick()) : -1;
 	}
 
 	private Vec3 sweepTailPoint(float angle, double radius, double height) {
@@ -652,7 +742,7 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 			setDeltaMovement(Vec3.ZERO);
 			entityData.set(DATA_STAGGER_TICKS, staggerTicks - 1);
 			if (staggerTicks == 1) {
-				entityData.set(DATA_POSTURE, BossPostureRules.MAX_POSTURE);
+				entityData.set(DATA_POSTURE, BossPostureRules.SNAKE_MAX_POSTURE);
 				posturePressure = 0.0F;
 				nextAttackTick = tickCount + 20;
 				triggerAnim("reaction", "recover");
@@ -661,7 +751,7 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 		}
 		if (getTarget() == null && getPosture() < getMaxPosture()
 				&& tickCount - lastCombatTick >= BossPostureRules.DISENGAGE_RESET_TICKS) {
-			entityData.set(DATA_POSTURE, BossPostureRules.MAX_POSTURE);
+			entityData.set(DATA_POSTURE, BossPostureRules.SNAKE_MAX_POSTURE);
 			posturePressure = 0.0F;
 		}
 	}
@@ -728,9 +818,6 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 		getLookControl().setLookAt(target, 35.0F, 25.0F);
 		if (distance > COMBAT_HOLD_DISTANCE) {
 			getNavigation().moveTo(target, distance > 12.0 ? 1.25 : 1.08);
-		} else if (distance < COMBAT_RETREAT_DISTANCE) {
-			getNavigation().stop();
-			retreatFrom(target);
 		} else {
 			getNavigation().stop();
 			setDeltaMovement(getDeltaMovement().multiply(0.72, 1.0, 0.72));
@@ -770,7 +857,7 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 			case ATTACK_TAIL_SWEEP -> tickTailSweep(tick);
 			case ATTACK_DATA_FANGS -> tickDataFangs(tick, target);
 			case ATTACK_RUNE_SIGIL -> tickRuneSigil(tick, target);
-			case ATTACK_CROWN_CHAIN -> tickCrownChain(tick, target);
+			case ATTACK_CROWN_CHAIN -> tickCrownChain(tick);
 			case ATTACK_VOID_DASH -> tickVoidDash(tick, target);
 			case ATTACK_CORROSIVE_COIL -> tickCorrosiveCoil(tick);
 			case ATTACK_CROWN_JUDGMENT -> tickCrownJudgment(tick);
@@ -797,15 +884,27 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 
 	private void tickBite(int tick, LivingEntity target) {
 		if (tick == 3) {
+			lockAttackTargetAndFace(target);
 			play(ModSounds.SNAKE_KING_BITE_WINDUP.get(), 1.35F, 0.96F);
 		}
-		if (tick == 8) {
-			lungeToward(target.position(), 1.25);
+		if (tick <= SnakeHuntPattern.BITE_LUNGE_TICK && (tick & 1) == 0) {
+			lockAttackTargetAndFace(target);
+		}
+		if (tick == SnakeHuntPattern.BITE_LUNGE_TICK) {
+			lungeLocked(1.25);
+		}
+		if (tick >= 7 && tick < SnakeHuntPattern.BITE_HIT_TICK && (tick & 1) == 1) {
+			spawnConeCue(BossAttackDirection.MID, SnakeAttackVolume.BITE_RANGE,
+					SnakeAttackVolume.BITE_HALF_ANGLE,
+					tick / (double)SnakeHuntPattern.BITE_HIT_TICK, getY() + 1.0, 7);
 		}
 		if (tick >= SnakeHuntPattern.BITE_HIT_TICK
 				&& tick < SnakeHuntPattern.BITE_HIT_TICK + SnakeHuntPattern.ACTIVE_WINDOW_TICKS) {
-			damageBite(12.0F, 1.1);
+			damageBite(8.0F, 1.1);
 			if (tick == SnakeHuntPattern.BITE_HIT_TICK) {
+				spawnConeImpact(BossAttackDirection.MID, SnakeAttackVolume.BITE_RANGE,
+						SnakeAttackVolume.BITE_HALF_ANGLE, getY() + 1.0, 11);
+				spawnReleaseBurst(BossAttackDirection.MID, headPart.position(), 1.0);
 				play(ModSounds.SNAKE_KING_BITE_HIT.get(), 1.5F, 0.94F);
 			}
 		}
@@ -813,18 +912,29 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 
 	private void tickDoubleHunt(int tick, LivingEntity target) {
 		SnakeHuntPattern pattern = getHuntPattern();
-		int segment = SnakeHuntPattern.segment(tick);
+		if (SnakeHuntPattern.isComboOpening(tick)) {
+			if ((tick & 1) == 0) {
+				lockAttackTargetAndFace(target);
+			}
+			return;
+		}
+		int segment = pattern.comboSegmentAt(tick);
 		if (segment >= pattern.segmentCount()) {
 			return;
 		}
-		int localTick = SnakeHuntPattern.localTick(tick);
+		int localTick = pattern.comboLocalTickAt(tick);
+		SnakeHuntPattern.Move move = pattern.move(segment);
 		if (comboAnimationStep != segment) {
 			attackHits.clear();
 			attackStrike = segment;
-			entityData.set(DATA_SWEEP_LEFT, ((segment + getComboPattern()) & 1) == 0);
+			lockAttackTargetAndFace(target);
 			triggerComboAnimation(segment);
 		}
-		SnakeHuntPattern.Move move = pattern.move(segment);
+		int trackingEnd = move == SnakeHuntPattern.Move.BITE
+				? SnakeHuntPattern.COMBO_BITE_LUNGE_TICK : SnakeHuntPattern.TAIL_HIT_TICK - 4;
+		if (localTick <= trackingEnd && (localTick & 1) == 0) {
+			lockAttackTargetAndFace(target);
+		}
 		if (move == SnakeHuntPattern.Move.BITE) {
 			tickComboBite(localTick, target, segment);
 		} else {
@@ -836,13 +946,21 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 		if (localTick == 3) {
 			play(ModSounds.SNAKE_KING_BITE_WINDUP.get(), 1.25F, segment == 2 ? 0.88F : 0.98F);
 		}
-		if (localTick == 8) {
+		if (localTick == SnakeHuntPattern.COMBO_BITE_LUNGE_TICK) {
 			lungeLocked(1.08 + segment * 0.08);
 		}
-		if (localTick >= SnakeHuntPattern.BITE_HIT_TICK
-				&& localTick < SnakeHuntPattern.BITE_HIT_TICK + SnakeHuntPattern.ACTIVE_WINDOW_TICKS) {
-			damageBite(8.0F, 0.95);
-			if (localTick == SnakeHuntPattern.BITE_HIT_TICK) {
+		if (localTick >= 4 && localTick < SnakeHuntPattern.COMBO_BITE_HIT_TICK && (localTick & 1) == 0) {
+			spawnConeCue(BossAttackDirection.MID, SnakeAttackVolume.BITE_RANGE,
+					SnakeAttackVolume.BITE_HALF_ANGLE,
+					localTick / (double)SnakeHuntPattern.COMBO_BITE_HIT_TICK, getY() + 1.0, 7);
+		}
+		if (localTick >= SnakeHuntPattern.COMBO_BITE_HIT_TICK
+				&& localTick < SnakeHuntPattern.COMBO_BITE_HIT_TICK + SnakeHuntPattern.ACTIVE_WINDOW_TICKS) {
+			damageBite(6.0F, 0.95);
+			if (localTick == SnakeHuntPattern.COMBO_BITE_HIT_TICK) {
+				spawnConeImpact(BossAttackDirection.MID, SnakeAttackVolume.BITE_RANGE,
+						SnakeAttackVolume.BITE_HALF_ANGLE, getY() + 1.0, 10);
+				spawnReleaseBurst(BossAttackDirection.MID, headPart.position(), 0.9);
 				play(ModSounds.SNAKE_KING_BITE_HIT.get(), 1.35F, 0.9F + segment * 0.035F);
 			}
 		}
@@ -852,13 +970,21 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 		if (localTick == 3) {
 			play(ModSounds.SNAKE_KING_TAIL_WINDUP.get(), 1.4F, 0.9F);
 		}
-		if (localTick == 14) {
+		if (localTick == SnakeHuntPattern.TAIL_HIT_TICK - 4) {
 			play(ModSounds.SNAKE_KING_TAIL.get(), 1.5F, 0.94F);
 		}
-		if (localTick >= SnakeHuntPattern.TAIL_HIT_TICK - 1
-				&& localTick <= SnakeHuntPattern.TAIL_HIT_TICK) {
-			damageTailSweep(10.0F, 2.0);
+		if (localTick >= 9 && localTick < SnakeHuntPattern.TAIL_HIT_TICK && (localTick & 1) == 1) {
+			spawnRingCue(BossAttackDirection.MID,
+					Mth.lerp(localTick / (double)SnakeHuntPattern.TAIL_HIT_TICK,
+							SnakeAttackVolume.TAIL_INNER_RADIUS,
+							SnakeAttackVolume.TAIL_OUTER_RADIUS), getY() + 0.75, 10);
+		}
+		if (SnakeHuntPattern.isTailDamageActive(localTick)) {
+			damageTailSweep(7.0F, 2.0);
 			if (localTick == SnakeHuntPattern.TAIL_HIT_TICK) {
+				spawnRingImpact(BossAttackDirection.MID, SnakeAttackVolume.TAIL_INNER_RADIUS,
+						SnakeAttackVolume.TAIL_OUTER_RADIUS, getY() + 0.72, 18);
+				spawnReleaseBurst(BossAttackDirection.MID, tailTipPart.position(), 1.15);
 				play(ModSounds.SNAKE_KING_TAIL_HIT.get(), 1.55F, 0.9F);
 			}
 		}
@@ -868,22 +994,86 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 		if (tick == 3) {
 			play(ModSounds.SNAKE_KING_TAIL_WINDUP.get(), 1.5F, 0.88F);
 		}
-		if (tick == 14) {
+		if (tick == SnakeHuntPattern.TAIL_HIT_TICK - 4) {
 			play(ModSounds.SNAKE_KING_TAIL.get(), 1.6F, 0.92F);
 		}
-		if (tick >= SnakeHuntPattern.TAIL_HIT_TICK - 1
-				&& tick <= SnakeHuntPattern.TAIL_HIT_TICK + 1) {
-			damageTailSweep(12.0F, 2.4);
+		if (tick >= 9 && tick < SnakeHuntPattern.TAIL_HIT_TICK && (tick & 1) == 1) {
+			spawnRingCue(BossAttackDirection.MID,
+					Mth.lerp(tick / (double)SnakeHuntPattern.TAIL_HIT_TICK,
+							SnakeAttackVolume.TAIL_INNER_RADIUS,
+							SnakeAttackVolume.TAIL_OUTER_RADIUS), getY() + 0.75, 12);
+		}
+		if (SnakeHuntPattern.isTailDamageActive(tick)) {
+			damageTailSweep(8.0F, 2.4);
 			if (tick == SnakeHuntPattern.TAIL_HIT_TICK) {
+				spawnRingImpact(BossAttackDirection.MID, SnakeAttackVolume.TAIL_INNER_RADIUS,
+						SnakeAttackVolume.TAIL_OUTER_RADIUS, getY() + 0.72, 22);
+				spawnReleaseBurst(BossAttackDirection.MID, tailTipPart.position(), 1.3);
 				play(ModSounds.SNAKE_KING_TAIL_HIT.get(), 1.7F, 0.88F);
 			}
 		}
 	}
 
 	private void damageTailSweep(float damage, double knockback) {
-		damageVolume(SnakeAttackVolume.ring(getX(), getY(), getZ(), SnakeAttackVolume.TAIL_OUTER_RADIUS,
-				SnakeAttackVolume.TAIL_INNER_RADIUS,
-				-scaled(0.5), scaled(2.1)), damage, knockback, false, BossAttackDirection.MID);
+		int sweepTick = activeTailSweepTick();
+		if (sweepTick < 0) {
+			return;
+		}
+		for (Player player : combatPlayers(SnakeAttackVolume.TAIL_OUTER_RADIUS + 1.5)) {
+			if (intersectsTailSweep(player, sweepTick)
+					&& resolveUniqueDirectedHit(player, damageSources().mobAttack(this), damage,
+							knockback, false, BossAttackDirection.MID)) {
+				attackStrike++;
+			}
+		}
+	}
+
+	private boolean intersectsTailSweep(Player player, double sweepTick) {
+		Vec3 target = player.position().add(0.0, player.getBbHeight() * 0.5, 0.0);
+		double radius = player.getBbWidth() * 0.5 + scaled(1.12);
+		double radiusSquared = radius * radius;
+		Vec3[] previous = tailSweepCollisionPoints(Math.max(0.0, sweepTick - 1.0));
+		Vec3[] current = tailSweepCollisionPoints(sweepTick);
+		for (int index = 0; index < current.length; index++) {
+			if (distanceToSegmentSquared(target, previous[index], current[index]) <= radiusSquared) {
+				return true;
+			}
+		}
+		for (int index = 0; index + 1 < current.length; index++) {
+			if (distanceToSegmentSquared(target, current[index], current[index + 1]) <= radiusSquared
+					|| distanceToSegmentSquared(target, previous[index],
+							previous[index + 1]) <= radiusSquared) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private Vec3[] tailSweepCollisionPoints(double sweepTick) {
+		float direction = SnakeHuntPattern.tailSweepDirection(isSweepLeft());
+		float bodyAngle = getYRot() * Mth.DEG_TO_RAD + direction
+				* (float)SnakeHuntPattern.tailBodySpinPhase(sweepTick);
+		float baseAngle = bodyAngle + Mth.PI;
+		SnakeHuntPattern.TailPose pose = SnakeHuntPattern.tailPose(sweepTick);
+		float rootAngle = baseAngle + direction * (float)pose.root();
+		float middleAngle = baseAngle + direction * (float)pose.middle();
+		float tipAngle = baseAngle + direction * (float)pose.tip();
+		return new Vec3[]{
+				sweepTailPoint(baseAngle, 2.35, 0.62),
+				sweepTailPoint(rootAngle, 4.45, 0.58),
+				sweepTailPoint(middleAngle, 5.7, 0.42),
+				sweepTailPoint(tipAngle, 6.85, 0.28)
+		};
+	}
+
+	private static double distanceToSegmentSquared(Vec3 point, Vec3 start, Vec3 end) {
+		Vec3 segment = end.subtract(start);
+		double lengthSquared = segment.lengthSqr();
+		if (lengthSquared < 1.0E-8) {
+			return point.distanceToSqr(start);
+		}
+		double amount = Mth.clamp(point.subtract(start).dot(segment) / lengthSquared, 0.0, 1.0);
+		return point.distanceToSqr(start.add(segment.scale(amount)));
 	}
 
 	private void damageBite(float damage, double knockback) {
@@ -906,9 +1096,9 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 				continue;
 			}
 			double facing = distance < 1.0E-5 ? 1.0 : horizontal.normalize().dot(forward);
-			if (facing >= minimumFacing && attackHits.add(player.getUUID())
-					&& resolveDirectedHit(player, damageSources().mobAttack(this), damage, knockback, corrosion,
-							direction)) {
+			if (facing >= minimumFacing
+					&& resolveUniqueDirectedHit(player, damageSources().mobAttack(this), damage,
+							knockback, corrosion, direction)) {
 				hits++;
 			}
 		}
@@ -916,58 +1106,119 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 	}
 
 	private void tickDataFangs(int tick, LivingEntity target) {
-		if (tick == 4) {
+		if (tick == SnakeKingAttackRules.SPECIAL_SIGNAL_START) {
+			lockAttackTargetAndFace(target);
 			play(ModSounds.SNAKE_KING_POISON_HEAD_CHARGE.get(), 1.45F, 0.96F);
 		}
-		if (tick == 11) {
+		if (tick == SnakeKingAttackRules.SPECIAL_ANIMATION_START) {
+			triggerAnim("combat", ATTACK_ANIMATIONS[ATTACK_DATA_FANGS]);
+		}
+		if (tick >= SnakeKingAttackRules.SPECIAL_ANIMATION_START
+				&& tick <= SnakeKingAttackRules.HIGH_POISON_HIT_TICK - 6 && (tick & 1) == 0) {
+			lockAttackTargetAndFace(target);
+		}
+		if (tick == 24) {
 			play(ModSounds.SNAKE_KING_CAST_PULSE.get(), 1.3F, 1.12F);
 		}
-		if (tick == 18) {
+		if (tick == SnakeKingAttackRules.HIGH_POISON_HIT_TICK - 5) {
 			play(ModSounds.SNAKE_KING_CAST_LOCK.get(), 1.45F, 1.08F);
 		}
-		if (tick == 20) {
+		if (tick == SnakeKingAttackRules.HIGH_POISON_HIT_TICK) {
+			spawnBeamImpact(BossAttackDirection.HIGH, SnakeAttackVolume.HIGH_POISON_RANGE,
+					SnakeAttackVolume.HIGH_POISON_HALF_WIDTH, getLockedTargetY(), 10);
+			spawnReleaseBurst(BossAttackDirection.HIGH, headPart.position(), 1.15);
 			play(ModSounds.SNAKE_KING_CAST_RELEASE.get(), 1.5F, 1.02F);
 		}
-		if (tick >= 20 && tick <= 22) {
+		if (tick >= SnakeKingAttackRules.HIGH_POISON_WARNING_START
+				&& tick <= SnakeKingAttackRules.HIGH_POISON_HIT_TICK && tick % 3 == 0) {
+			spawnBeamCue(BossAttackDirection.HIGH, SnakeAttackVolume.HIGH_POISON_RANGE,
+					SnakeAttackVolume.HIGH_POISON_HALF_WIDTH, getLockedTargetY(), 7);
+		}
+		if (tick >= SnakeKingAttackRules.HIGH_POISON_HIT_TICK
+				&& tick <= SnakeKingAttackRules.HIGH_POISON_HIT_TICK + 2) {
 			attackStrike += damageHeadPoisonBeam(target, 10.0F, 60);
 		}
-		if (tick == 22) {
+		if (tick == SnakeKingAttackRules.HIGH_POISON_HIT_TICK + 2) {
 			resolveImmediateHighAttack(attackStrike);
 			play(ModSounds.SNAKE_KING_POISON_HEAD_RELEASE.get(), 1.55F, 0.94F);
 		}
 	}
 
 	private void tickRuneSigil(int tick, LivingEntity target) {
-		if (tick == 4) {
+		if (tick == SnakeKingAttackRules.SPECIAL_SIGNAL_START) {
+			lockAttackTargetAndFace(target);
 			play(ModSounds.SNAKE_KING_POISON_GROUND_CHARGE.get(), 1.45F, 0.9F);
 		}
-		if (tick == 10) {
+		if (tick == SnakeKingAttackRules.SPECIAL_ANIMATION_START) {
+			triggerAnim("combat", ATTACK_ANIMATIONS[ATTACK_RUNE_SIGIL]);
+		}
+		if (tick >= SnakeKingAttackRules.SPECIAL_ANIMATION_START
+				&& tick <= SnakeKingAttackRules.GROUND_POISON_HIT_TICK - 6 && (tick & 1) == 0) {
+			lockAttackTargetAndFace(target);
+		}
+		if (tick == 24) {
 			play(ModSounds.SNAKE_KING_CAST_PULSE.get(), 1.3F, 0.84F);
 		}
-		if (tick == 17) {
+		if (tick == SnakeKingAttackRules.GROUND_POISON_HIT_TICK - 5) {
 			play(ModSounds.SNAKE_KING_CAST_LOCK.get(), 1.4F, 0.88F);
 		}
-		if (tick >= 20 && tick <= 22) {
+		if (tick >= SnakeKingAttackRules.GROUND_POISON_WARNING_START
+				&& tick < SnakeKingAttackRules.GROUND_POISON_HIT_TICK && tick % 3 == 0) {
+			spawnConeCue(BossAttackDirection.LOW, SnakeAttackVolume.GROUND_POISON_RANGE,
+					SnakeAttackVolume.GROUND_POISON_HALF_ANGLE,
+					tick / (double)SnakeKingAttackRules.GROUND_POISON_HIT_TICK, getY() + 0.12, 11);
+		}
+		if (tick >= SnakeKingAttackRules.GROUND_POISON_HIT_TICK
+				&& tick <= SnakeKingAttackRules.GROUND_POISON_HIT_TICK + 2) {
 			damageGroundPoisonFan(SnakeAttackVolume.GROUND_POISON_RANGE,
 					SnakeAttackVolume.GROUND_POISON_HALF_ANGLE, 8.0F, 80);
 		}
-		if (tick == 20) {
+		if (tick == SnakeKingAttackRules.GROUND_POISON_HIT_TICK) {
+			spawnConeImpact(BossAttackDirection.LOW, SnakeAttackVolume.GROUND_POISON_RANGE,
+					SnakeAttackVolume.GROUND_POISON_HALF_ANGLE, getY() + 0.12, 16);
+			spawnReleaseBurst(BossAttackDirection.LOW, headPart.position(), 1.2);
 			play(ModSounds.SNAKE_KING_CAST_RELEASE.get(), 1.55F, 0.86F);
 			play(ModSounds.SNAKE_KING_POISON_GROUND_RELEASE.get(), 1.55F, 0.92F);
+		}
+	}
+
+	private void tickCrownChain(int tick) {
+		if (tick == 9) {
+			play(ModSounds.SNAKE_KING_CAST.get(), 1.55F, 0.94F);
+		}
+		if (tick == 18) {
+			play(ModSounds.SNAKE_KING_CAST_PULSE.get(), 1.45F, 0.78F);
+		}
+		if (tick == SnakeKingAttackRules.CROWN_CHAIN_HIT_TICK - 4) {
+			play(ModSounds.SNAKE_KING_CAST_LOCK.get(), 1.55F, 0.94F);
+		}
+		if (tick == SnakeKingAttackRules.CROWN_CHAIN_HIT_TICK) {
+			play(ModSounds.SNAKE_KING_CAST_RELEASE.get(), 1.7F, 0.92F);
+		}
+		if (tick >= SnakeKingAttackRules.CROWN_CHAIN_HIT_TICK
+				&& tick <= SnakeKingAttackRules.CROWN_CHAIN_HIT_TICK + 2
+				&& level() instanceof ServerLevel) {
+			attackStrike += damagePlayersInRadius(18.0, 5.0, 18.0F, 0.8, false,
+					BossAttackDirection.HIGH);
+		}
+		if (tick == SnakeKingAttackRules.CROWN_CHAIN_HIT_TICK + 2) {
+			play(ModSounds.SNAKE_KING_CHAIN.get(), 1.75F, 0.9F);
+			resolveImmediateHighAttack(attackStrike);
 		}
 	}
 
 	private int damageHeadPoisonBeam(LivingEntity target, float damage, int poisonTicks) {
 		SnakeAttackVolume volume = lockedBeam(SnakeAttackVolume.HIGH_POISON_RANGE,
 				SnakeAttackVolume.HIGH_POISON_HALF_WIDTH,
-				getLockedTargetY() - getY() - 1.35, getLockedTargetY() - getY() + 1.35);
+				getLockedTargetY() - getY() - 0.55, getLockedTargetY() - getY() + 0.55);
 		int hits = 0;
 		for (Player player : combatPlayers(13.0)) {
-			if (!volume.contains(player.getX(), player.getEyeY(), player.getZ())) {
+			AABB bounds = player.getBoundingBox();
+			if (!volume.intersects(bounds.minX, bounds.minY, bounds.minZ,
+					bounds.maxX, bounds.maxY, bounds.maxZ)) {
 				continue;
 			}
-			if (attackHits.add(player.getUUID()) && resolvePoisonHit(player, damage, 0.65,
-					BossAttackDirection.HIGH, poisonTicks)) {
+			if (resolveUniquePoisonHit(player, damage, 0.65, BossAttackDirection.HIGH, poisonTicks)) {
 				hits++;
 			}
 		}
@@ -978,20 +1229,22 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 		SnakeAttackVolume volume = lockedCone(range, halfAngle, -0.6, 2.5);
 		int hits = 0;
 		for (Player player : combatPlayers(range + 1.0)) {
-			if (!volume.contains(player.getX(), player.getY(), player.getZ())) {
+			AABB bounds = player.getBoundingBox();
+			if (!volume.intersects(bounds.minX, bounds.minY, bounds.minZ,
+					bounds.maxX, bounds.maxY, bounds.maxZ)) {
 				continue;
 			}
-			if (attackHits.add(player.getUUID()) && resolvePoisonHit(player, damage, 0.9,
-					BossAttackDirection.LOW, poisonTicks)) {
+			if (resolveUniquePoisonHit(player, damage, 0.9, BossAttackDirection.LOW, poisonTicks)) {
 				hits++;
 			}
 		}
 		return hits;
 	}
 
-	private boolean resolvePoisonHit(Player player, float damage, double knockback,
+	private boolean resolveUniquePoisonHit(Player player, float damage, double knockback,
 			BossAttackDirection direction, int poisonTicks) {
-		boolean hit = resolveDirectedHit(player, damageSources().mobAttack(this), damage, knockback, false, direction);
+		boolean hit = resolveUniqueDirectedHit(player, damageSources().mobAttack(this), damage,
+				knockback, false, direction);
 		if (hit) {
 			player.addEffect(new net.minecraft.world.effect.MobEffectInstance(
 					net.minecraft.world.effect.MobEffects.POISON, poisonTicks, 0), this);
@@ -999,46 +1252,56 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 		return hit;
 	}
 
-	private void tickCrownChain(int tick, LivingEntity target) {
-		if (tick == 9) {
-			play(ModSounds.SNAKE_KING_CAST.get(), 1.55F, 0.94F);
+	private void tickVoidDash(int tick, LivingEntity target) {
+		if (tick == SnakeKingAttackRules.SPECIAL_ANIMATION_START) {
+			triggerAnim("combat", ATTACK_ANIMATIONS[ATTACK_VOID_DASH]);
 		}
-		if (tick == 18) {
-			play(ModSounds.SNAKE_KING_CAST_PULSE.get(), 1.45F, 0.78F);
+		boolean firstTrack = tick >= SnakeKingAttackRules.SPECIAL_ANIMATION_START
+				&& tick <= SnakeDashRules.FIRST_START - 6;
+		boolean secondTrack = tick >= SnakeDashRules.FIRST_START + SnakeDashRules.ACTIVE_TICKS
+				&& tick <= SnakeDashRules.SECOND_START - 6;
+		if ((firstTrack || secondTrack) && (tick & 1) == 0) {
+			lockAttackTargetAndFace(target);
+			dashTravelSpeed = SnakeDashRules.speedForDistance(horizontalDistanceTo(target));
 		}
-		if (tick == 29) {
-			play(ModSounds.SNAKE_KING_CAST_LOCK.get(), 1.55F, 0.94F);
+		if (SnakeDashRules.isPassStart(tick)) {
+			if (tick == SnakeDashRules.SECOND_START) {
+				attackHits.clear();
+			}
+			spawnBeamImpact(BossAttackDirection.LOW, SnakeAttackVolume.DASH_RANGE,
+					SnakeAttackVolume.DASH_HALF_WIDTH, getY() + 1.0, 10);
+			spawnReleaseBurst(BossAttackDirection.LOW,
+					position().add(lockedForward().scale(1.2)).add(0.0, 0.9, 0.0), 1.1);
+			play(ModSounds.SNAKE_KING_DASH.get(), 1.5F,
+					tick == SnakeDashRules.FIRST_START ? 0.98F : 0.9F);
 		}
-		if (tick == 33) {
-			play(ModSounds.SNAKE_KING_CAST_RELEASE.get(), 1.7F, 0.92F);
+		if ((tick >= SnakeKingAttackRules.SPECIAL_ANIMATION_START
+				&& tick <= SnakeDashRules.FIRST_START && (tick & 1) == 0)
+				|| (tick >= SnakeDashRules.SECOND_START - 12 && tick <= SnakeDashRules.SECOND_START
+						&& (tick & 1) == 0)) {
+			spawnBeamCue(BossAttackDirection.LOW, SnakeAttackVolume.DASH_RANGE,
+					SnakeAttackVolume.DASH_HALF_WIDTH, getY() + 1.0, 8);
 		}
-		if (tick >= 33 && tick <= 35 && level() instanceof ServerLevel) {
-			attackStrike += damagePlayersInRadius(18.0, 5.0, 18.0F, 0.8, false,
-					BossAttackDirection.HIGH);
+		if (SnakeDashRules.isActive(tick)) {
+			if (dashTravelSpeed <= 0.0) {
+				dashTravelSpeed = SnakeDashRules.speedForDistance(horizontalDistanceTo(target));
+			}
+			Vec3 dash = lockedForward().scale(dashTravelSpeed);
+			setDeltaMovement(dash.x, getDeltaMovement().y, dash.z);
+			damageVolume(lockedBeam(SnakeAttackVolume.DASH_RANGE, SnakeAttackVolume.DASH_HALF_WIDTH,
+					-scaled(0.5), scaled(2.5)),
+					9.0F, 1.4, false, BossAttackDirection.LOW);
 		}
-		if (tick == 35) {
-			resolveImmediateHighAttack(attackStrike);
-			play(ModSounds.SNAKE_KING_CHAIN.get(), 1.75F, 0.9F);
+		if (SnakeDashRules.isPassEnd(tick)) {
+			Vec3 movement = getDeltaMovement();
+			setDeltaMovement(0.0, movement.y, 0.0);
 		}
 	}
 
-	private void tickVoidDash(int tick, LivingEntity target) {
-		if (tick == 35) {
-			lockAttackTarget(target);
-			attackHits.clear();
-		}
-		if (tick == 16 || tick == 41) {
-			if (tick == 41) {
-				attackHits.clear();
-			}
-			lungeLocked(1.9);
-			play(ModSounds.SNAKE_KING_DASH.get(), 1.5F, tick == 16 ? 0.98F : 0.9F);
-		}
-		if ((tick >= 16 && tick <= 18) || (tick >= 41 && tick <= 43)) {
-			damageVolume(lockedBeam(SnakeAttackVolume.DASH_RANGE, SnakeAttackVolume.DASH_HALF_WIDTH,
-					-scaled(0.5), scaled(2.5)),
-					9.0F, 1.4, false, BossAttackDirection.MID);
-		}
+	private double horizontalDistanceTo(Entity target) {
+		double dx = target.getX() - getX();
+		double dz = target.getZ() - getZ();
+		return Math.sqrt(dx * dx + dz * dz);
 	}
 
 	private void tickCorrosiveCoil(int tick) {
@@ -1051,14 +1314,23 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 		if (tick == 48) {
 			play(ModSounds.SNAKE_KING_CAST_LOCK.get(), 1.55F, 0.8F);
 		}
-		if (tick >= 52 && tick <= 54) {
-			damagePlayersOutsideGap(getBoundingBox().inflate(7.0, 3.0, 7.0), coilGapAngle(tick), 0.58,
-					16.0F, 2.6, BossAttackDirection.LOW);
-			if (tick == 52) {
+		if (tick >= SnakeKingAttackRules.COIL_RELEASE_START
+				&& tick <= SnakeKingAttackRules.COIL_RELEASE_END) {
+			damageExpandingCoilRing(tick, 16.0F);
+			if (tick == SnakeKingAttackRules.COIL_RELEASE_START) {
 				play(ModSounds.SNAKE_KING_CAST_RELEASE.get(), 1.65F, 0.76F);
+			}
+			if (tick == SnakeKingAttackRules.COIL_RELEASE_END) {
 				play(ModSounds.SNAKE_KING_IMPACT.get(), 1.8F, 0.94F);
 			}
 		}
+	}
+
+	private void damageExpandingCoilRing(int attackTick, float damage) {
+		double radius = SnakeKingAttackRules.coilRadius(attackTick);
+		SnakeAttackVolume volume = SnakeAttackVolume.ring(getX(), getY(), getZ(),
+				radius, 1.05, -0.6, 2.4);
+		damageVolume(volume, damage, 2.2, true, BossAttackDirection.LOW);
 	}
 
 	private void tickCrownJudgment(int tick) {
@@ -1103,52 +1375,50 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 	}
 
 	private void tickOverheadFang(int tick, LivingEntity target) {
-		if (tick == 12) {
+		if (tick == SnakeKingAttackRules.SPECIAL_SIGNAL_START) {
+			lockAttackTargetAndFace(target);
+		}
+		if (tick == SnakeKingAttackRules.SPECIAL_ANIMATION_START) {
+			triggerAnim("combat", ATTACK_ANIMATIONS[ATTACK_OVERHEAD_FANG]);
+		}
+		if (tick >= SnakeKingAttackRules.SPECIAL_ANIMATION_START
+				&& tick <= SnakeKingAttackRules.OVERHEAD_HIT_TICK - 6 && (tick & 1) == 0) {
+			lockAttackTargetAndFace(target);
+		}
+		if (tick == 16) {
 			play(ModSounds.SNAKE_KING_ROAR.get(), 1.35F, 1.0F);
 		}
-		if (tick == 19) {
+		if (tick == SnakeKingAttackRules.OVERHEAD_HIT_TICK - 3) {
 			lungeLocked(0.9);
 		}
-		if (tick >= 22 && tick <= 24) {
+		if (tick >= SnakeKingAttackRules.OVERHEAD_WARNING_START
+				&& tick <= SnakeKingAttackRules.OVERHEAD_HIT_TICK && (tick & 1) == 0) {
+			spawnConeCue(BossAttackDirection.HIGH, SnakeAttackVolume.OVERHEAD_RANGE,
+					SnakeAttackVolume.OVERHEAD_HALF_ANGLE,
+					tick / (double)SnakeKingAttackRules.OVERHEAD_HIT_TICK,
+					Math.max(getY() + 1.4, getLockedTargetY()), 9);
+		}
+		if (tick >= SnakeKingAttackRules.OVERHEAD_HIT_TICK
+				&& tick <= SnakeKingAttackRules.OVERHEAD_HIT_TICK + 2) {
 			attackStrike += damageVolume(lockedCone(SnakeAttackVolume.OVERHEAD_RANGE,
 					SnakeAttackVolume.OVERHEAD_HALF_ANGLE,
 					-scaled(0.4), scaled(2.8)), 18.0F, 1.8, true, BossAttackDirection.HIGH);
 		}
-		if (tick == 24) {
+		if (tick == SnakeKingAttackRules.OVERHEAD_HIT_TICK) {
+			spawnConeImpact(BossAttackDirection.HIGH, SnakeAttackVolume.OVERHEAD_RANGE,
+					SnakeAttackVolume.OVERHEAD_HALF_ANGLE,
+					Math.max(getY() + 1.4, getLockedTargetY()), 14);
+			spawnReleaseBurst(BossAttackDirection.HIGH, headPart.position(), 1.3);
+		}
+		if (tick == SnakeKingAttackRules.OVERHEAD_HIT_TICK + 2) {
 			resolveImmediateHighAttack(attackStrike);
 			play(ModSounds.SNAKE_KING_IMPACT.get(), 1.6F, 0.92F);
-		}
-	}
-
-	private void lungeToward(Vec3 target, double speed) {
-		lungeToward(target, speed, LUNGE_STOP_DISTANCE);
-	}
-
-	private void lungeToward(Vec3 target, double speed, double stopDistance) {
-		Vec3 direction = target.subtract(position()).multiply(1.0, 0.0, 1.0);
-		if (direction.lengthSqr() > 1.0E-5) {
-			double distance = direction.length();
-			double allowedSpeed = stopDistance <= 0.0 ? speed
-					: Math.min(speed, Math.max(0.18, (distance - stopDistance) * 0.42));
-			direction = direction.normalize().scale(allowedSpeed);
-			setDeltaMovement(direction.x, 0.0, direction.z);
 		}
 	}
 
 	private void lungeLocked(double speed) {
 		Vec3 direction = lockedForward().scale(speed);
 		setDeltaMovement(direction.x, 0.0, direction.z);
-	}
-
-	private void retreatFrom(LivingEntity target) {
-		Vec3 away = position().subtract(target.position()).multiply(1.0, 0.0, 1.0);
-		if (away.lengthSqr() < 1.0E-5) {
-			away = new Vec3(1.0, 0.0, 0.0);
-		}
-		away = away.normalize();
-		Vec3 side = new Vec3(-away.z, 0.0, away.x).scale((tickCount & 31) < 16 ? 0.12 : -0.12);
-		Vec3 retreat = away.scale(0.24 + (COMBAT_RETREAT_DISTANCE - distanceTo(target)) * 0.06).add(side);
-		setDeltaMovement(getDeltaMovement().multiply(0.35, 1.0, 0.35).add(retreat.x, 0.0, retreat.z));
 	}
 
 	public boolean canReceiveDataFangHit(@Nullable UUID volley, UUID target) {
@@ -1207,9 +1477,8 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 			if (dx * dx + dz * dz > radius * radius) {
 				continue;
 			}
-			if (attackHits.add(player.getUUID())
-					&& resolveDirectedHit(player, damageSources().mobAttack(this), amount, knockback, corrosion,
-							direction)) {
+			if (resolveUniqueDirectedHit(player, damageSources().mobAttack(this), amount,
+					knockback, corrosion, direction)) {
 				hits++;
 			}
 		}
@@ -1220,12 +1489,13 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 			BossAttackDirection direction) {
 		int hits = 0;
 		for (Player player : combatPlayers(volume.range() + 2.0)) {
-			double sampleY = direction == BossAttackDirection.HIGH ? player.getEyeY()
-					: player.getY() + player.getBbHeight() * 0.5;
-			if (!volume.contains(player.getX(), sampleY, player.getZ()) || !attackHits.add(player.getUUID())) {
+			AABB bounds = player.getBoundingBox();
+			if (!volume.intersects(bounds.minX, bounds.minY, bounds.minZ,
+					bounds.maxX, bounds.maxY, bounds.maxZ)) {
 				continue;
 			}
-			if (resolveDirectedHit(player, damageSources().mobAttack(this), amount, knockback, corrosion, direction)) {
+			if (resolveUniqueDirectedHit(player, damageSources().mobAttack(this), amount,
+					knockback, corrosion, direction)) {
 				hits++;
 			}
 		}
@@ -1249,27 +1519,146 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 		return new Vec3(-Mth.sin(yaw), 0.0, Mth.cos(yaw));
 	}
 
-	private int damagePlayersOutsideGap(AABB area, double gapCenter, double halfWidth, float amount,
-			double knockback, BossAttackDirection direction) {
-		int hits = 0;
-		for (Player player : level().getEntitiesOfClass(Player.class, area,
-				player -> player.isAlive() && !player.isCreative() && !player.isSpectator())) {
-			double dx = player.getX() - getX();
-			double dz = player.getZ() - getZ();
-			if (dx * dx + dz * dz > 7.0 * 7.0) {
-				continue;
-			}
-			double angle = Math.atan2(dz, dx);
-			if (Math.abs(Mth.wrapDegrees((float)Math.toDegrees(angle - gapCenter))) <= Math.toDegrees(halfWidth)) {
-				continue;
-			}
-			if (attackHits.add(player.getUUID())
-					&& resolveDirectedHit(player, damageSources().mobAttack(this), amount, knockback, true,
-							direction)) {
-				hits++;
+	private void spawnConeCue(BossAttackDirection direction, double range, double halfAngle,
+			double progress, double y, int samples) {
+		if (!(level() instanceof ServerLevel serverLevel)) {
+			return;
+		}
+		Vec3 forward = lockedForward();
+		double centerAngle = Math.atan2(forward.z, forward.x);
+		double radius = range * Mth.clamp(0.24 + progress * 0.76, 0.24, 1.0);
+		ParticleOptions cue = cueParticle(direction);
+		for (int i = 0; i < samples; i++) {
+			double ratio = samples <= 1 ? 0.5 : i / (double)(samples - 1);
+			double angle = centerAngle + Mth.lerp(ratio, -halfAngle, halfAngle);
+			double px = getX() + Math.cos(angle) * radius;
+			double pz = getZ() + Math.sin(angle) * radius;
+			serverLevel.sendParticles(i == samples / 2 ? ModParticleTypes.SNAKE_DATA_RUNE.get() : cue,
+					px, y + (i & 1) * 0.035, pz, 1, 0.018, 0.018, 0.018, 0.0);
+		}
+	}
+
+	private void spawnRingCue(BossAttackDirection direction, double radius, double y, int samples) {
+		if (!(level() instanceof ServerLevel serverLevel)) {
+			return;
+		}
+		ParticleOptions cue = cueParticle(direction);
+		double phase = getAttackTick() * 0.11;
+		for (int i = 0; i < samples; i++) {
+			double angle = phase + Mth.TWO_PI * i / samples;
+			ParticleOptions particle = direction == BossAttackDirection.MID && i % 3 == 0
+					? ModParticleTypes.SNAKE_ARC.get() : cue;
+			serverLevel.sendParticles(particle, getX() + Math.cos(angle) * radius,
+					y + (i & 1) * 0.06, getZ() + Math.sin(angle) * radius,
+					1, 0.025, 0.025, 0.025, 0.0);
+		}
+	}
+
+	private void spawnBeamCue(BossAttackDirection direction, double range, double halfWidth,
+			double y, int samples) {
+		if (!(level() instanceof ServerLevel serverLevel)) {
+			return;
+		}
+		Vec3 forward = lockedForward();
+		Vec3 side = new Vec3(-forward.z, 0.0, forward.x);
+		ParticleOptions cue = cueParticle(direction);
+		for (int i = 1; i <= samples; i++) {
+			double distance = range * i / samples;
+			Vec3 center = position().add(forward.scale(distance));
+			for (int rail = -1; rail <= 1; rail += 2) {
+				Vec3 point = center.add(side.scale(halfWidth * rail));
+				ParticleOptions particle = i % 3 == 0 ? ModParticleTypes.SNAKE_ARC.get() : cue;
+				serverLevel.sendParticles(particle, point.x, y + (i & 1) * 0.045, point.z,
+						1, 0.018, 0.018, 0.018, 0.0);
 			}
 		}
-		return hits;
+	}
+
+	private void spawnConeImpact(BossAttackDirection direction, double range, double halfAngle,
+			double y, int samples) {
+		if (!(level() instanceof ServerLevel serverLevel)) {
+			return;
+		}
+		Vec3 forward = lockedForward();
+		double centerAngle = Math.atan2(forward.z, forward.x);
+		ParticleOptions cue = cueParticle(direction);
+		for (int layer = 0; layer < 2; layer++) {
+			double radius = range * (layer == 0 ? 0.62 : 1.0);
+			for (int i = 0; i < samples; i++) {
+				double ratio = samples <= 1 ? 0.5 : i / (double)(samples - 1);
+				double angle = centerAngle + Mth.lerp(ratio, -halfAngle, halfAngle);
+				ParticleOptions particle = i % 4 == 0 ? ModParticleTypes.SNAKE_ARC.get()
+						: i % 3 == 0 ? ModParticleTypes.SNAKE_SHARD.get() : cue;
+				serverLevel.sendParticles(particle, getX() + Math.cos(angle) * radius,
+						y + layer * 0.16, getZ() + Math.sin(angle) * radius,
+						1, 0.055, 0.07, 0.055, 0.035);
+			}
+		}
+		Vec3 center = position().add(forward.scale(range * 0.82));
+		serverLevel.sendParticles(ModParticleTypes.SNAKE_DATA_RUNE.get(), center.x, y + 0.12, center.z,
+				4, 0.28, 0.18, 0.28, 0.025);
+	}
+
+	private void spawnRingImpact(BossAttackDirection direction, double innerRadius, double outerRadius,
+			double y, int samples) {
+		if (!(level() instanceof ServerLevel serverLevel)) {
+			return;
+		}
+		ParticleOptions cue = cueParticle(direction);
+		double phase = getAttackTick() * 0.17;
+		for (int i = 0; i < samples; i++) {
+			double angle = phase + Mth.TWO_PI * i / samples;
+			double radius = (i & 1) == 0 ? innerRadius : outerRadius;
+			ParticleOptions particle = i % 4 == 0 ? ModParticleTypes.SNAKE_ARC.get()
+					: i % 3 == 0 ? ModParticleTypes.SNAKE_SHARD.get() : cue;
+			serverLevel.sendParticles(particle, getX() + Math.cos(angle) * radius,
+					y + (i & 1) * 0.14, getZ() + Math.sin(angle) * radius,
+					1, 0.065, 0.08, 0.065, 0.045);
+		}
+		serverLevel.sendParticles(ModParticleTypes.SNAKE_DATA_RUNE.get(), getX(), y + 0.12, getZ(),
+				6, Math.max(0.4, innerRadius * 0.25), 0.18, Math.max(0.4, innerRadius * 0.25), 0.03);
+	}
+
+	private void spawnBeamImpact(BossAttackDirection direction, double range, double halfWidth,
+			double y, int samples) {
+		if (!(level() instanceof ServerLevel serverLevel)) {
+			return;
+		}
+		Vec3 forward = lockedForward();
+		Vec3 side = new Vec3(-forward.z, 0.0, forward.x);
+		ParticleOptions cue = cueParticle(direction);
+		for (int i = 1; i <= samples; i++) {
+			double distance = range * i / samples;
+			Vec3 center = position().add(forward.scale(distance));
+			for (int rail = -1; rail <= 1; rail++) {
+				Vec3 point = center.add(side.scale(halfWidth * rail));
+				ParticleOptions particle = rail == 0 ? ModParticleTypes.SNAKE_TRAIL.get()
+						: i % 3 == 0 ? ModParticleTypes.SNAKE_ARC.get() : cue;
+				serverLevel.sendParticles(particle, point.x, y + rail * 0.06, point.z,
+						1, 0.04, 0.055, 0.04, 0.04);
+			}
+		}
+	}
+
+	private void spawnReleaseBurst(BossAttackDirection direction, Vec3 origin, double scale) {
+		if (!(level() instanceof ServerLevel serverLevel)) {
+			return;
+		}
+		double spread = 0.34 * scale;
+		serverLevel.sendParticles(cueParticle(direction), origin.x, origin.y, origin.z,
+				8, spread, spread * 0.7, spread, 0.045 * scale);
+		serverLevel.sendParticles(ModParticleTypes.SNAKE_ARC.get(), origin.x, origin.y, origin.z,
+				6, spread * 0.8, spread * 0.55, spread * 0.8, 0.035 * scale);
+		serverLevel.sendParticles(ModParticleTypes.SNAKE_SHARD.get(), origin.x, origin.y, origin.z,
+				5, spread * 0.65, spread * 0.5, spread * 0.65, 0.075 * scale);
+	}
+
+	private static ParticleOptions cueParticle(BossAttackDirection direction) {
+		return switch (direction) {
+			case HIGH -> ModParticleTypes.SNAKE_HIGH_WARNING.get();
+			case MID -> ModParticleTypes.SNAKE_MID_WARNING.get();
+			case LOW -> ModParticleTypes.SNAKE_LOW_WARNING.get();
+		};
 	}
 
 	public void hurtTarget(Player player, float amount, double knockback, boolean corrosion) {
@@ -1279,19 +1668,42 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 
 	public boolean resolveDirectedHit(Player player, DamageSource source, float amount, double knockback,
 			boolean corrosion, BossAttackDirection direction) {
-		if (!player.isAlive() || player.isCreative() || player.isSpectator() || isStaggered()) {
+		return resolveDirectedHitResult(player, source, amount, knockback, corrosion, direction)
+				== DirectedHitResult.DAMAGED;
+	}
+
+	private boolean resolveUniqueDirectedHit(Player player, DamageSource source, float amount,
+			double knockback, boolean corrosion, BossAttackDirection direction) {
+		UUID playerId = player.getUUID();
+		if (attackHits.contains(playerId)) {
 			return false;
+		}
+		DirectedHitResult result = resolveDirectedHitResult(player, source, amount, knockback,
+				corrosion, direction);
+		if (result != DirectedHitResult.REJECTED) {
+			attackHits.add(playerId);
+		}
+		return result == DirectedHitResult.DAMAGED;
+	}
+
+	private DirectedHitResult resolveDirectedHitResult(Player player, DamageSource source, float amount,
+			double knockback, boolean corrosion, BossAttackDirection direction) {
+		if (!player.isAlive() || player.isCreative() || player.isSpectator() || isStaggered()) {
+			return DirectedHitResult.REJECTED;
 		}
 		if (direction == BossAttackDirection.HIGH && player.isShiftKeyDown()) {
 			registerSuccessfulDodge(activeAttackInstance, player, direction, false);
-			return false;
+			return DirectedHitResult.AVOIDED;
 		}
 		if (direction == BossAttackDirection.LOW && isValidLowDodge(player)) {
 			registerSuccessfulDodge(activeAttackInstance, player, direction, true);
-			return false;
+			return DirectedHitResult.AVOIDED;
 		}
+		boolean weaponParry = direction == BossAttackDirection.MID
+				&& dev.tatami.virtualcraft.gameplay.VirtualWeaponParryHandler.isParrying(player, source);
 		boolean preciseParry = direction == BossAttackDirection.MID
-				&& (isPreciseParry(player, source) || isChainedComboBiteParry(player, source));
+				&& (weaponParry || isPreciseParry(player, source)
+						|| isChainedComboBiteParry(player, source));
 		if (preciseParry) {
 			if (getAttackState() == ATTACK_DOUBLE_HUNT) {
 				comboParrySegments.put(player.getUUID(), getComboSegment());
@@ -1299,8 +1711,21 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 			int postureBefore = getPosture();
 			int postureDamage = Math.round(BossPostureRules.preciseParryDamage());
 			damagePosture(postureDamage, player);
-			playParryFeedback(player, postureBefore - getPosture());
-			return false;
+			if (weaponParry) {
+				dev.tatami.virtualcraft.gameplay.VirtualWeaponParryHandler.completeParry(player, this);
+			} else {
+				playParryFeedback(player, postureBefore - getPosture());
+			}
+			return DirectedHitResult.AVOIDED;
+		}
+		boolean weaponBlock = direction == BossAttackDirection.MID
+				&& dev.tatami.virtualcraft.gameplay.VirtualWeaponParryHandler.isBlocking(player, source);
+		if (weaponBlock) {
+			boolean delayedTailPunish = isDelayedComboTailPunish(player, source);
+			dev.tatami.virtualcraft.gameplay.VirtualWeaponParryHandler.failParry(player, this);
+			if (!delayedTailPunish) {
+				return DirectedHitResult.AVOIDED;
+			}
 		}
 		boolean blocked = direction == BossAttackDirection.MID && player.isDamageSourceBlocked(source);
 		float configuredDamage = amount * SnakeBossConfig.VALUES.damageMultiplier.get().floatValue();
@@ -1314,7 +1739,7 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 			player.stopUsingItem();
 			playShieldBreakFeedback(player);
 			if (!delayedTailPunish) {
-				return false;
+				return DirectedHitResult.AVOIDED;
 			}
 		}
 		if (direction != BossAttackDirection.MID && isUsingShield(player)) {
@@ -1323,7 +1748,7 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 			player.stopUsingItem();
 		}
 		if (!player.hurt(source, configuredDamage)) {
-			return false;
+			return DirectedHitResult.REJECTED;
 		}
 		if (level() instanceof ServerLevel serverLevel) {
 			serverLevel.sendParticles(ModParticleTypes.SNAKE_SHARD.get(), player.getX(),
@@ -1343,7 +1768,7 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 			player.addEffect(new net.minecraft.world.effect.MobEffectInstance(
 					net.minecraft.world.effect.MobEffects.POISON, 70, 0), this);
 		}
-		return true;
+		return DirectedHitResult.DAMAGED;
 	}
 
 	public boolean resolveDelayedDirectedHit(@Nullable UUID attackInstance, Player player, float amount,
@@ -1365,7 +1790,7 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 
 	private boolean isPreciseParry(Player player, DamageSource source) {
 		return isUsingShield(player)
-				&& BossPostureRules.isPreciseParry(true, player.getTicksUsingItem())
+				&& player.getTicksUsingItem() < SnakeKingAttackRules.MID_PARRY_WINDOW_TICKS
 				&& isFacingAttack(player, source);
 	}
 
@@ -1381,8 +1806,8 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 
 	private boolean isDelayedComboTailPunish(Player player, DamageSource source) {
 		if (getAttackState() != ATTACK_DOUBLE_HUNT || !isComboTailStage()
-				|| !isUsingShield(player) || !isFacingAttack(player, source)
-				|| player.getTicksUsingItem() < BossPostureRules.PARRY_WINDOW_TICKS) {
+				|| !isUsingMidGuard(player) || !isFacingAttack(player, source)
+				|| player.getTicksUsingItem() < SnakeKingAttackRules.MID_PARRY_WINDOW_TICKS) {
 			return false;
 		}
 		int segment = getComboSegment();
@@ -1393,6 +1818,12 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 		return player.isUsingItem() && player.getUseItem().getItem() instanceof ShieldItem;
 	}
 
+	private static boolean isUsingMidGuard(Player player) {
+		return player.isUsingItem() && (player.getUseItem().getItem() instanceof ShieldItem
+				|| player.getUseItem().getItem()
+						instanceof dev.tatami.virtualcraft.item.VirtualSwordItem);
+	}
+
 	private boolean isFacingAttack(Player player, DamageSource source) {
 		Vec3 sourcePosition = source.getSourcePosition();
 		if (sourcePosition == null) {
@@ -1401,7 +1832,7 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 		Vec3 towardSource = sourcePosition.subtract(player.getEyePosition()).multiply(1.0, 0.0, 1.0);
 		Vec3 view = player.getViewVector(1.0F).multiply(1.0, 0.0, 1.0);
 		return towardSource.lengthSqr() > 1.0E-5 && view.lengthSqr() > 1.0E-5
-				&& towardSource.normalize().dot(view.normalize()) >= 0.35;
+				&& towardSource.normalize().dot(view.normalize()) >= 0.25;
 	}
 
 	private boolean isValidLowDodge(Player player) {
@@ -1442,10 +1873,6 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 						0.28, 0.12, 0.28, 0.012);
 			}
 			if (player instanceof ServerPlayer serverPlayer) {
-				serverPlayer.displayClientMessage(Component.translatable(
-						"message.virtual_craft.snake_king.parry_success",
-						Math.max(0, postureDamage)).withStyle(ChatFormatting.BOLD,
-								ChatFormatting.GOLD), true);
 				sendCombatFeedback(serverPlayer, SnakeCombatFeedbackPayload.PARRY, 0.7F);
 			}
 		}
@@ -1468,11 +1895,6 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 					player.getX(), effectY, player.getZ(), 8,
 					high ? 0.42 : 0.62, high ? 0.18 : 0.04, high ? 0.42 : 0.62, 0.018);
 			if (player instanceof ServerPlayer serverPlayer) {
-				serverPlayer.displayClientMessage(Component.translatable(high
-						? "message.virtual_craft.snake_king.high_dodge_success"
-						: "message.virtual_craft.snake_king.low_dodge_success").withStyle(
-						high ? ChatFormatting.AQUA : ChatFormatting.RED,
-						ChatFormatting.BOLD), true);
 				sendCombatFeedback(serverPlayer,
 						high ? SnakeCombatFeedbackPayload.HIGH_DODGE : SnakeCombatFeedbackPayload.LOW_DODGE,
 						high ? 0.32F : 0.4F);
@@ -1486,7 +1908,7 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 					player.getY() + player.getBbHeight() * 0.58, player.getZ(), 5,
 					0.34, 0.3, 0.34, 0.055);
 			serverLevel.playSound(null, player.blockPosition(), ModSounds.SNAKE_KING_SHIELD_BREAK.get(),
-					SoundSource.PLAYERS, 1.35F, 0.72F);
+					SoundSource.HOSTILE, 1.2F, 0.72F);
 			if (player instanceof ServerPlayer serverPlayer) {
 				sendCombatFeedback(serverPlayer, SnakeCombatFeedbackPayload.SHIELD_BREAK, 0.55F);
 			}
@@ -1509,14 +1931,6 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 						&& distanceToSqr(player) <= radius * radius);
 	}
 
-	private double coilGapAngle(int attackTick) {
-		return (entityData.get(DATA_ATTACK_START) * 0.11 + attackTick * 0.035) % (Math.PI * 2.0);
-	}
-
-	public double getCoilGapAngle() {
-		return coilGapAngle(getAttackTick());
-	}
-
 	private void play(net.minecraft.sounds.SoundEvent sound, float volume, float pitch) {
 		level().playSound(null, blockPosition(), sound, SoundSource.HOSTILE, volume, pitch);
 	}
@@ -1525,60 +1939,39 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 		int previousSignal = entityData.get(DATA_SIGNAL_TYPE);
 		int signal = SIGNAL_NONE;
 		float strength = 0.0F;
-		if (attack == ATTACK_DOUBLE_HUNT) {
-			SnakeHuntPattern pattern = getHuntPattern();
-			int segment = SnakeHuntPattern.segment(tick);
-			if (segment < pattern.segmentCount()) {
-				int local = SnakeHuntPattern.localTick(tick);
-				int hit = pattern.move(segment) == SnakeHuntPattern.Move.BITE
-						? SnakeHuntPattern.BITE_HIT_TICK : SnakeHuntPattern.TAIL_HIT_TICK;
-				int warningStart = Math.max(0, hit - 6);
-				float envelope = signalEnvelope(local, warningStart, hit, hit + 3);
-				if (envelope > 0.0F) {
-					signal = SIGNAL_WHITE;
-					strength = envelope;
-				}
-			}
-		} else if (attack == ATTACK_BITE) {
-			float envelope = signalEnvelope(tick, SnakeHuntPattern.BITE_HIT_TICK - 6,
-					SnakeHuntPattern.BITE_HIT_TICK,
-					SnakeHuntPattern.BITE_HIT_TICK + 3);
-			if (envelope > 0.0F) {
-				signal = SIGNAL_WHITE;
-				strength = envelope;
-			}
-		} else if (attack == ATTACK_TAIL_SWEEP) {
-			float envelope = signalEnvelope(tick, SnakeHuntPattern.TAIL_HIT_TICK - 6,
-					SnakeHuntPattern.TAIL_HIT_TICK,
-					SnakeHuntPattern.TAIL_HIT_TICK + 3);
-			if (envelope > 0.0F) {
-				signal = SIGNAL_WHITE;
-				strength = envelope;
-			}
+		if (attack == ATTACK_DATA_FANGS) {
+			strength = signalEnvelope(tick, SnakeKingAttackRules.SPECIAL_SIGNAL_START,
+					SnakeKingAttackRules.HIGH_POISON_HIT_TICK,
+					SnakeKingAttackRules.HIGH_POISON_HIT_TICK + 3);
+			signal = strength > 0.0F ? SIGNAL_BLUE : SIGNAL_NONE;
+		} else if (attack == ATTACK_OVERHEAD_FANG) {
+			strength = signalEnvelope(tick, SnakeKingAttackRules.SPECIAL_SIGNAL_START,
+					SnakeKingAttackRules.OVERHEAD_HIT_TICK,
+					SnakeKingAttackRules.OVERHEAD_HIT_TICK + 3);
+			signal = strength > 0.0F ? SIGNAL_BLUE : SIGNAL_NONE;
+		} else if (attack == ATTACK_CROWN_CHAIN) {
+			strength = signalEnvelope(tick, SnakeKingAttackRules.SPECIAL_SIGNAL_START,
+					SnakeKingAttackRules.CROWN_CHAIN_HIT_TICK,
+					SnakeKingAttackRules.CROWN_CHAIN_HIT_TICK + 3);
+			signal = strength > 0.0F ? SIGNAL_BLUE : SIGNAL_NONE;
+		} else if (attack == ATTACK_RUNE_SIGIL) {
+			strength = signalEnvelope(tick, SnakeKingAttackRules.SPECIAL_SIGNAL_START,
+					SnakeKingAttackRules.GROUND_POISON_HIT_TICK,
+					SnakeKingAttackRules.GROUND_POISON_HIT_TICK + 3);
+			signal = strength > 0.0F ? SIGNAL_AMBER : SIGNAL_NONE;
 		} else if (attack == ATTACK_VOID_DASH) {
-			int hit = tick < 30 ? 16 : 41;
-			float envelope = signalEnvelope(tick, hit - 8, hit, hit + 3);
-			if (envelope > 0.0F) {
-				signal = SIGNAL_WHITE;
-				strength = envelope;
-			}
-		} else if (attack == ATTACK_DATA_FANGS || attack == ATTACK_CROWN_CHAIN
-				|| attack == ATTACK_OVERHEAD_FANG) {
-			int impact = attack == ATTACK_DATA_FANGS ? 20 : attack == ATTACK_CROWN_CHAIN ? 33 : 22;
-			int lead = impact - tick;
-			if (lead >= 0 && lead <= 14) {
-				signal = SIGNAL_BLUE;
-				strength = 0.2F + 0.8F * (1.0F - lead / 14.0F);
-			}
-		} else if (attack == ATTACK_RUNE_SIGIL || attack == ATTACK_CORROSIVE_COIL
-				|| attack == ATTACK_CROWN_JUDGMENT) {
-			int impact = attack == ATTACK_RUNE_SIGIL ? 20 : attack == ATTACK_CORROSIVE_COIL ? 52 : 62;
-			int warning = attack == ATTACK_RUNE_SIGIL ? 14 : attack == ATTACK_CORROSIVE_COIL ? 20 : 18;
-			int lead = impact - tick;
-			if (lead >= 0 && lead <= warning) {
-				signal = SIGNAL_RED;
-				strength = 0.2F + 0.8F * (1.0F - lead / (float)warning);
-			}
+			int impact = tick < (SnakeDashRules.FIRST_START + SnakeDashRules.SECOND_START) / 2
+					? SnakeDashRules.FIRST_START : SnakeDashRules.SECOND_START;
+			int warningStart = impact == SnakeDashRules.FIRST_START
+					? SnakeKingAttackRules.SPECIAL_SIGNAL_START : impact - 12;
+			strength = signalEnvelope(tick, warningStart, impact, impact + 3);
+			signal = strength > 0.0F ? SIGNAL_AMBER : SIGNAL_NONE;
+		} else if (attack == ATTACK_CORROSIVE_COIL) {
+			strength = signalEnvelope(tick, SnakeKingAttackRules.SPECIAL_SIGNAL_START, 52, 55);
+			signal = strength > 0.0F ? SIGNAL_AMBER : SIGNAL_NONE;
+		} else if (attack == ATTACK_CROWN_JUDGMENT) {
+			strength = signalEnvelope(tick, SnakeKingAttackRules.SPECIAL_SIGNAL_START, 62, 65);
+			signal = strength > 0.0F ? SIGNAL_AMBER : SIGNAL_NONE;
 		}
 		if (!level().isClientSide && signal != SIGNAL_NONE && previousSignal != signal) {
 			announceDirectionCue(signal);
@@ -1588,20 +1981,11 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 	}
 
 	private void announceDirectionCue(int signal) {
-		String key = switch (signal) {
-			case SIGNAL_BLUE -> "message.virtual_craft.snake_king.telegraph.high";
-			case SIGNAL_RED -> "message.virtual_craft.snake_king.telegraph.low";
-			default -> "message.virtual_craft.snake_king.telegraph.mid";
-		};
-		ChatFormatting color = signal == SIGNAL_BLUE ? ChatFormatting.AQUA
-				: signal == SIGNAL_RED ? ChatFormatting.RED : ChatFormatting.GOLD;
 		int feedback = signal == SIGNAL_BLUE ? SnakeCombatFeedbackPayload.HIGH_CUE
-				: signal == SIGNAL_RED ? SnakeCombatFeedbackPayload.LOW_CUE
+				: signal == SIGNAL_AMBER ? SnakeCombatFeedbackPayload.LOW_CUE
 				: SnakeCombatFeedbackPayload.MID_CUE;
 		for (Player player : combatPlayers(32.0)) {
 			if (player instanceof ServerPlayer serverPlayer) {
-				serverPlayer.displayClientMessage(Component.translatable(key)
-						.withStyle(color, ChatFormatting.BOLD), true);
 				sendCombatFeedback(serverPlayer, feedback, 0.0F);
 			}
 		}
@@ -1633,7 +2017,7 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 		}
 		if (tick <= impactTick) {
 			float progress = (tick - warningStart) / (float)Math.max(1, impactTick - warningStart);
-			return 0.32F + progress * 0.68F;
+			return 0.40F + progress * 0.60F;
 		}
 		return Math.max(0.0F, 1.0F - (tick - impactTick) / (float)Math.max(1, recoveryEnd - impactTick));
 	}
@@ -1673,15 +2057,15 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 		activeAttackInstance = UUID.randomUUID();
 		int cooldownJitter = state == ATTACK_DATA_FANGS || state == ATTACK_RUNE_SIGIL ? 0 : random.nextInt(21);
 		attackReadyTicks[state] = tickCount + SnakeKingCombatDirector.cooldown(state) + cooldownJitter;
-		directionReadyTicks[direction.ordinal()] = state == ATTACK_DATA_FANGS ? tickCount + 160
-				: state == ATTACK_RUNE_SIGIL ? tickCount + 100 : switch (direction) {
+		directionReadyTicks[direction.ordinal()] = state == ATTACK_RUNE_SIGIL ? tickCount + 100
+				: switch (direction) {
 			case HIGH -> tickCount + 160 + random.nextInt(81);
 			case MID -> tickCount + attackDuration(state) + 40 + random.nextInt(17);
 			case LOW -> tickCount + attackDuration(state) + 46 + random.nextInt(21);
 		};
-		if (!level().isClientSide) {
+		if (!level().isClientSide && !usesDelayedSpecialAnimation(state)) {
 			if (state == ATTACK_DOUBLE_HUNT) {
-				triggerComboAnimation(0);
+				triggerAnim("combat", "combo_ready");
 			} else {
 				String animation = state == ATTACK_TAIL_SWEEP && entityData.get(DATA_SWEEP_LEFT)
 						? "tail_sweep_left"
@@ -1691,11 +2075,24 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 		}
 	}
 
+	private static boolean usesDelayedSpecialAnimation(int state) {
+		return state == ATTACK_DATA_FANGS || state == ATTACK_RUNE_SIGIL
+				|| state == ATTACK_VOID_DASH || state == ATTACK_OVERHEAD_FANG;
+	}
+
 	private void lockAttackTarget(LivingEntity target) {
 		double dx = target.getX() - getX();
 		double dz = target.getZ() - getZ();
 		entityData.set(DATA_LOCKED_ATTACK_YAW, (float)(Mth.atan2(-dx, dz) * Mth.RAD_TO_DEG));
 		entityData.set(DATA_LOCKED_TARGET_Y, (float)target.getEyeY());
+	}
+
+	private void lockAttackTargetAndFace(LivingEntity target) {
+		lockAttackTarget(target);
+		float lockedYaw = getLockedAttackYaw();
+		setYRot(lockedYaw);
+		yBodyRot = lockedYaw;
+		yHeadRot = lockedYaw;
 	}
 
 	private void finishAttack(int state) {
@@ -1707,6 +2104,7 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 		entityData.set(DATA_SIGNAL_TYPE, SIGNAL_NONE);
 		entityData.set(DATA_SIGNAL_STRENGTH, 0.0F);
 		activeAttackInstance = null;
+		dashTravelSpeed = 0.0;
 		comboAnimationStep = -1;
 		recentAttacks.addLast(state);
 		while (recentAttacks.size() > 3) {
@@ -1734,6 +2132,13 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 	public int getAttackTick() {
 		return level().isClientSide ? Math.max(0, entityData.get(DATA_ATTACK_TICK))
 				: Math.max(0, tickCount - entityData.get(DATA_ATTACK_START));
+	}
+
+	public double getVisualAttackTick(float partialTick) {
+		if (!level().isClientSide) {
+			return getAttackTick() + partialTick;
+		}
+		return Math.max(0.0, clientVisualAttackTick + partialTick);
 	}
 
 	public int getComboPattern() {
@@ -1778,16 +2183,24 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 	}
 
 	public int getComboSegment() {
-		return Math.min(getHuntPattern().segmentCount() - 1, SnakeHuntPattern.segment(getAttackTick()));
+		return Math.min(getHuntPattern().segmentCount() - 1,
+				getHuntPattern().comboSegmentAt(getAttackTick()));
+	}
+
+	public boolean isComboActiveSegment() {
+		return getAttackState() == ATTACK_DOUBLE_HUNT
+				&& !SnakeHuntPattern.isComboOpening(getAttackTick())
+				&& getHuntPattern().comboSegmentAt(getAttackTick()) < getHuntPattern().segmentCount();
 	}
 
 	public int getComboLocalTick() {
-		return SnakeHuntPattern.localTick(getAttackTick());
+		return getHuntPattern().comboLocalTickAt(getAttackTick());
 	}
 
 	public boolean isComboTailStage() {
 		return getAttackState() == ATTACK_DOUBLE_HUNT
-				&& SnakeHuntPattern.segment(getAttackTick()) < getHuntPattern().segmentCount()
+				&& !SnakeHuntPattern.isComboOpening(getAttackTick())
+				&& getHuntPattern().comboSegmentAt(getAttackTick()) < getHuntPattern().segmentCount()
 				&& getHuntPattern().move(getComboSegment()) == SnakeHuntPattern.Move.TAIL;
 	}
 
@@ -1823,7 +2236,7 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 
 	@Override
 	public int getMaxPosture() {
-		return BossPostureRules.MAX_POSTURE;
+		return BossPostureRules.SNAKE_MAX_POSTURE;
 	}
 
 	@Override
@@ -1908,8 +2321,10 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 			return false;
 		}
 		float healthBeforeHit = getHealth();
+		Vec3 movementBeforeHit = getDeltaMovement();
 		boolean hurt = super.hurt(source, appliedDamage);
 		if (hurt) {
+			setDeltaMovement(movementBeforeHit);
 			float actualDamage = Math.max(0.0F, healthBeforeHit - getHealth());
 			damageBucket += actualDamage;
 			lastCombatTick = tickCount;
@@ -1973,7 +2388,7 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 	protected void tickDeath() {
 		deathTime++;
 		setDeltaMovement(Vec3.ZERO);
-		entityData.set(DATA_SIGNAL_TYPE, SIGNAL_WHITE);
+		entityData.set(DATA_SIGNAL_TYPE, SIGNAL_AMBER);
 		float collapse = Mth.clamp(deathTime / 78.0F, 0.0F, 1.0F);
 		float surge = deathTime == 18 || deathTime == 42 || deathTime == 66 ? 0.24F : 0.0F;
 		entityData.set(DATA_SIGNAL_STRENGTH, Mth.clamp(0.22F + collapse * 0.66F + surge, 0.0F, 1.0F));
@@ -2045,6 +2460,7 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 		tag.putIntArray("AttackCooldowns", cooldowns);
 		tag.putInt("QueuedAttack", queuedAttack);
 		tag.putInt("Posture", getPosture());
+		tag.putInt("PostureCapacity", BossPostureRules.SNAKE_MAX_POSTURE);
 		tag.putFloat("PosturePressure", posturePressure);
 		tag.putInt("StaggerTicks", getStaggerTicks());
 		tag.putFloat("DamageBucket", damageBucket);
@@ -2095,10 +2511,16 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 			attackReadyTicks[ATTACK_CROWN_JUDGMENT] = tickCount
 					+ (tag.contains("NextJudgment") ? Math.max(0, tag.getInt("NextJudgment")) : 600);
 		}
-		queuedAttack = sanitizeAttack(tag.getInt("QueuedAttack"));
-		entityData.set(DATA_POSTURE, tag.contains("Posture")
-				? Mth.clamp(tag.getInt("Posture"), 0, BossPostureRules.MAX_POSTURE)
-				: BossPostureRules.MAX_POSTURE);
+		queuedAttack = sanitizeQueuedAttack(tag.getInt("QueuedAttack"));
+		int savedPostureCapacity = tag.contains("PostureCapacity")
+				? Math.max(1, tag.getInt("PostureCapacity"))
+				: BossPostureRules.MAX_POSTURE;
+		int savedPosture = tag.contains("Posture")
+				? Mth.clamp(tag.getInt("Posture"), 0, savedPostureCapacity)
+				: savedPostureCapacity;
+		entityData.set(DATA_POSTURE, Mth.clamp(Math.round(savedPosture
+				* (BossPostureRules.SNAKE_MAX_POSTURE / (float)savedPostureCapacity)),
+				0, BossPostureRules.SNAKE_MAX_POSTURE));
 		entityData.set(DATA_STAGGER_TICKS, Math.max(0, tag.getInt("StaggerTicks")));
 		posturePressure = Mth.clamp(tag.getFloat("PosturePressure"), 0.0F, 0.999F);
 		damageBucket = Math.max(0.0F, tag.getFloat("DamageBucket"));
@@ -2107,18 +2529,17 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 		activeFangVolley = tag.hasUUID("FangVolley") ? tag.getUUID("FangVolley") : null;
 		pendingFangProjectiles = Math.max(0, tag.getInt("PendingFangs"));
 		fangVolleyHitPlayer = tag.getBoolean("FangVolleyHit");
-		int savedAttack = sanitizeAttack(tag.getInt("AttackState"));
-		if (getStaggerTicks() > 0) {
-			savedAttack = ATTACK_NONE;
-			activeAttackInstance = null;
-			activeFangVolley = null;
-		}
-		entityData.set(DATA_ATTACK_STATE, savedAttack);
-		BossAttackDirection savedDirection = tag.contains("AttackDirection")
-				? BossAttackDirection.fromId(tag.getInt("AttackDirection")) : attackDirection(savedAttack);
-		entityData.set(DATA_ATTACK_DIRECTION, savedDirection.ordinal());
-		entityData.set(DATA_ATTACK_START, tickCount - Math.max(0, tag.getInt("AttackTick")));
-		entityData.set(DATA_ATTACK_TICK, Math.max(0, tag.getInt("AttackTick")));
+		// Triggered GeckoLib animations cannot resume from an arbitrary saved frame.
+		// Cancel an in-flight attack so visuals and server damage never desynchronise after reload.
+		queuedAttack = ATTACK_NONE;
+		activeAttackInstance = null;
+		activeFangVolley = null;
+		pendingFangProjectiles = 0;
+		fangVolleyHitPlayer = false;
+		entityData.set(DATA_ATTACK_STATE, ATTACK_NONE);
+		entityData.set(DATA_ATTACK_DIRECTION, BossAttackDirection.MID.ordinal());
+		entityData.set(DATA_ATTACK_START, tickCount);
+		entityData.set(DATA_ATTACK_TICK, 0);
 		entityData.set(DATA_SWEEP_LEFT, tag.getBoolean("SweepLeft"));
 		entityData.set(DATA_COMBO_PATTERN, Mth.clamp(tag.getInt("ComboPattern"), 0,
 				SnakeHuntPattern.values().length - 1));
@@ -2147,6 +2568,12 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 					ATTACK_CORROSIVE_COIL, ATTACK_CROWN_JUDGMENT, ATTACK_OVERHEAD_FANG -> attack;
 			default -> ATTACK_NONE;
 		};
+	}
+
+	private static int sanitizeQueuedAttack(int attack) {
+		int sanitized = sanitizeAttack(attack);
+		return sanitized == ATTACK_BITE || sanitized == ATTACK_TAIL_SWEEP
+				? ATTACK_DOUBLE_HUNT : sanitized;
 	}
 
 	private final class SnakeKingCombatGoal extends Goal {
@@ -2192,5 +2619,11 @@ public class VirtualSnakeKing extends Monster implements GeoEntity, PostureBoss 
 	}
 
 	private record DelayedDodgeKey(UUID attackInstance, UUID player) {
+	}
+
+	private enum DirectedHitResult {
+		DAMAGED,
+		AVOIDED,
+		REJECTED
 	}
 }

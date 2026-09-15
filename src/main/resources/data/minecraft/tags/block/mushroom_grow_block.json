@@ -1,0 +1,8 @@
+{
+  "replace": false,
+  "values": [
+    "virtual_craft:virtual_dirt",
+    "virtual_craft:mushroom_grass_block",
+    "virtual_craft:mushroom_dirt"
+  ]
+}

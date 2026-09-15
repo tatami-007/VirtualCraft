@@ -72,7 +72,7 @@ class SnakeKingCombatDirectorTest {
 	}
 
 	@Test
-	void allTenAttacksCanParticipate() {
+	void fullTeachingPoolKeepsLegacyAttacksAvailable() {
 		int[] ready = new int[SnakeKingCombatDirector.ATTACK_COUNT + 1];
 		int[] directionReady = new int[BossAttackDirection.values().length];
 		SnakeKingCombatDirector.Context context = new SnakeKingCombatDirector.Context(
@@ -83,7 +83,27 @@ class SnakeKingCombatDirectorTest {
 			assertTrue(attack >= 1 && attack <= 10);
 			selectedAttacks.add(attack);
 		}
-		assertEquals(Set.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10), selectedAttacks);
+		assertEquals(Set.of(2, 4, 5, 6, 8, 9, 10), selectedAttacks);
+		assertEquals(3, selectedAttacks.stream()
+				.filter(attack -> SnakeKingAttackRules.directionFor(attack) == BossAttackDirection.HIGH).count());
+		assertEquals(3, selectedAttacks.stream()
+				.filter(attack -> SnakeKingAttackRules.directionFor(attack) == BossAttackDirection.LOW).count());
+	}
+
+	@Test
+	void closeAndLongRangeBothOfferAHighAttack() {
+		int[] ready = new int[SnakeKingCombatDirector.ATTACK_COUNT + 1];
+		int[] directionReady = new int[BossAttackDirection.values().length];
+		for (double distance : new double[]{3.0, 11.0, 15.0}) {
+			SnakeKingCombatDirector.Context context = new SnakeKingCombatDirector.Context(
+					distance, 1000, directionReady, ready, new int[0], 0, 1, 1.0);
+			boolean foundHigh = false;
+			for (int i = 0; i < 1000; i++) {
+				int attack = SnakeKingCombatDirector.select(context, (i + 0.5) / 1000.0);
+				foundHigh |= SnakeKingAttackRules.directionFor(attack) == BossAttackDirection.HIGH;
+			}
+			assertTrue(foundHigh, "distance " + distance + " must retain a high attack");
+		}
 	}
 
 	@Test

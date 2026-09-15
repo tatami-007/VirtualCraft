@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "virtual_craft:virtual_snake_king_helmet",
+    "virtual_craft:virtual_snake_king_chestplate",
+    "virtual_craft:virtual_snake_king_leggings",
+    "virtual_craft:virtual_snake_king_boots"
+  ]
+}

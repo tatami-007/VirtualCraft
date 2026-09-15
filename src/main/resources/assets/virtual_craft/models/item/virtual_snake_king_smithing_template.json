@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "virtual_craft:item/virtual_snake_king_smithing_template"
+  }
+}

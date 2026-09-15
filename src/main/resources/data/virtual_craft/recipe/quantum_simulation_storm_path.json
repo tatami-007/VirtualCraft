@@ -1,0 +1,9 @@
+{
+  "type": "virtual_craft:quantum_simulation",
+  "program": "storm_path",
+  "duration_ticks": 4800,
+  "total_energy": 2400000,
+  "resonance_cost": 400,
+  "minimum_compute": 6,
+  "base_range_chunks": 8
+}

@@ -1,0 +1,67 @@
+{
+  "temperature": 0.25,
+  "downfall": 0.35,
+  "has_precipitation": true,
+  "temperature_modifier": "none",
+  "effects": {
+    "sky_color": 3397375,
+    "fog_color": 11259375,
+    "water_color": 58879,
+    "water_fog_color": 19558,
+    "grass_color": 7516927,
+    "foliage_color": 6467443,
+    "mood_sound": {
+      "sound": "minecraft:ambient.cave",
+      "tick_delay": 6000,
+      "block_search_extent": 8,
+      "offset": 2.0
+    },
+    "particle": {
+      "options": {
+        "type": "minecraft:electric_spark"
+      },
+      "probability": 0.001
+    }
+  },
+  "carvers": {
+    "air": [
+      "minecraft:cave",
+      "minecraft:cave_extra_underground",
+      "minecraft:canyon"
+    ]
+  },
+  "features": [
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [
+      "virtual_craft:virtual_world_virtual_iron_ore",
+      "virtual_craft:virtual_world_virtual_aluminum_ore",
+      "virtual_craft:virtual_world_virtual_silver_ore",
+      "virtual_craft:virtual_world_virtual_gold_ore",
+      "virtual_craft:virtual_world_virtual_gold_ore_buried",
+      "virtual_craft:virtual_world_virtual_titanium_ore",
+      "virtual_craft:virtual_world_virtual_titanium_ore_buried",
+      "virtual_craft:virtual_world_virtual_chromium_ore",
+      "virtual_craft:virtual_world_virtual_chromium_ore_buried"
+    ],
+    [],
+    [],
+    [],
+    []
+  ],
+  "spawners": {
+    "monster": [],
+    "creature": [],
+    "ambient": [],
+    "axolotls": [],
+    "underground_water_creature": [],
+    "water_creature": [],
+    "water_ambient": [],
+    "misc": []
+  },
+  "spawn_costs": {}
+}

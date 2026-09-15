@@ -10,11 +10,14 @@ import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import dev.tatami.virtualcraft.VirtualCraft;
 import dev.tatami.virtualcraft.boss.SnakeAttackVolume;
+import dev.tatami.virtualcraft.boss.SnakeDashRules;
 import dev.tatami.virtualcraft.boss.SnakeHuntPattern;
+import dev.tatami.virtualcraft.boss.SnakeKingAttackRules;
 import dev.tatami.virtualcraft.entity.VirtualSnakeKing;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 
@@ -84,35 +87,41 @@ public final class SnakeAttackTelegraphRenderer {
 			case VirtualSnakeKing.ATTACK_TAIL_SWEEP -> renderTailSweep(
 					buffer, pose, snake, x, y, z, tick);
 			case VirtualSnakeKing.ATTACK_DATA_FANGS -> {
-				if (tick >= 4 && tick <= 22) {
+				if (tick >= SnakeKingAttackRules.HIGH_POISON_WARNING_START
+						&& tick <= SnakeKingAttackRules.HIGH_POISON_HIT_TICK + 2) {
 					double beamY = snake.getLockedTargetY();
-					float charge = Math.min(1.0F, (tick - 4) / 16.0F);
-					float alpha = tick >= 20 ? 0.98F : 0.78F + charge * 0.18F;
+					float charge = Math.min(1.0F,
+							(tick - SnakeKingAttackRules.HIGH_POISON_WARNING_START)
+									/ (float)(SnakeKingAttackRules.HIGH_POISON_HIT_TICK
+											- SnakeKingAttackRules.HIGH_POISON_WARNING_START));
+					float alpha = tick >= SnakeKingAttackRules.HIGH_POISON_HIT_TICK
+							? 0.98F : 0.78F + charge * 0.18F;
 					double rail = SnakeAttackVolume.HIGH_POISON_HALF_WIDTH - 0.18;
 					ribbon(buffer, pose, x, beamY - 0.012, z, fx, fz,
 							SnakeAttackVolume.HIGH_POISON_RANGE,
 							SnakeAttackVolume.HIGH_POISON_HALF_WIDTH, 0.0,
-							0x0B0D0B, 0x706731, 0.28F + charge * 0.08F);
+							0x07121C, 0x164F73, 0.28F + charge * 0.08F);
 					layeredRibbon(buffer, pose, x, beamY, z, fx, fz,
 							SnakeAttackVolume.HIGH_POISON_RANGE, 0.24, rail,
-							0x10130C, 0xB6A13E, 0xFFF8D4, alpha);
+							0x071723, 0x238BC3, 0xD9F8FF, alpha);
 					layeredRibbon(buffer, pose, x, beamY, z, fx, fz,
 							SnakeAttackVolume.HIGH_POISON_RANGE, 0.24, -rail,
-							0x10130C, 0xD5C15A, 0xFFFFFF, alpha);
+							0x071723, 0x42C5ED, 0xFFFFFF, alpha);
 					verticalRibbon(buffer, pose, x, beamY - 0.32, beamY + 0.32, z,
 							fx, fz, SnakeAttackVolume.HIGH_POISON_RANGE, 0.18, 0.0,
-							0x10130C, tick >= 20 ? 0xFFFFFF : 0xFFF0A8, alpha * 0.82F);
+							0x071723, tick >= SnakeKingAttackRules.HIGH_POISON_HIT_TICK
+									? 0xFFFFFF : 0xBEEFFF, alpha * 0.82F);
 					yield true;
 				}
 				yield false;
 			}
-			case VirtualSnakeKing.ATTACK_RUNE_SIGIL -> renderGroundPoison(
-					buffer, pose, x, y, z, fx, fz, tick);
 			case VirtualSnakeKing.ATTACK_CROWN_CHAIN -> renderCrownChain(
 					buffer, pose, x, y, z, tick);
+			case VirtualSnakeKing.ATTACK_RUNE_SIGIL -> renderGroundPoison(
+					buffer, pose, x, y, z, fx, fz, tick);
 			case VirtualSnakeKing.ATTACK_VOID_DASH -> {
-				if ((tick >= 10 && tick <= 18) || (tick >= 35 && tick <= 43)) {
-					boolean active = tick >= 16 && tick <= 18 || tick >= 41;
+				if (isDashTelegraphVisible(tick)) {
+					boolean active = SnakeDashRules.isActive(tick);
 					float alpha = active ? 0.98F : 0.78F;
 					ribbon(buffer, pose, x, y + 0.045, z, fx, fz, SnakeAttackVolume.DASH_RANGE,
 							SnakeAttackVolume.DASH_HALF_WIDTH, 0.0,
@@ -144,7 +153,7 @@ public final class SnakeAttackTelegraphRenderer {
 
 	private static boolean renderBiteImpact(BufferBuilder buffer, Matrix4f pose,
 			double x, double y, double z, double fx, double fz, int tick) {
-		if (tick < 3 || tick > 14) {
+		if (tick < 3 || tick > SnakeHuntPattern.BITE_HIT_TICK + 3) {
 			return false;
 		}
 		double cx = x + fx * 3.0;
@@ -163,80 +172,97 @@ public final class SnakeAttackTelegraphRenderer {
 
 	private static boolean renderTailSweep(BufferBuilder buffer, Matrix4f pose, VirtualSnakeKing snake,
 			double x, double y, double z, int tick) {
-		if (tick < 6 || tick > 22) {
+		if (tick < 6 || tick > SnakeHuntPattern.TAIL_HIT_TICK + 3) {
 			return false;
 		}
-		double side = snake.isSweepLeft() ? -1.0 : 1.0;
-		double progress = Math.min(1.0, Math.max(0.0, (tick - 6.0) / 13.0));
-		double center = Math.toRadians(snake.getLockedAttackYaw())
-				+ side * (1.45 - progress * 2.3);
-		float alpha = tick < 19 ? 0.72F + tick * 0.012F
-				: Math.max(0.3F, 0.98F - (tick - 19) * 0.16F);
+		double direction = SnakeHuntPattern.tailSweepDirection(snake.isSweepLeft());
+		double sampleTick = Math.max(0.0, tick - 0.5);
+		double center = Math.toRadians(snake.getLockedAttackYaw()) + Math.PI
+				+ direction * (SnakeHuntPattern.tailBodySpinPhase(sampleTick)
+						+ SnakeHuntPattern.tailPose(sampleTick).tip());
+		float alpha = tick < SnakeHuntPattern.TAIL_HIT_TICK ? 0.72F + tick * 0.012F
+				: Math.max(0.3F, 0.98F - (tick - SnakeHuntPattern.TAIL_HIT_TICK) * 0.16F);
 		layeredArc(buffer, pose, x, y + 0.045, z, 0.0,
 				SnakeAttackVolume.TAIL_INNER_RADIUS, SnakeAttackVolume.TAIL_OUTER_RADIUS,
-				Math.PI, 0x0E0C09, 0x705B27, 0xF7E7B1, alpha * 0.34F);
-		layeredVerticalArc(buffer, pose, x, z, center, 5.1, 0.62, y + 0.06, y + 1.45,
+				Math.PI, 0x0E0C09, 0x705B27, 0xF7E7B1, alpha * 0.44F);
+		layeredVerticalArc(buffer, pose, x, z, center, 5.25, 0.82, y + 0.04, y + 1.7,
 				0x12100C, 0xE2BB4B, 0xFFFFFF, alpha);
-		layeredVerticalArc(buffer, pose, x, z, center - side * 0.14, 4.55, 0.5,
-				y + 0.1, y + 0.78, 0x0A1820, 0x68CDE3, 0xE8FCFF, alpha * 0.78F);
-		return true;
-	}
-
-	private static boolean renderCrownChain(BufferBuilder buffer, Matrix4f pose,
-			double x, double y, double z, int tick) {
-		if (tick < 8 || tick > 36) {
-			return false;
-		}
-		double charge = Math.min(1.0, (tick - 8.0) / 25.0);
-		float alpha = tick >= 33 ? 0.72F : 0.22F + (float)charge * 0.28F;
-		for (int ring = 0; ring < 3; ring++) {
-			double radius = 5.0 + ring * 5.5;
-			arc(buffer, pose, x, y + 0.05 + ring * 0.018, z, tick * 0.035 + ring * 0.31,
-					radius - 0.095, radius + 0.095, Math.PI,
-					0x16324E, ring == 1 ? 0xFFFFFF : 0x91D9FF, alpha - ring * 0.05F);
-		}
-		for (int i = 0; i < 8; i++) {
-			double angle = Math.PI * 2.0 * i / 8.0 + tick * 0.012;
-			lineRibbon(buffer, pose, x, y + 0.04, z,
-					x + Math.cos(angle) * 18.0, z + Math.sin(angle) * 18.0,
-					0.045, 0x152D48, i % 2 == 0 ? 0xA8E8FF : 0xFFF0B4, alpha * 0.62F);
-		}
+		layeredVerticalArc(buffer, pose, x, z, center - direction * 0.18, 4.8, 0.64,
+				y + 0.08, y + 1.05, 0x0A1820, 0x68CDE3, 0xE8FCFF, alpha * 0.82F);
+		layeredVerticalArc(buffer, pose, x, z, center - direction * 0.36, 4.35, 0.46,
+				y + 0.1, y + 0.72, 0x15110B, 0xA96B25, 0xFFE6A1, alpha * 0.58F);
 		return true;
 	}
 
 	private static boolean renderCorrosiveCoil(BufferBuilder buffer, Matrix4f pose,
 			VirtualSnakeKing snake, double x, double y, double z, int tick) {
-		if (tick < 12 || tick > 56) {
+		if (tick < SnakeKingAttackRules.COIL_WARNING_START
+				|| tick > SnakeKingAttackRules.COIL_RELEASE_END + 3) {
 			return false;
 		}
-		double gap = snake.getCoilGapAngle();
-		double gapHalf = 0.58;
-		float alpha = tick >= 50 ? 0.68F : 0.24F + (tick - 12) * 0.006F;
-		for (int i = 0; i < 3; i++) {
-			double radius = 3.0 + i * 2.0 + Math.sin((tick + i * 4) * 0.15) * 0.22;
-			arc(buffer, pose, x, y + 0.045 + i * 0.018, z, gap + Math.PI,
-					radius - 0.12, radius + 0.12, Math.PI - gapHalf,
-					0x4A1721, i == 1 ? 0xFFF0D0 : 0xED5B46, alpha - i * 0.06F);
+		float charge = Mth.clamp((tick - SnakeKingAttackRules.COIL_WARNING_START)
+				/ (float)(SnakeKingAttackRules.COIL_RELEASE_START
+						- SnakeKingAttackRules.COIL_WARNING_START), 0.0F, 1.0F);
+		double radius = tick < SnakeKingAttackRules.COIL_RELEASE_START
+				? Mth.lerp(charge, SnakeKingAttackRules.COIL_MAX_RADIUS,
+						SnakeKingAttackRules.COIL_MIN_RADIUS)
+				: SnakeKingAttackRules.coilRadius(tick);
+		float pulse = 0.72F + 0.18F * Mth.sin(tick * 0.55F);
+		layeredArc(buffer, pose, x, y + 0.055, z, 0.0,
+				Math.max(0.08, radius - 0.42), radius + 0.42, Math.PI,
+				0x130E06, 0xD98420, 0xFFF2B0,
+				tick >= SnakeKingAttackRules.COIL_RELEASE_START ? 0.98F : pulse);
+		if (tick < SnakeKingAttackRules.COIL_RELEASE_START) {
+			layeredArc(buffer, pose, x, y + 0.035, z, 0.0,
+					SnakeKingAttackRules.COIL_MAX_RADIUS - 0.14,
+					SnakeKingAttackRules.COIL_MAX_RADIUS + 0.14, Math.PI,
+					0x100D08, 0x6E5420, 0xFFE8A0, 0.62F + charge * 0.22F);
 		}
-		double left = gap - gapHalf;
-		double right = gap + gapHalf;
-		lineRibbon(buffer, pose, x, y + 0.055, z,
-				x + Math.cos(left) * 7.4, z + Math.sin(left) * 7.4,
-				0.065, 0x335C63, 0xCBFAFF, 0.54F);
-		lineRibbon(buffer, pose, x, y + 0.055, z,
-				x + Math.cos(right) * 7.4, z + Math.sin(right) * 7.4,
-				0.065, 0x335C63, 0xCBFAFF, 0.54F);
+		return true;
+	}
+
+	private static boolean renderCrownChain(BufferBuilder buffer, Matrix4f pose,
+			double x, double y, double z, int tick) {
+		if (tick < SnakeKingAttackRules.CROWN_CHAIN_WARNING_START
+				|| tick > SnakeKingAttackRules.CROWN_CHAIN_HIT_TICK + 3) {
+			return false;
+		}
+		float charge = Math.min(1.0F,
+				(tick - SnakeKingAttackRules.CROWN_CHAIN_WARNING_START)
+						/ (float)(SnakeKingAttackRules.CROWN_CHAIN_HIT_TICK
+								- SnakeKingAttackRules.CROWN_CHAIN_WARNING_START));
+		float alpha = tick >= SnakeKingAttackRules.CROWN_CHAIN_HIT_TICK
+				? 0.96F : 0.38F + charge * 0.42F;
+		for (int index = 0; index < 3; index++) {
+			double radius = 5.8 + index * 6.0;
+			layeredArc(buffer, pose, x, y + 0.04 + index * 0.008, z,
+					tick * 0.025 * (index % 2 == 0 ? 1.0 : -1.0),
+					radius - 0.16, radius + 0.16, Math.PI,
+					0x07131A, 0x287DA4, 0xE8FCFF, alpha - index * 0.05F);
+		}
+		for (int index = 0; index < 8; index++) {
+			double angle = Math.PI * 2.0 * index / 8.0 + tick * 0.008;
+			lineRibbon(buffer, pose, x, y + 0.055, z,
+					x + Math.cos(angle) * 18.0, z + Math.sin(angle) * 18.0,
+					tick >= SnakeKingAttackRules.CROWN_CHAIN_HIT_TICK ? 0.075 : 0.04,
+					0x173C4D,
+					tick >= SnakeKingAttackRules.CROWN_CHAIN_HIT_TICK ? 0xF5FEFF : 0x72C9E6,
+					alpha * 0.72F);
+		}
 		return true;
 	}
 
 	private static boolean renderHuntImpact(BufferBuilder buffer, Matrix4f pose, VirtualSnakeKing snake,
 			double x, double y, double z, double fx, double fz, int tick) {
 		SnakeHuntPattern pattern = snake.getHuntPattern();
-		int segment = SnakeHuntPattern.segment(tick);
+		if (SnakeHuntPattern.isComboOpening(tick)) {
+			return false;
+		}
+		int segment = pattern.comboSegmentAt(tick);
 		if (segment >= pattern.segmentCount()) {
 			return false;
 		}
-		int local = SnakeHuntPattern.localTick(tick);
+		int local = pattern.comboLocalTickAt(tick);
 		if (pattern.move(segment) == SnakeHuntPattern.Move.BITE) {
 			if (local < 3 || local > SnakeHuntPattern.BITE_HIT_TICK + 3) {
 				return false;
@@ -257,45 +283,53 @@ public final class SnakeAttackTelegraphRenderer {
 		if (local < 4 || local > SnakeHuntPattern.TAIL_HIT_TICK + 2) {
 			return false;
 		}
-		double direction = snake.isSweepLeft() ? -1.0 : 1.0;
-		double progress = Math.min(1.0, Math.max(0.0, (local - 4.0) / 15.0));
-		double center = Math.toRadians(snake.getLockedAttackYaw())
-				+ direction * (1.35 - progress * 1.95);
+		double direction = SnakeHuntPattern.tailSweepDirection(snake.isSweepLeft());
+		double sampleTick = Math.max(0.0, local - 0.5);
+		double center = Math.toRadians(snake.getLockedAttackYaw()) + Math.PI
+				+ direction * (SnakeHuntPattern.tailBodySpinPhase(sampleTick)
+						+ SnakeHuntPattern.tailPose(sampleTick).tip());
 		float alpha = local <= SnakeHuntPattern.TAIL_HIT_TICK
 				? 0.72F + local * 0.015F
 				: Math.max(0.3F, 0.96F - (local - SnakeHuntPattern.TAIL_HIT_TICK) * 0.22F);
 		layeredArc(buffer, pose, x, y + 0.045, z, 0.0,
 				SnakeAttackVolume.TAIL_INNER_RADIUS, SnakeAttackVolume.TAIL_OUTER_RADIUS,
-				Math.PI, 0x0E0C09, 0x705B27, 0xF7E7B1, alpha * 0.32F);
-		layeredVerticalArc(buffer, pose, x, z, center, 4.9, 0.7, y + 0.08, y + 1.28,
+				Math.PI, 0x0E0C09, 0x705B27, 0xF7E7B1, alpha * 0.42F);
+		layeredVerticalArc(buffer, pose, x, z, center, 5.1, 0.8, y + 0.06, y + 1.55,
 				0x14110C, 0xDDB74B, 0xFFFFFF, alpha);
+		layeredVerticalArc(buffer, pose, x, z, center - direction * 0.22, 4.55, 0.56,
+				y + 0.09, y + 0.86, 0x0A1820, 0x68CDE3, 0xE8FCFF, alpha * 0.7F);
 		return true;
 	}
 
 	private static boolean renderGroundPoison(BufferBuilder buffer, Matrix4f pose,
 			double x, double y, double z, double fx, double fz, int tick) {
-		if (tick < 4 || tick > 22) {
+		if (tick < SnakeKingAttackRules.GROUND_POISON_WARNING_START
+				|| tick > SnakeKingAttackRules.GROUND_POISON_HIT_TICK + 2) {
 			return false;
 		}
-		float charge = Math.min(1.0F, (tick - 4) / 16.0F);
+		float charge = Math.min(1.0F,
+				(tick - SnakeKingAttackRules.GROUND_POISON_WARNING_START)
+						/ (float)(SnakeKingAttackRules.GROUND_POISON_HIT_TICK
+								- SnakeKingAttackRules.GROUND_POISON_WARNING_START));
 		fanFill(buffer, pose, x, y + 0.03, z, fx, fz, SnakeAttackVolume.GROUND_POISON_RANGE,
-				SnakeAttackVolume.GROUND_POISON_HALF_ANGLE, 0x0C1007, 0x4E621B,
+				SnakeAttackVolume.GROUND_POISON_HALF_ANGLE, 0x171006, 0x6B4612,
 				0.32F + charge * 0.08F);
 		layeredFanOutline(buffer, pose, x, y + 0.055, z, fx, fz,
 				SnakeAttackVolume.GROUND_POISON_RANGE, SnakeAttackVolume.GROUND_POISON_HALF_ANGLE,
-				0x111507, 0x91A82E, 0xFFF2B0, 0.9F + charge * 0.08F);
+				0x1B1207, 0xD28A21, 0xFFF1A8, 0.9F + charge * 0.08F);
 		renderFanGrid(buffer, pose, x, y + 0.07, z, fx, fz,
 				SnakeAttackVolume.GROUND_POISON_RANGE, SnakeAttackVolume.GROUND_POISON_HALF_ANGLE,
-				0x1B2109, 0xB5C843, 0.58F + charge * 0.14F);
-		if (tick >= 20) {
+				0x241707, 0xF0AD35, 0.58F + charge * 0.14F);
+		if (tick >= SnakeKingAttackRules.GROUND_POISON_HIT_TICK) {
 			double center = Math.atan2(fz, fx);
-			double wave = SnakeAttackVolume.GROUND_POISON_RANGE * (tick - 19) / 3.0;
+			double wave = SnakeAttackVolume.GROUND_POISON_RANGE
+					* (tick - SnakeKingAttackRules.GROUND_POISON_HIT_TICK + 1) / 3.0;
 			for (int i = 0; i < 3; i++) {
 				double radius = Math.max(0.35, wave - i * 0.72);
 				layeredArc(buffer, pose, x, y + 0.085 + i * 0.012, z, center,
 						Math.max(0.1, radius - 0.16), radius + 0.16,
-						SnakeAttackVolume.GROUND_POISON_HALF_ANGLE, 0x111507,
-						i == 0 ? 0xD2D95A : 0x7D9127, 0xFFF8C8, 0.96F - i * 0.12F);
+						SnakeAttackVolume.GROUND_POISON_HALF_ANGLE, 0x1B1207,
+						i == 0 ? 0xFFD060 : 0xB86F18, 0xFFF8D8, 0.96F - i * 0.12F);
 			}
 		}
 		return true;
@@ -320,11 +354,15 @@ public final class SnakeAttackTelegraphRenderer {
 
 	private static boolean renderOverheadImpact(BufferBuilder buffer, Matrix4f pose,
 			double x, double y, double z, double fx, double fz, int tick) {
-		if (tick < 8 || tick > 26) {
+		if (tick < SnakeKingAttackRules.OVERHEAD_WARNING_START
+				|| tick > SnakeKingAttackRules.OVERHEAD_HIT_TICK + 4) {
 			return false;
 		}
 		double center = Math.atan2(fz, fx);
-		float charge = Math.min(1.0F, (tick - 8) / 14.0F);
+		float charge = Math.min(1.0F,
+				(tick - SnakeKingAttackRules.OVERHEAD_WARNING_START)
+						/ (float)(SnakeKingAttackRules.OVERHEAD_HIT_TICK
+								- SnakeKingAttackRules.OVERHEAD_WARNING_START));
 		double beamY = y + 1.8;
 		fanFill(buffer, pose, x, y + 0.035, z, fx, fz, SnakeAttackVolume.OVERHEAD_RANGE,
 				SnakeAttackVolume.OVERHEAD_HALF_ANGLE, 0x0D0D0A, 0x70642B,
@@ -334,12 +372,24 @@ public final class SnakeAttackTelegraphRenderer {
 				0x11100A, 0xB99C35, 0xFFF4C9, 0.78F + charge * 0.2F);
 		layeredRibbon(buffer, pose, x, beamY, z, fx, fz, SnakeAttackVolume.OVERHEAD_RANGE,
 				0.26, 0.0, 0x11100A, 0xCEB54D, 0xFFF7D2, 0.78F + charge * 0.2F);
-		double radius = tick < 22 ? 2.2 + charge * 1.8 : 2.2 + (tick - 22) * 1.2;
+		double radius = tick < SnakeKingAttackRules.OVERHEAD_HIT_TICK
+				? 2.2 + charge * 1.8
+				: 2.2 + (tick - SnakeKingAttackRules.OVERHEAD_HIT_TICK) * 1.2;
 		layeredArc(buffer, pose, x, y + 0.075, z, center, Math.max(0.1, radius - 0.2),
 				radius + 0.2, SnakeAttackVolume.OVERHEAD_HALF_ANGLE,
 				0x11100A, 0xD9BF50, 0xFFFFFF,
-				tick <= 22 ? 0.72F + charge * 0.24F : Math.max(0.3F, 0.92F - (tick - 22) * 0.14F));
+				tick <= SnakeKingAttackRules.OVERHEAD_HIT_TICK
+						? 0.72F + charge * 0.24F
+						: Math.max(0.3F, 0.92F
+								- (tick - SnakeKingAttackRules.OVERHEAD_HIT_TICK) * 0.14F));
 		return true;
+	}
+
+	private static boolean isDashTelegraphVisible(int tick) {
+		return tick >= SnakeKingAttackRules.SPECIAL_ANIMATION_START
+				&& tick <= SnakeDashRules.FIRST_START + SnakeDashRules.ACTIVE_TICKS
+				|| tick >= SnakeDashRules.SECOND_START - 12
+				&& tick <= SnakeDashRules.SECOND_START + SnakeDashRules.ACTIVE_TICKS;
 	}
 
 	private static boolean judgment(BufferBuilder buffer, Matrix4f pose, VirtualSnakeKing snake,

@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "combat",
+  "key": {
+    "i": {
+      "item": "virtual_craft:virtual_iron_ingot"
+    },
+    "e": {
+      "item": "virtual_craft:electric_ingot"
+    },
+    "c": {
+      "item": "virtual_craft:copper_wire"
+    }
+  },
+  "pattern": [
+    " i ",
+    "iei",
+    " c "
+  ],
+  "result": {
+    "count": 1,
+    "id": "virtual_craft:virtual_iron_sword"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "placement": {
+    "type": "minecraft:random_spread",
+    "salt": 29468131,
+    "separation": 8,
+    "spacing": 20
+  },
+  "structures": [
+    {
+      "structure": "virtual_craft:mushroom_king_ruin",
+      "weight": 1
+    }
+  ]
+}

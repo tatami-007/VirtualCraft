@@ -14,7 +14,7 @@ import net.minecraft.resources.ResourceLocation;
 
 public final class SnakeFangRenderer extends EntityRenderer<SnakeFangProjectile> {
 	private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath(
-			VirtualCraft.MODID, "textures/entity/snake_fang.png");
+			VirtualCraft.MODID, "textures/entity/snake_king/snake_fang.png");
 	private static final RenderType RENDER_TYPE = RenderType.entityTranslucentEmissive(TEXTURE);
 
 	public SnakeFangRenderer(EntityRendererProvider.Context context) {

@@ -1,0 +1,12 @@
+{
+  "variants": {
+    "active=false,facing=north": { "model": "virtual_craft:block/quantum_simulation_chamber" },
+    "active=false,facing=south": { "model": "virtual_craft:block/quantum_simulation_chamber", "y": 180 },
+    "active=false,facing=west": { "model": "virtual_craft:block/quantum_simulation_chamber", "y": 270 },
+    "active=false,facing=east": { "model": "virtual_craft:block/quantum_simulation_chamber", "y": 90 },
+    "active=true,facing=north": { "model": "virtual_craft:block/quantum_simulation_chamber_active" },
+    "active=true,facing=south": { "model": "virtual_craft:block/quantum_simulation_chamber_active", "y": 180 },
+    "active=true,facing=west": { "model": "virtual_craft:block/quantum_simulation_chamber_active", "y": 270 },
+    "active=true,facing=east": { "model": "virtual_craft:block/quantum_simulation_chamber_active", "y": 90 }
+  }
+}

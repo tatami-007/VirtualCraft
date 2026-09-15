@@ -2,7 +2,6 @@
   "replace": false,
   "values": [
     "virtual_craft:electric_condenser",
-    "virtual_craft:holographic_shop",
     "virtual_craft:electric_ball_generator",
     "virtual_craft:pow_miner",
 	"virtual_craft:virtual_iron_ore",
@@ -11,6 +10,22 @@
     "virtual_craft:virtual_gold_ore",
     "virtual_craft:virtual_titanium_ore",
     "virtual_craft:virtual_chromium_ore",
-    "virtual_craft:energy_pipe"
+    "virtual_craft:energy_pipe",
+    "virtual_craft:compute_rack",
+    "virtual_craft:lightning_resonator",
+    "virtual_craft:quantum_simulation_chamber",
+    "virtual_craft:lightning_stone",
+    "virtual_craft:fulgurite",
+    "virtual_craft:serpent_stone",
+    "virtual_craft:venom_crystal",
+    "virtual_craft:serpent_stone_bricks",
+    "virtual_craft:chiseled_serpent_stone_bricks",
+    "virtual_craft:serpent_floor_tiles",
+    "virtual_craft:serpent_lattice",
+    "virtual_craft:fungal_stone",
+    "virtual_craft:fungal_stone_bricks",
+    "virtual_craft:chiseled_fungal_stone_bricks",
+    "virtual_craft:fungal_cap_tiles",
+    "virtual_craft:fungal_gill_tiles"
   ]
 }

@@ -8,16 +8,17 @@ public final class SnakeKingCombatDirector {
 	private static final Profile[] PROFILES = new Profile[ATTACK_COUNT + 1];
 
 	static {
-		profile(1, 0.0, 6.5, 20.0, 65, false, false);
-		profile(2, 0.0, 7.5, 26.0, 95, false, false);
-		profile(3, 0.0, 7.5, 28.0, 80, true, false);
-		profile(4, 5.0, 20.0, 12.0, 160, false, false);
-		profile(5, 2.5, 14.0, 12.0, 100, true, false);
-		profile(6, 4.0, 18.0, 7.0, 260, true, false);
-		profile(7, 4.0, 32.0, 13.0, 140, false, true);
-		profile(8, 0.0, 12.0, 8.0, 240, true, false);
-		profile(9, 0.0, 16.0, 2.0, 800, true, false);
-		profile(10, 0.0, 6.5, 10.0, 200, false, false);
+		// Ordinary melee is always taught through a three-step hunt pattern.
+		// Single bite and tail IDs remain load-compatible but are not selected.
+		profile(2, 0.0, 7.5, 72.0, 95, false, false);
+		profile(4, 5.0, 12.0, 16.0, 160, false, false);
+		profile(5, 2.5, 9.0, 14.0, 100, true, false);
+		profile(6, 6.0, 16.0, 10.0, 260, true, false);
+		// The former double dash remains disabled by design. The other legacy
+		// attacks stay in the encounter at lower weights so melee remains primary.
+		profile(8, 0.0, 7.5, 8.0, 240, true, false);
+		profile(9, 3.0, 12.0, 3.0, 800, true, false);
+		profile(10, 0.0, 6.5, 14.0, 200, false, false);
 	}
 
 	private SnakeKingCombatDirector() {
@@ -64,7 +65,7 @@ public final class SnakeKingCombatDirector {
 			if (profile.gapCloser() && context.distance() > 9.0) {
 				weight *= 1.55;
 			}
-			if (context.healthRatio() < 0.35 && (attack == 2 || attack == 7)) {
+			if (context.healthRatio() < 0.35 && attack == 2) {
 				weight *= 1.22;
 			}
 			if (weight > 0.0) {

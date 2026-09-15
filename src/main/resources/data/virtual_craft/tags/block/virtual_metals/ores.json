@@ -1,0 +1,11 @@
+{
+  "replace": false,
+  "values": [
+    "virtual_craft:virtual_iron_ore",
+    "virtual_craft:virtual_aluminum_ore",
+    "virtual_craft:virtual_silver_ore",
+    "virtual_craft:virtual_gold_ore",
+    "virtual_craft:virtual_titanium_ore",
+    "virtual_craft:virtual_chromium_ore"
+  ]
+}

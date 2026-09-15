@@ -1,0 +1,10 @@
+{
+  "replace": false,
+  "values": [
+    "virtual_craft:virtual_iron_sword",
+	"virtual_craft:virtual_silver_sword",
+    "virtual_craft:virtual_titanium_sword",
+    "virtual_craft:virtual_chromium_sword",
+    "virtual_craft:virtual_snake_king_sword"
+  ]
+}

@@ -18,6 +18,7 @@ import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.bus.api.EventPriority;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.TicketType;
 import net.minecraft.world.level.ChunkPos;
@@ -30,11 +31,14 @@ import dev.tatami.virtualcraft.client.VirtualCraftClient;
 import dev.tatami.virtualcraft.config.SnakeBossConfig;
 import dev.tatami.virtualcraft.exchange.ExchangeRateService;
 import dev.tatami.virtualcraft.gameplay.HolographicTerminalSession;
+import dev.tatami.virtualcraft.gameplay.SnakeKingBlessingHandler;
+import dev.tatami.virtualcraft.gameplay.VirtualWeaponParryHandler;
 import dev.tatami.virtualcraft.network.CloseHolographicTerminalPayload;
 import dev.tatami.virtualcraft.network.NetworkMessageRegistry;
 import dev.tatami.virtualcraft.energy.WirelessEnergyNetwork;
 import dev.tatami.virtualcraft.energy.EnergyPipeNetwork;
 import dev.tatami.virtualcraft.registry.ModCreativeTabs;
+import dev.tatami.virtualcraft.registry.ModArmorMaterials;
 import dev.tatami.virtualcraft.registry.ModBlockEntities;
 import dev.tatami.virtualcraft.registry.ModAttachments;
 import dev.tatami.virtualcraft.registry.ModBlocks;
@@ -45,8 +49,11 @@ import dev.tatami.virtualcraft.registry.ModFeatures;
 import dev.tatami.virtualcraft.registry.ModEntityTypes;
 import dev.tatami.virtualcraft.registry.ModItems;
 import dev.tatami.virtualcraft.registry.ModMenuTypes;
+import dev.tatami.virtualcraft.registry.ModMobEffects;
 import dev.tatami.virtualcraft.registry.ModParticleTypes;
 import dev.tatami.virtualcraft.registry.ModSounds;
+import dev.tatami.virtualcraft.registry.ModStructures;
+import dev.tatami.virtualcraft.registry.ModRecipeTypes;
 import dev.tatami.virtualcraft.server.ServerWorkQueue;
 import dev.tatami.virtualcraft.world.LightningForestEffects;
 import dev.tatami.virtualcraft.world.VirtualWorldTerrainMigration;
@@ -67,6 +74,8 @@ public class VirtualCraft {
 		if (FMLEnvironment.dist.isClient()) {
 			AbsorberOreHighlighter highlighter = new AbsorberOreHighlighter();
 			MiningSurveyorHighlighter surveyorHighlighter = new MiningSurveyorHighlighter();
+			dev.tatami.virtualcraft.client.highlight.QuantumScanOverlay quantumScanOverlay =
+					new dev.tatami.virtualcraft.client.highlight.QuantumScanOverlay();
 			BoundMachineHighlighter boundMachineHighlighter = new BoundMachineHighlighter();
 			NeoForge.EVENT_BUS.addListener((RenderLevelStageEvent event) -> {
 				if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
@@ -86,17 +95,21 @@ public class VirtualCraft {
 			modEventBus.addListener(VirtualCraftClient::registerShaders);
 			modEventBus.addListener(VirtualCraftClient::registerEntityRenderers);
 			modEventBus.addListener(VirtualCraftClient::registerParticles);
+			modEventBus.addListener(VirtualCraftClient::registerClientExtensions);
 			modEventBus.addListener(dev.tatami.virtualcraft.client.ThunderPoolClient::registerFluidExtensions);
 			NeoForge.EVENT_BUS.addListener(VirtualCraftClient::renderShockOverlay);
 			NeoForge.EVENT_BUS.addListener(VirtualCraftClient::renderSnakeBossBar);
 			NeoForge.EVENT_BUS.addListener(dev.tatami.virtualcraft.client.SnakeBossCombatFeedback::onCameraAngles);
 			NeoForge.EVENT_BUS.addListener(surveyorHighlighter::renderGui);
+			NeoForge.EVENT_BUS.addListener(quantumScanOverlay::render);
 			// Pre-warm Holographic Terminal currency icons on world join (so the first
 			// open of the terminal does not pay synchronous resource-pack IO),
 			// and drop the per-session client cache on disconnect so we never paint
 			// stale balances/addresses from a previous server.
 			NeoForge.EVENT_BUS.addListener(VirtualCraftClient::onClientLogin);
 			NeoForge.EVENT_BUS.addListener(VirtualCraftClient::onClientLogout);
+			NeoForge.EVENT_BUS.addListener(EventPriority.HIGHEST,
+					VirtualCraftClient::prioritizeSmithingRecipes);
 			// v24 tick-driven holographic shop refresh button state machine —
 			// ModernUI View.postDelayed is unreliable on the render thread, so
 			// we drive transitions from the 20 Hz client tick instead.
@@ -106,6 +119,11 @@ public class VirtualCraft {
 		// 1:1 ME-Beam-Former 全局无线塔管理器 — 集中调度所有塔的能量转发，应听 ServerTickEvent.Post + ServerStoppedEvent
 		WirelessEnergyNetwork.registerEvents(NeoForge.EVENT_BUS);
 		EnergyPipeNetwork.registerEvents(NeoForge.EVENT_BUS);
+		NeoForge.EVENT_BUS.addListener(dev.tatami.virtualcraft.world.LightningResonanceEvents::onEntityJoin);
+		NeoForge.EVENT_BUS.addListener(SnakeKingBlessingHandler::onDamageDealt);
+		NeoForge.EVENT_BUS.addListener(SnakeKingBlessingHandler::amplifyDamage);
+		NeoForge.EVENT_BUS.addListener(SnakeKingBlessingHandler::onPlayerTick);
+		NeoForge.EVENT_BUS.addListener(VirtualWeaponParryHandler::onIncomingDamage);
 
 		ModFluids.TYPES.register(modEventBus);
 		ModFluids.REGISTRY.register(modEventBus);
@@ -115,10 +133,16 @@ public class VirtualCraft {
 		ModEntityTypes.REGISTRY.register(modEventBus);
 		modEventBus.addListener(ModEntityTypes::registerAttributes);
 		ModFeatures.REGISTRY.register(modEventBus);
+		ModStructures.STRUCTURE_TYPES.register(modEventBus);
+		ModStructures.PIECE_TYPES.register(modEventBus);
 		ModDimensions.CHUNK_GENERATOR_CODECS.register(modEventBus);
 		ModBlockEntities.REGISTRY.register(modEventBus);
 		ModAttachments.REGISTRY.register(modEventBus);
+		ModRecipeTypes.TYPES.register(modEventBus);
+		ModRecipeTypes.SERIALIZERS.register(modEventBus);
 
+		ModArmorMaterials.REGISTRY.register(modEventBus);
+		ModMobEffects.REGISTRY.register(modEventBus);
 		ModItems.REGISTRY.register(modEventBus);
 		ModMenuTypes.REGISTRY.register(modEventBus);
 

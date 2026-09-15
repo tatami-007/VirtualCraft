@@ -6,6 +6,9 @@ import dev.tatami.virtualcraft.blockentity.ElectricBallGeneratorBlockEntity;
 import dev.tatami.virtualcraft.blockentity.ElectricCondenserBlockEntity;
 import dev.tatami.virtualcraft.blockentity.PowMinerBlockEntity;
 import dev.tatami.virtualcraft.blockentity.WirelessPowerTowerBlockEntity;
+import dev.tatami.virtualcraft.blockentity.ComputeRackBlockEntity;
+import dev.tatami.virtualcraft.blockentity.LightningResonatorBlockEntity;
+import dev.tatami.virtualcraft.blockentity.QuantumSimulationChamberBlockEntity;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.capabilities.BlockCapability;
@@ -62,6 +65,22 @@ public final class ModCapabilities {
 				LONG_ENERGY_STORAGE,
 				ModBlockEntities.WIRELESS_POWER_TOWER.get(),
 				(WirelessPowerTowerBlockEntity blockEntity, Direction side) -> blockEntity);
+		event.registerBlockEntity(
+				Capabilities.ItemHandler.BLOCK,
+				ModBlockEntities.COMPUTE_RACK.get(),
+				(ComputeRackBlockEntity blockEntity, Direction side) -> blockEntity.getAutomationInventory());
+		event.registerBlockEntity(
+				Capabilities.EnergyStorage.BLOCK,
+				ModBlockEntities.LIGHTNING_RESONATOR.get(),
+				(LightningResonatorBlockEntity blockEntity, Direction side) -> blockEntity.getEnergyStorage(side));
+		event.registerBlockEntity(
+				Capabilities.EnergyStorage.BLOCK,
+				ModBlockEntities.QUANTUM_SIMULATION_CHAMBER.get(),
+				(QuantumSimulationChamberBlockEntity blockEntity, Direction side) -> blockEntity.getEnergyStorage(side));
+		event.registerBlockEntity(
+				Capabilities.ItemHandler.BLOCK,
+				ModBlockEntities.QUANTUM_SIMULATION_CHAMBER.get(),
+				(QuantumSimulationChamberBlockEntity blockEntity, Direction side) -> blockEntity.getOutputAutomation());
 	}
 }
 

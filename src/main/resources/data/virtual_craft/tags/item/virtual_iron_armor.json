@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "virtual_craft:virtual_iron_helmet",
+    "virtual_craft:virtual_iron_chestplate",
+    "virtual_craft:virtual_iron_leggings",
+    "virtual_craft:virtual_iron_boots"
+  ]
+}

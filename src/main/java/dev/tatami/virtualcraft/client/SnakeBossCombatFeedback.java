@@ -2,8 +2,10 @@ package dev.tatami.virtualcraft.client;
 
 import dev.tatami.virtualcraft.network.SnakeCombatFeedbackPayload;
 import dev.tatami.virtualcraft.registry.ModSounds;
+import dev.tatami.virtualcraft.entity.VirtualMushroomKing;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
@@ -17,6 +19,7 @@ public final class SnakeBossCombatFeedback {
 	private static int flashTicks;
 	private static int flashDuration;
 	private static int feedbackKind = SnakeCombatFeedbackPayload.HIT;
+	private static int feedbackBossEntityId = -1;
 	private static float lateralDirection;
 	private static float forwardDirection = 1.0F;
 	private static int comboTutorialTicks;
@@ -55,9 +58,12 @@ public final class SnakeBossCombatFeedback {
 	}
 
 	public static void accept(int bossEntityId, int kind, float strength) {
+		feedbackBossEntityId = bossEntityId;
+		boolean mushroomBoss = isMushroomBoss(bossEntityId);
 		if (isComboTutorial(kind)) {
-			comboTutorialTicks = 72;
-			comboTutorialDuration = 72;
+			int tutorialDuration = mushroomBoss ? 120 : 72;
+			comboTutorialTicks = tutorialDuration;
+			comboTutorialDuration = tutorialDuration;
 			comboTutorialKind = kind;
 			updateImpactDirection(bossEntityId);
 			return;
@@ -66,52 +72,83 @@ public final class SnakeBossCombatFeedback {
 				|| kind == SnakeCombatFeedbackPayload.MID_CUE
 				|| kind == SnakeCombatFeedbackPayload.LOW_CUE;
 		int duration = switch (kind) {
-			case SnakeCombatFeedbackPayload.PARRY -> 4;
+			case SnakeCombatFeedbackPayload.PARRY, SnakeCombatFeedbackPayload.WEAPON_PARRY -> 4;
 			case SnakeCombatFeedbackPayload.SHIELD_BREAK -> 6;
 			case SnakeCombatFeedbackPayload.POSTURE_BREAK -> 9;
 			case SnakeCombatFeedbackPayload.HIGH_DODGE, SnakeCombatFeedbackPayload.LOW_DODGE -> 4;
-			default -> 5;
+			default -> mushroomBoss ? 8 : 5;
 		};
 		if (!teachingCue) {
 			shakeTicks = Math.max(shakeTicks, duration);
 			shakeDuration = Math.max(shakeDuration, duration);
-			shakeStrength = Math.max(shakeStrength, Mth.clamp(strength, 0.15F, 2.0F));
+			float weightedStrength = mushroomBoss && kind == SnakeCombatFeedbackPayload.HIT
+					? strength * 1.28F : strength;
+			shakeStrength = Math.max(shakeStrength, Mth.clamp(weightedStrength, 0.15F, 2.0F));
 		}
 		int flash = switch (kind) {
-			case SnakeCombatFeedbackPayload.PARRY -> 4;
-			case SnakeCombatFeedbackPayload.POSTURE_BREAK -> 7;
-			case SnakeCombatFeedbackPayload.HIGH_DODGE, SnakeCombatFeedbackPayload.LOW_DODGE -> 4;
+			case SnakeCombatFeedbackPayload.PARRY, SnakeCombatFeedbackPayload.WEAPON_PARRY -> 10;
+			case SnakeCombatFeedbackPayload.POSTURE_BREAK -> 14;
+			case SnakeCombatFeedbackPayload.HIGH_DODGE, SnakeCombatFeedbackPayload.LOW_DODGE -> 10;
+			case SnakeCombatFeedbackPayload.SHIELD_BREAK -> 12;
 			case SnakeCombatFeedbackPayload.HIGH_CUE, SnakeCombatFeedbackPayload.MID_CUE,
-					SnakeCombatFeedbackPayload.LOW_CUE -> 12;
-			default -> 3;
+					SnakeCombatFeedbackPayload.LOW_CUE -> 26;
+			default -> mushroomBoss ? 5 : 3;
 		};
 		flashTicks = Math.max(flashTicks, flash);
 		flashDuration = Math.max(flashDuration, flash);
 		feedbackKind = kind;
 		updateImpactDirection(bossEntityId);
-		playLocalFeedbackSound(kind);
+		playLocalFeedbackSound(bossEntityId, kind);
 	}
 
-	private static void playLocalFeedbackSound(int kind) {
+	private static void playLocalFeedbackSound(int bossEntityId, int kind) {
 		Minecraft minecraft = Minecraft.getInstance();
+		if (kind == SnakeCombatFeedbackPayload.WEAPON_PARRY) {
+			minecraft.getSoundManager().play(SimpleSoundInstance.forUI(
+					SoundEvents.ANVIL_LAND, 1.0F, 1.0F));
+			return;
+		}
+		if (kind == SnakeCombatFeedbackPayload.PARRY) {
+			minecraft.getSoundManager().play(SimpleSoundInstance.forUI(
+					SoundEvents.SHIELD_BLOCK, 1.0F, 1.3F));
+			return;
+		}
+		if (kind == SnakeCombatFeedbackPayload.HIGH_DODGE) {
+			minecraft.getSoundManager().play(SimpleSoundInstance.forUI(
+					ModSounds.SNAKE_KING_HIGH_DODGE.get(), 1.0F, 1.2F));
+			return;
+		}
+		if (kind == SnakeCombatFeedbackPayload.LOW_DODGE) {
+			minecraft.getSoundManager().play(SimpleSoundInstance.forUI(
+					ModSounds.SNAKE_KING_LOW_DODGE.get(), 1.0F, 1.2F));
+			return;
+		}
+		if (minecraft.level != null
+				&& minecraft.level.getEntity(bossEntityId) instanceof VirtualMushroomKing) {
+			playStoneFeedbackSound(minecraft, kind);
+			return;
+		}
 		switch (kind) {
-			case SnakeCombatFeedbackPayload.PARRY -> {
+			case SnakeCombatFeedbackPayload.SHIELD_BREAK -> {
 				minecraft.getSoundManager().play(SimpleSoundInstance.forUI(
-						ModSounds.SNAKE_KING_PARRY.get(), 0.94F, 1.8F));
-				minecraft.getSoundManager().play(SimpleSoundInstance.forUI(
-						ModSounds.SNAKE_KING_IMPACT.get(), 1.22F, 0.72F));
+						ModSounds.SNAKE_KING_SHIELD_BREAK.get(), 1.0F, 0.86F));
 			}
-			case SnakeCombatFeedbackPayload.HIGH_DODGE -> {
-				minecraft.getSoundManager().play(SimpleSoundInstance.forUI(
-						ModSounds.SNAKE_KING_HIGH_DODGE.get(), 1.0F, 1.75F));
-				minecraft.getSoundManager().play(SimpleSoundInstance.forUI(
-						ModSounds.SNAKE_KING_DODGE.get(), 1.18F, 0.65F));
+			default -> {
 			}
-			case SnakeCombatFeedbackPayload.LOW_DODGE -> {
+		}
+	}
+
+	private static void playStoneFeedbackSound(Minecraft minecraft, int kind) {
+		switch (kind) {
+			case SnakeCombatFeedbackPayload.SHIELD_BREAK -> minecraft.getSoundManager().play(
+					SimpleSoundInstance.forUI(ModSounds.MUSHROOM_KING_SHIELD_BREAK.get(), 1.0F, 1.0F));
+			case SnakeCombatFeedbackPayload.POSTURE_BREAK -> minecraft.getSoundManager().play(
+					SimpleSoundInstance.forUI(ModSounds.MUSHROOM_KING_STAGGER.get(), 0.9F, 1.0F));
+			case SnakeCombatFeedbackPayload.HIT -> {
 				minecraft.getSoundManager().play(SimpleSoundInstance.forUI(
-						ModSounds.SNAKE_KING_LOW_DODGE.get(), 0.96F, 1.8F));
+						ModSounds.MUSHROOM_KING_STRIKE.get(), 0.78F, 1.0F));
 				minecraft.getSoundManager().play(SimpleSoundInstance.forUI(
-						ModSounds.SNAKE_KING_DODGE.get(), 0.82F, 0.68F));
+						ModSounds.MUSHROOM_KING_ROOT_CADENCE.get(), 0.58F, 0.52F));
 			}
 			default -> {
 			}
@@ -140,6 +177,10 @@ public final class SnakeBossCombatFeedback {
 		return feedbackKind;
 	}
 
+	public static int feedbackBossEntityId() {
+		return feedbackBossEntityId;
+	}
+
 	public static float lateralDirection() {
 		return lateralDirection;
 	}
@@ -161,7 +202,17 @@ public final class SnakeBossCombatFeedback {
 	private static boolean isComboTutorial(int kind) {
 		return kind == SnakeCombatFeedbackPayload.COMBO_BITE_BITE_BITE_CUE
 				|| kind == SnakeCombatFeedbackPayload.COMBO_BITE_BITE_TAIL_CUE
-				|| kind == SnakeCombatFeedbackPayload.COMBO_BITE_TAIL_BITE_CUE;
+				|| kind == SnakeCombatFeedbackPayload.COMBO_BITE_TAIL_BITE_CUE
+				|| kind == SnakeCombatFeedbackPayload.MUSHROOM_ROOT_COMBO_CUE
+				|| kind == SnakeCombatFeedbackPayload.MUSHROOM_HAMMER_CUE
+				|| kind == SnakeCombatFeedbackPayload.MUSHROOM_NEEDLE_COMBO_CUE
+				|| kind == SnakeCombatFeedbackPayload.MUSHROOM_CLAP_CUE;
+	}
+
+	private static boolean isMushroomBoss(int bossEntityId) {
+		Minecraft minecraft = Minecraft.getInstance();
+		return minecraft.level != null
+				&& minecraft.level.getEntity(bossEntityId) instanceof VirtualMushroomKing;
 	}
 
 	private static void updateImpactDirection(int bossEntityId) {
@@ -196,6 +247,7 @@ public final class SnakeBossCombatFeedback {
 		flashTicks = 0;
 		flashDuration = 0;
 		feedbackKind = SnakeCombatFeedbackPayload.HIT;
+		feedbackBossEntityId = -1;
 		lateralDirection = 0.0F;
 		forwardDirection = 1.0F;
 		comboTutorialTicks = 0;

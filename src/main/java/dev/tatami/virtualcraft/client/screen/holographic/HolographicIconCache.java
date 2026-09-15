@@ -1,13 +1,21 @@
 package dev.tatami.virtualcraft.client.screen.holographic;
 
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import dev.tatami.virtualcraft.VirtualCraft;
 import dev.tatami.virtualcraft.currency.CryptoCurrency;
+import icyllis.modernui.core.Core;
+import icyllis.modernui.graphics.Canvas;
 import icyllis.modernui.graphics.drawable.ImageDrawable;
 import icyllis.modernui.graphics.Image;
 import net.minecraft.client.Minecraft;
@@ -30,6 +38,8 @@ import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
  */
 public final class HolographicIconCache {
 	private static final ConcurrentMap<ResourceLocation, Optional<Image>> TEXTURE_IMAGES = new ConcurrentHashMap<>();
+	private static final ConcurrentMap<ResourceLocation, Optional<AnimationSpec>> ANIMATION_SPECS =
+			new ConcurrentHashMap<>();
 	private static final ResourceLocation[] PREWARM_TEXTURES = createPrewarmTextures();
 	private static volatile int prewarmIndex = PREWARM_TEXTURES.length;
 
@@ -41,8 +51,12 @@ public final class HolographicIconCache {
 	}
 
 	public static ImageDrawable itemIcon(ResourceLocation itemId, int pxSize) {
-		ResourceLocation texture = itemTexture(itemId);
-		ImageDrawable item = load(texture, pxSize);
+		ImageDrawable item = resolveItemModelTexture(itemId)
+				.map(texture -> load(texture, pxSize))
+				.orElse(null);
+		if (item == null) {
+			item = load(itemTexture(itemId), pxSize);
+		}
 		if (item != null) {
 			return item;
 		}
@@ -59,12 +73,37 @@ public final class HolographicIconCache {
 		return null;
 	}
 
+	private static Optional<ResourceLocation> resolveItemModelTexture(ResourceLocation itemId) {
+		ResourceLocation model = ResourceLocation.fromNamespaceAndPath(
+				itemId.getNamespace(), "models/item/" + itemId.getPath() + ".json");
+		try {
+			var resource = Minecraft.getInstance().getResourceManager().getResource(model);
+			if (resource.isEmpty()) {
+				return Optional.empty();
+			}
+			try (var stream = resource.get().open();
+					var reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
+				JsonObject root = JsonParser.parseReader(reader).getAsJsonObject();
+				JsonObject textures = root.getAsJsonObject("textures");
+				if (textures == null || !textures.has("layer0")) {
+					return Optional.empty();
+				}
+				ResourceLocation layer = ResourceLocation.parse(textures.get("layer0").getAsString());
+				return Optional.of(ResourceLocation.fromNamespaceAndPath(
+						layer.getNamespace(), "textures/" + layer.getPath() + ".png"));
+			}
+		} catch (Exception ignored) {
+			return Optional.empty();
+		}
+	}
+
 	public static void invalidate() {
 		// Do not close shared images here: an already-open screen may still own
 		// drawables referencing them during F3+T. Clearing the cache lets those
 		// views keep rendering safely; Image's Cleaner releases the texture after
 		// the old view tree is collected.
 		TEXTURE_IMAGES.clear();
+		ANIMATION_SPECS.clear();
 		prewarmIndex = PREWARM_TEXTURES.length;
 	}
 
@@ -92,7 +131,10 @@ public final class HolographicIconCache {
 			return null;
 		}
 		try {
-			ImageDrawable drawable = new ImageDrawable(image.get());
+			ImageDrawable drawable = ANIMATION_SPECS
+					.computeIfAbsent(texture, key -> decodeAnimationSpec(key, image.get()))
+					.<ImageDrawable>map(spec -> new AnimatedSpriteDrawable(image.get(), spec))
+					.orElseGet(() -> new ImageDrawable(image.get()));
 			// nearest-neighbor 采样：与 vanilla 物品栏的像素艺术渲染风格一致——
 			// 16x16 物品贴图保留清晰锐利的像素边缘，绝不出现 bilinear 双线性
 			// 插值带来的"糊"。代价是非整数倍缩放（如 16→20）时像素行宽略不均，
@@ -103,6 +145,70 @@ public final class HolographicIconCache {
 		} catch (Exception ignored) {
 			return null;
 		}
+	}
+
+	private static Optional<AnimationSpec> decodeAnimationSpec(ResourceLocation texture, Image image) {
+		if (image.getWidth() <= 0 || image.getHeight() <= image.getWidth()
+				|| image.getHeight() % image.getWidth() != 0) {
+			return Optional.empty();
+		}
+		ResourceLocation metadata = ResourceLocation.fromNamespaceAndPath(
+				texture.getNamespace(), texture.getPath() + ".mcmeta");
+		try {
+			var resource = Minecraft.getInstance().getResourceManager().getResource(metadata);
+			if (resource.isEmpty()) {
+				return Optional.empty();
+			}
+			try (var stream = resource.get().open();
+					var reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
+				JsonObject root = JsonParser.parseReader(reader).getAsJsonObject();
+				JsonObject animation = root.getAsJsonObject("animation");
+				if (animation == null) {
+					return Optional.empty();
+				}
+				int frameCount = image.getHeight() / image.getWidth();
+				int defaultTime = Math.max(1, getInt(animation, "frametime", 1));
+				List<Integer> frames = new ArrayList<>();
+				List<Integer> times = new ArrayList<>();
+				JsonArray configuredFrames = animation.getAsJsonArray("frames");
+				if (configuredFrames == null || configuredFrames.isEmpty()) {
+					for (int frame = 0; frame < frameCount; frame++) {
+						frames.add(frame);
+						times.add(defaultTime);
+					}
+				} else {
+					for (JsonElement element : configuredFrames) {
+						int frame;
+						int time = defaultTime;
+						if (element.isJsonObject()) {
+							JsonObject entry = element.getAsJsonObject();
+							frame = getInt(entry, "index", -1);
+							time = Math.max(1, getInt(entry, "time", defaultTime));
+						} else {
+							frame = element.getAsInt();
+						}
+						if (frame >= 0 && frame < frameCount) {
+							frames.add(frame);
+							times.add(time);
+						}
+					}
+				}
+				if (frames.isEmpty()) {
+					return Optional.empty();
+				}
+				return Optional.of(new AnimationSpec(image.getWidth(),
+						frames.stream().mapToInt(Integer::intValue).toArray(),
+						times.stream().mapToInt(Integer::intValue).toArray()));
+			}
+		} catch (Exception ignored) {
+			return Optional.empty();
+		}
+	}
+
+	private static int getInt(JsonObject object, String key, int fallback) {
+		JsonElement element = object.get(key);
+		return element != null && element.isJsonPrimitive() && element.getAsJsonPrimitive().isNumber()
+				? element.getAsInt() : fallback;
 	}
 
 	@SuppressWarnings("deprecation")
@@ -138,6 +244,75 @@ public final class HolographicIconCache {
 			textures.add(itemTexture(ResourceLocation.parse(item)));
 		}
 		return textures.stream().distinct().toArray(ResourceLocation[]::new);
+	}
+
+	private record AnimationSpec(int frameSize, int[] frames, int[] frameTimes) {
+		private int totalTicks() {
+			int total = 0;
+			for (int time : frameTimes) {
+				total += time;
+			}
+			return Math.max(1, total);
+		}
+
+		private int frameAt(long animationTick) {
+			int cursor = (int)Math.floorMod(animationTick, totalTicks());
+			for (int index = 0; index < frames.length; index++) {
+				cursor -= frameTimes[index];
+				if (cursor < 0) {
+					return frames[index];
+				}
+			}
+			return frames[frames.length - 1];
+		}
+	}
+
+	private static final class AnimatedSpriteDrawable extends ImageDrawable {
+		private static final long TICK_NANOS = 50_000_000L;
+		private final AnimationSpec spec;
+		private final long startedAt = System.nanoTime();
+		private final Runnable requestNextFrame = this::invalidateSelf;
+
+		private AnimatedSpriteDrawable(Image image, AnimationSpec spec) {
+			super(image);
+			this.spec = spec;
+			updateSourceFrame(0L);
+		}
+
+		@Override
+		public void draw(Canvas canvas) {
+			long animationTick = (System.nanoTime() - startedAt) / TICK_NANOS;
+			updateSourceFrame(animationTick);
+			super.draw(canvas);
+			unscheduleSelf(requestNextFrame);
+			scheduleSelf(requestNextFrame, Core.timeMillis() + 50L);
+		}
+
+		@Override
+		public boolean setVisible(boolean visible, boolean restart) {
+			boolean changed = super.setVisible(visible, restart);
+			if (!visible) {
+				unscheduleSelf(requestNextFrame);
+			} else if (restart || changed) {
+				invalidateSelf();
+			}
+			return changed;
+		}
+
+		@Override
+		public int getIntrinsicWidth() {
+			return spec.frameSize();
+		}
+
+		@Override
+		public int getIntrinsicHeight() {
+			return spec.frameSize();
+		}
+
+		private void updateSourceFrame(long animationTick) {
+			int top = spec.frameAt(animationTick) * spec.frameSize();
+			setSrcRect(0, top, spec.frameSize(), top + spec.frameSize());
+		}
 	}
 
 	/**

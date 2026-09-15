@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "virtual_craft:virtual_stone",
+    "virtual_craft:lightning_stone",
+    "virtual_craft:serpent_stone",
+    "virtual_craft:fungal_stone"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "virtual_craft:virtual_chromium_helmet",
+    "virtual_craft:virtual_chromium_chestplate",
+    "virtual_craft:virtual_chromium_leggings",
+    "virtual_craft:virtual_chromium_boots"
+  ]
+}

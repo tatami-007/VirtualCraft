@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/cross",
+  "render_type": "minecraft:cutout",
+  "ambientocclusion": false,
+  "textures": { "cross": "virtual_craft:block/paralysis_mushroom" }
+}

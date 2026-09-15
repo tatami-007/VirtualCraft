@@ -1,0 +1,11 @@
+{
+  "replace": false,
+  "values": [
+    "virtual_craft:virtual_iron_ingot",
+    "virtual_craft:virtual_aluminum_ingot",
+    "virtual_craft:virtual_silver_ingot",
+    "virtual_craft:virtual_gold_ingot",
+    "virtual_craft:virtual_titanium_ingot",
+    "virtual_craft:virtual_chromium_ingot"
+  ]
+}

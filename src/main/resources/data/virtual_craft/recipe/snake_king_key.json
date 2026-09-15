@@ -4,12 +4,12 @@
   "key": {
     "b": { "item": "virtual_craft:electric_ball" },
     "e": { "item": "virtual_craft:electric_ingot" },
-    "q": { "item": "virtual_craft:quantum_power_cell" },
-    "v": { "item": "virtual_craft:encrypted_hash_voucher" }
+    "p": { "item": "virtual_craft:advanced_power_cell" },
+    "v": { "item": "virtual_craft:venom_crystal" }
   },
   "pattern": [
     "eve",
-    "bqb",
+    "bpb",
     "eve"
   ],
   "result": {

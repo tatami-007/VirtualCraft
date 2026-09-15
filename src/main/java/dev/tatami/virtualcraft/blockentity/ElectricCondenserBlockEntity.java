@@ -5,6 +5,7 @@ import java.util.EnumMap;
 import dev.tatami.virtualcraft.block.ElectricCondenserBlock;
 import dev.tatami.virtualcraft.machine.IConfigurableSidedMachine;
 import dev.tatami.virtualcraft.machine.ElectricCondenserTuning;
+import dev.tatami.virtualcraft.machine.advanced.AdvancedOverclock;
 import dev.tatami.virtualcraft.machine.MachineSideConfig;
 import dev.tatami.virtualcraft.machine.SideMode;
 import dev.tatami.virtualcraft.energy.WirelessPowerReceiver;
@@ -139,10 +140,13 @@ public class ElectricCondenserBlockEntity extends BlockEntity implements MenuPro
 			// progress, ContainerData GUI sync, plus any debug call). With the
 			// snapshot, the inner code stays branch-free.
 			int speedCards = blockEntity.countSpeedCards();
-			int energyCost = ElectricCondenserTuning.energyPerTick(speedCards) * cellMultiplier;
+			boolean overclocked = AdvancedOverclock.active(level, pos);
+			int baseEnergyCost = ElectricCondenserTuning.energyPerTick(speedCards) * cellMultiplier;
+			int energyCost = AdvancedOverclock.energyCost(baseEnergyCost, overclocked);
 			if (blockEntity.energyStorage.getEnergyStored() >= energyCost) {
 				blockEntity.energyStorage.consumeEnergy(energyCost);
-				blockEntity.progress += ElectricCondenserTuning.progressPerTick(speedCards) * cellMultiplier;
+				int baseProgress = ElectricCondenserTuning.progressPerTick(speedCards) * cellMultiplier;
+				blockEntity.progress += AdvancedOverclock.progress(baseProgress, overclocked, level.getGameTime());
 				active = true;
 				blockEntity.setChanged();
 				if (blockEntity.progress >= MAX_PROGRESS) {

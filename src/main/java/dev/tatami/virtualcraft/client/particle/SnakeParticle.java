@@ -10,11 +10,13 @@ import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.client.particle.TextureSheetParticle;
 import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
 
 public final class SnakeParticle extends TextureSheetParticle {
 	public enum Style {
 		RUNE, ARC, SHARD, TRAIL, HIGH_WARNING, MID_WARNING, LOW_WARNING,
-		POISON_RED, POISON_BLUE, PARRY_FLASH
+		POISON_RED, POISON_BLUE, PARRY_FLASH,
+		MUSHROOM_SPORE, MUSHROOM_ROOT, MUSHROOM_FLASH
 	}
 
 	private final SpriteSet sprites;
@@ -37,7 +39,7 @@ public final class SnakeParticle extends TextureSheetParticle {
 			}
 			case ARC -> {
 				lifetime = 5;
-				quadSize = 0.22F;
+				quadSize = 0.3F;
 				gravity = 0.0F;
 			}
 			case SHARD -> {
@@ -53,7 +55,7 @@ public final class SnakeParticle extends TextureSheetParticle {
 			}
 			case HIGH_WARNING, MID_WARNING, LOW_WARNING -> {
 				lifetime = 6;
-				quadSize = 0.22F;
+				quadSize = 0.3F;
 				gravity = 0.0F;
 			}
 			case POISON_RED, POISON_BLUE -> {
@@ -66,6 +68,23 @@ public final class SnakeParticle extends TextureSheetParticle {
 				quadSize = 0.42F;
 				gravity = 0.0F;
 			}
+			case MUSHROOM_SPORE -> {
+				lifetime = 16;
+				quadSize = 0.54F;
+				yd += 0.012;
+				gravity = 0.0F;
+			}
+			case MUSHROOM_ROOT -> {
+				lifetime = 12;
+				quadSize = 0.44F;
+				hasPhysics = true;
+				gravity = 0.09F;
+			}
+			case MUSHROOM_FLASH -> {
+				lifetime = 5;
+				quadSize = 0.78F;
+				gravity = 0.0F;
+			}
 		}
 		applyPalette(level);
 		roll = style == Style.ARC ? 0.0F : level.random.nextFloat() * Mth.TWO_PI;
@@ -75,6 +94,9 @@ public final class SnakeParticle extends TextureSheetParticle {
 			case ARC, HIGH_WARNING, MID_WARNING, LOW_WARNING, POISON_RED, POISON_BLUE, PARRY_FLASH -> 0.0F;
 			case SHARD -> 0.16F;
 			case TRAIL -> 0.035F;
+			case MUSHROOM_SPORE -> 0.045F;
+			case MUSHROOM_ROOT -> 0.12F;
+			case MUSHROOM_FLASH -> 0.0F;
 		};
 		startSize = quadSize;
 		setSpriteFromAge(sprites);
@@ -93,6 +115,9 @@ public final class SnakeParticle extends TextureSheetParticle {
 			case RUNE -> 0.72F;
 			case SHARD -> 0.82F;
 			case TRAIL -> 0.66F;
+			case MUSHROOM_SPORE -> 0.78F;
+			case MUSHROOM_ROOT -> 0.84F;
+			case MUSHROOM_FLASH -> 0.96F;
 		};
 		alpha = Math.min(peakAlpha, life * 1.8F);
 		quadSize = switch (style) {
@@ -102,8 +127,12 @@ public final class SnakeParticle extends TextureSheetParticle {
 			case PARRY_FLASH -> startSize * (0.55F + life * 0.85F);
 			case SHARD -> startSize * (0.55F + life * 0.65F);
 			case TRAIL -> startSize * (0.45F + life * 0.7F);
+			case MUSHROOM_SPORE -> startSize * (0.74F + life * 0.38F);
+			case MUSHROOM_ROOT -> startSize * (0.48F + life * 0.7F);
+			case MUSHROOM_FLASH -> startSize * (0.5F + life * 1.0F);
 		};
-		double drag = style == Style.TRAIL ? 0.82 : style == Style.SHARD ? 0.96 : 0.9;
+		double drag = style == Style.TRAIL ? 0.82
+				: style == Style.SHARD || style == Style.MUSHROOM_ROOT ? 0.96 : 0.9;
 		xd *= drag;
 		yd *= drag;
 		zd *= drag;
@@ -116,17 +145,25 @@ public final class SnakeParticle extends TextureSheetParticle {
 			case ARC -> setColor(1.0F, 0.76F + variation * 0.14F, 0.35F + variation * 0.2F);
 			case SHARD -> setColor(0.38F + variation * 0.2F, 0.65F + variation * 0.12F, 0.72F + variation * 0.16F);
 			case TRAIL -> setColor(0.34F + variation * 0.1F, 0.5F + variation * 0.12F, 0.68F + variation * 0.14F);
-			case HIGH_WARNING -> setColor(1.0F, 0.68F + variation * 0.16F, 0.18F);
+			case HIGH_WARNING -> setColor(0.2F + variation * 0.1F, 0.65F + variation * 0.15F, 1.0F);
 			case MID_WARNING -> setColor(0.96F, 0.88F + variation * 0.08F, 0.82F + variation * 0.08F);
-			case LOW_WARNING -> setColor(0.28F + variation * 0.12F, 0.62F + variation * 0.12F, 0.86F + variation * 0.12F);
+			case LOW_WARNING -> setColor(1.0F, 0.62F + variation * 0.16F, 0.12F + variation * 0.08F);
 			case POISON_RED, POISON_BLUE, PARRY_FLASH -> setColor(1.0F, 1.0F, 1.0F);
+			case MUSHROOM_SPORE -> setColor(
+					0.82F + variation * 0.14F, 0.34F + variation * 0.12F, 0.48F + variation * 0.12F);
+			case MUSHROOM_ROOT -> setColor(
+					0.78F + variation * 0.16F, 0.55F + variation * 0.14F, 0.24F + variation * 0.08F);
+			case MUSHROOM_FLASH -> setColor(
+					0.76F + variation * 0.18F, 0.92F + variation * 0.08F, 1.0F);
 		}
 	}
 
 	@Override
 	public int getLightColor(float partialTick) {
 		return switch (style) {
-			case HIGH_WARNING, MID_WARNING, LOW_WARNING, ARC, POISON_RED, POISON_BLUE, PARRY_FLASH -> 0xF000F0;
+			case HIGH_WARNING, MID_WARNING, LOW_WARNING, ARC, POISON_RED, POISON_BLUE,
+					PARRY_FLASH, MUSHROOM_FLASH -> 0xF000F0;
+			case MUSHROOM_SPORE, MUSHROOM_ROOT -> 0xE000E0;
 			default -> 0xD000D0;
 		};
 	}
@@ -138,6 +175,12 @@ public final class SnakeParticle extends TextureSheetParticle {
 
 	public static ParticleProvider<SimpleParticleType> provider(SpriteSet sprites, Style style) {
 		return (options, level, x, y, z, xd, yd, zd) -> {
+			Vec3 camera = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
+			if (style != Style.PARRY_FLASH && style != Style.MUSHROOM_FLASH
+					&& style != Style.MUSHROOM_SPORE && style != Style.MUSHROOM_ROOT
+					&& camera.distanceToSqr(x, y, z) < 2.56) {
+				return null;
+			}
 			ParticleStatus setting = Minecraft.getInstance().options.particles().get();
 			if ((style == Style.SHARD || style == Style.TRAIL)
 					&& ((setting == ParticleStatus.MINIMAL && level.random.nextFloat() < 0.72F)

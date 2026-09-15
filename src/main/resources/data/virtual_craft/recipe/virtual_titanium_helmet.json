@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "combat",
+  "key": {
+    "c": { "item": "virtual_craft:copper_wire" },
+    "i": { "item": "virtual_craft:virtual_titanium_ingot" },
+    "w": { "item": "virtual_craft:silicon_wafer" }
+  },
+  "pattern": ["iwi", "ici", "i i"],
+  "result": { "count": 1, "id": "virtual_craft:virtual_titanium_helmet" }
+}

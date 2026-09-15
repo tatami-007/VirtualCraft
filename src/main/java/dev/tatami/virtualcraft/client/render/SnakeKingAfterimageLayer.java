@@ -14,11 +14,9 @@ import software.bernie.geckolib.renderer.layer.GeoRenderLayer;
 /** Three restrained model echoes that make each void dash readable without particle clutter. */
 final class SnakeKingAfterimageLayer extends GeoRenderLayer<VirtualSnakeKing> {
 	private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath(
-			VirtualCraft.MODID, "textures/entity/virtual_snake_king.png");
-	private static final ResourceLocation SUMMON_BLUE = ResourceLocation.fromNamespaceAndPath(
-			VirtualCraft.MODID, "textures/entity/virtual_snake_king_signal_blue.png");
-	private static final ResourceLocation CEREMONY_WHITE = ResourceLocation.fromNamespaceAndPath(
-			VirtualCraft.MODID, "textures/entity/virtual_snake_king_signal_white.png");
+			VirtualCraft.MODID, "textures/entity/snake_king/virtual_snake_king.png");
+	private static final ResourceLocation SIGNAL_BODY = ResourceLocation.fromNamespaceAndPath(
+			VirtualCraft.MODID, "textures/entity/snake_king/virtual_snake_king_signal.png");
 
 	SnakeKingAfterimageLayer(GeoRenderer<VirtualSnakeKing> renderer) {
 		super(renderer);
@@ -31,13 +29,13 @@ final class SnakeKingAfterimageLayer extends GeoRenderLayer<VirtualSnakeKing> {
 		if (snake.getSummonTicks() > 0) {
 			float progress = 1.0F - snake.getSummonTicks() / 60.0F;
 			renderCeremonyEchoes(poseStack, snake, bakedModel, bufferSource, partialTick, packedOverlay,
-					progress < 0.62F ? SUMMON_BLUE : CEREMONY_WHITE, progress, false);
+					progress, false, progress < 0.62F ? 0x6DE8FF : 0xFFF2A4);
 			return;
 		}
 		if (snake.deathTime > 0) {
 			float progress = Math.min(1.0F, (snake.deathTime + partialTick) / 90.0F);
 			renderCeremonyEchoes(poseStack, snake, bakedModel, bufferSource, partialTick, packedOverlay,
-					CEREMONY_WHITE, progress, true);
+					progress, true, 0xFFF2A4);
 			return;
 		}
 		if (snake.getAttackState() != VirtualSnakeKing.ATTACK_VOID_DASH) {
@@ -66,14 +64,14 @@ final class SnakeKingAfterimageLayer extends GeoRenderLayer<VirtualSnakeKing> {
 
 	private void renderCeremonyEchoes(PoseStack poseStack, VirtualSnakeKing snake,
 			BakedGeoModel bakedModel, MultiBufferSource bufferSource, float partialTick,
-			int packedOverlay, ResourceLocation texture, float progress, boolean expanding) {
-		RenderType echoType = RenderType.entityTranslucentEmissive(texture);
+			int packedOverlay, float progress, boolean expanding, int rgb) {
+		RenderType echoType = RenderType.entityTranslucentEmissive(SIGNAL_BODY);
 		for (int echo = 2; echo >= 1; echo--) {
 			float alpha = expanding
 					? (0.08F + progress * 0.08F) / echo
 					: (0.13F + progress * 0.05F) / echo;
 			float scale = 1.0F + echo * (expanding ? 0.018F + progress * 0.025F : 0.016F);
-			int color = Math.round(alpha * 255.0F) << 24 | 0xFFFFFF;
+			int color = Math.round(alpha * 255.0F) << 24 | rgb;
 			poseStack.pushPose();
 			poseStack.translate(0.0, expanding ? progress * 0.035 * echo : -0.025 * echo, 0.0);
 			poseStack.scale(scale, scale, scale);

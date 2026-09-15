@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ESE",
+    "SCS",
+    "ESE"
+  ],
+  "key": {
+    "E": { "item": "virtual_craft:electric_ingot" },
+    "S": { "item": "virtual_craft:mushroom_king_spore" },
+    "C": { "item": "virtual_craft:mushroom_king_core" }
+  },
+  "result": {
+    "id": "virtual_craft:virtual_mushroom_king_smithing_template",
+    "count": 5
+  }
+}

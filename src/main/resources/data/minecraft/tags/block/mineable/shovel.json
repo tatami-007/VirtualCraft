@@ -1,0 +1,13 @@
+{
+  "replace": false,
+  "values": [
+    "virtual_craft:virtual_grass_block",
+    "virtual_craft:virtual_dirt",
+    "virtual_craft:charged_grass_block",
+    "virtual_craft:charged_dirt",
+    "virtual_craft:toxic_grass_block",
+    "virtual_craft:toxic_dirt",
+    "virtual_craft:mushroom_grass_block",
+    "virtual_craft:mushroom_dirt"
+  ]
+}

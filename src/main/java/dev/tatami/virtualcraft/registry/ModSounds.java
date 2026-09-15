@@ -48,6 +48,41 @@ public final class ModSounds {
 	public static final DeferredHolder<SoundEvent, SoundEvent> SNAKE_KING_POISON_HEAD_RELEASE = register("snake_king.poison_head_release");
 	public static final DeferredHolder<SoundEvent, SoundEvent> SNAKE_KING_SHIELD_BREAK = register("snake_king.shield_break");
 
+	public static final DeferredHolder<SoundEvent, SoundEvent> MUSHROOM_KING_SUMMON =
+			register("mushroom_king.summon");
+	public static final DeferredHolder<SoundEvent, SoundEvent> MUSHROOM_KING_ROAR =
+			register("mushroom_king.roar");
+	public static final DeferredHolder<SoundEvent, SoundEvent> MUSHROOM_KING_WINDUP =
+			register("mushroom_king.windup");
+	public static final DeferredHolder<SoundEvent, SoundEvent> MUSHROOM_KING_STRIKE =
+			register("mushroom_king.strike");
+	public static final DeferredHolder<SoundEvent, SoundEvent> MUSHROOM_KING_ROOT_CADENCE =
+			register("mushroom_king.root_cadence");
+	public static final DeferredHolder<SoundEvent, SoundEvent> MUSHROOM_KING_STEM_HAMMER =
+			register("mushroom_king.stem_hammer");
+	public static final DeferredHolder<SoundEvent, SoundEvent> MUSHROOM_KING_SPORE_NEEDLE =
+			register("mushroom_king.spore_needle");
+	public static final DeferredHolder<SoundEvent, SoundEvent> MUSHROOM_KING_CAP_CLAP =
+			register("mushroom_king.cap_clap");
+	public static final DeferredHolder<SoundEvent, SoundEvent> MUSHROOM_KING_CANOPY_CLOSURE =
+			register("mushroom_king.canopy_closure");
+	public static final DeferredHolder<SoundEvent, SoundEvent> MUSHROOM_KING_SPORE_BREATH =
+			register("mushroom_king.spore_breath");
+	public static final DeferredHolder<SoundEvent, SoundEvent> MUSHROOM_KING_MYCELIAL_SURGE =
+			register("mushroom_king.mycelial_surge");
+	public static final DeferredHolder<SoundEvent, SoundEvent> MUSHROOM_KING_ROOT_CONVERGENCE =
+			register("mushroom_king.root_convergence");
+	public static final DeferredHolder<SoundEvent, SoundEvent> MUSHROOM_KING_PLATE_BREAK =
+			register("mushroom_king.plate_break");
+	public static final DeferredHolder<SoundEvent, SoundEvent> MUSHROOM_KING_STAGGER =
+			register("mushroom_king.stagger");
+	public static final DeferredHolder<SoundEvent, SoundEvent> MUSHROOM_KING_DEATH =
+			register("mushroom_king.death");
+	public static final DeferredHolder<SoundEvent, SoundEvent> MUSHROOM_KING_MUSIC =
+			register("mushroom_king.music");
+	public static final DeferredHolder<SoundEvent, SoundEvent> MUSHROOM_KING_SHIELD_BREAK =
+			register("mushroom_king.shield_break");
+
 	private static DeferredHolder<SoundEvent, SoundEvent> register(String name) {
 		ResourceLocation id = ResourceLocation.fromNamespaceAndPath(VirtualCraft.MODID, name);
 		return REGISTRY.register(name, () -> SoundEvent.createVariableRangeEvent(id));

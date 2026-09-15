@@ -1,0 +1,23 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "b": { "item": "virtual_craft:blue_mushroom" },
+    "g": { "item": "virtual_craft:ghost_nitrifying_parasol" },
+    "h": { "item": "virtual_craft:heartbeat_mushroom" },
+    "n": { "item": "virtual_craft:nitrifying_parasol" },
+    "p": { "item": "virtual_craft:poison_mushroom" },
+    "s": { "item": "virtual_craft:paralysis_mushroom" },
+    "x": { "item": "virtual_craft:advanced_power_cell" },
+    "e": { "item": "virtual_craft:electric_ball" }
+  },
+  "pattern": [
+    "bps",
+    "nxg",
+    "ehe"
+  ],
+  "result": {
+    "count": 1,
+    "id": "virtual_craft:mushroom_king_seal"
+  }
+}

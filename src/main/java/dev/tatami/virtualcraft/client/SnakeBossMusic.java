@@ -28,7 +28,8 @@ final class SnakeBossMusic {
 		VirtualSnakeKing boss = null;
 		double nearestDistance = MUSIC_RANGE * MUSIC_RANGE;
 		for (var entity : minecraft.level.entitiesForRendering()) {
-			if (!(entity instanceof VirtualSnakeKing snake) || !snake.isAlive() || snake.getSummonTicks() > 0) {
+			if (!(entity instanceof VirtualSnakeKing snake) || !snake.isAlive()
+					|| !snake.isCombatActive()) {
 				continue;
 			}
 			double distance = snake.distanceToSqr(minecraft.player);
@@ -66,7 +67,7 @@ final class SnakeBossMusic {
 		private boolean fadingOut;
 
 		private MusicInstance(int bossId) {
-			super(ModSounds.SNAKE_KING_MUSIC.get(), SoundSource.RECORDS, RandomSource.create());
+			super(ModSounds.SNAKE_KING_MUSIC.get(), SoundSource.MUSIC, RandomSource.create());
 			this.bossId = bossId;
 			this.looping = true;
 			this.relative = true;
@@ -93,7 +94,7 @@ final class SnakeBossMusic {
 			Minecraft minecraft = Minecraft.getInstance();
 			boolean validBoss = minecraft.level != null
 					&& minecraft.level.getEntity(bossId) instanceof VirtualSnakeKing snake
-					&& snake.isAlive() && snake.getSummonTicks() == 0
+					&& snake.isAlive() && snake.isCombatActive()
 					&& minecraft.player != null
 					&& snake.distanceToSqr(minecraft.player) <= MUSIC_RANGE * MUSIC_RANGE;
 			if (!validBoss) {

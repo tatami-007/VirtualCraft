@@ -24,6 +24,12 @@ public final class ModParticleTypes {
 	public static final DeferredHolder<ParticleType<?>, SimpleParticleType> SNAKE_POISON_RED = register("snake_poison_red");
 	public static final DeferredHolder<ParticleType<?>, SimpleParticleType> SNAKE_POISON_BLUE = register("snake_poison_blue");
 	public static final DeferredHolder<ParticleType<?>, SimpleParticleType> SNAKE_PARRY_FLASH = register("snake_parry_flash");
+	public static final DeferredHolder<ParticleType<?>, SimpleParticleType> MUSHROOM_SPORE_GLOW =
+			register("mushroom_spore_glow");
+	public static final DeferredHolder<ParticleType<?>, SimpleParticleType> MUSHROOM_ROOT_SHARD =
+			register("mushroom_root_shard");
+	public static final DeferredHolder<ParticleType<?>, SimpleParticleType> MUSHROOM_CAP_FLASH =
+			register("mushroom_cap_flash");
 
 	private static DeferredHolder<ParticleType<?>, SimpleParticleType> register(String name) {
 		return REGISTRY.register(name, () -> new SimpleParticleType(false));

@@ -38,6 +38,7 @@ public final class NetworkMessageRegistry {
 		add(LaserBatchBindPayload.TYPE, LaserBatchBindPayload.STREAM_CODEC, LaserBatchBindPayload::handle);
 		add(MiningSurveyorActionPayload.TYPE, MiningSurveyorActionPayload.STREAM_CODEC, MiningSurveyorActionPayload::handle);
 		add(SyncMiningSurveyorPayload.TYPE, SyncMiningSurveyorPayload.STREAM_CODEC, SyncMiningSurveyorPayload::handle);
+		add(SyncQuantumScanResultPayload.TYPE, SyncQuantumScanResultPayload.STREAM_CODEC, SyncQuantumScanResultPayload::handle);
 	}
 
 	public static <T extends CustomPacketPayload> void add(CustomPacketPayload.Type<T> id, StreamCodec<? extends FriendlyByteBuf, T> reader, IPayloadHandler<T> handler) {

@@ -1,0 +1,9 @@
+{
+  "type": "virtual_craft:quantum_simulation",
+  "program": "deep_ore",
+  "duration_ticks": 1600,
+  "total_energy": 800000,
+  "resonance_cost": 150,
+  "minimum_compute": 2,
+  "base_range_chunks": 4
+}

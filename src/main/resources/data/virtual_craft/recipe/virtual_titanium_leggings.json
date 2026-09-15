@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "combat",
+  "key": {
+    "c": { "item": "virtual_craft:copper_wire" },
+    "e": { "item": "virtual_craft:electric_ingot" },
+    "i": { "item": "virtual_craft:virtual_titanium_ingot" }
+  },
+  "pattern": ["ici", "i i", "e e"],
+  "result": { "count": 1, "id": "virtual_craft:virtual_titanium_leggings" }
+}

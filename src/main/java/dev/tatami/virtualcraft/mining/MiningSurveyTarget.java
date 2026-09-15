@@ -26,7 +26,7 @@ public record MiningSurveyTarget(String key, Component name, ItemStack defaultIc
 			new MiningSurveyTarget("all", Component.translatable("survey.virtual_craft.target.all"), new ItemStack(Blocks.DIAMOND_ORE), List.of(cOre("ores")), vanillaOres()),
 			target("electric_ore", Component.translatable("survey.virtual_craft.target.electric_ore"), new ItemStack(ModBlocks.ELECTRIC_ORE.get()), "electric", List.of(ModBlocks.ELECTRIC_ORE.get(), ModBlocks.DEEPSLATE_ELECTRIC_ORE.get())),
 			target("coal", Component.translatable("survey.virtual_craft.target.coal"), new ItemStack(Blocks.COAL_ORE), "coal", List.of(Blocks.COAL_ORE, Blocks.DEEPSLATE_COAL_ORE)),
-			target("iron", Component.translatable("survey.virtual_craft.target.iron"), new ItemStack(ModBlocks.VIRTUAL_IRON_ORE.get()), "iron", List.of(ModBlocks.VIRTUAL_IRON_ORE.get(), Blocks.IRON_ORE, Blocks.DEEPSLATE_IRON_ORE)),
+			target("iron", Component.translatable("block.virtual_craft.virtual_iron_ore"), new ItemStack(ModBlocks.VIRTUAL_IRON_ORE.get()), "iron", List.of(ModBlocks.VIRTUAL_IRON_ORE.get(), Blocks.IRON_ORE, Blocks.DEEPSLATE_IRON_ORE)),
 			target("copper", Component.translatable("survey.virtual_craft.target.copper"), new ItemStack(Blocks.COPPER_ORE), "copper", List.of(Blocks.COPPER_ORE, Blocks.DEEPSLATE_COPPER_ORE)),
 			target("gold", Component.translatable("block.virtual_craft.virtual_gold_ore"), new ItemStack(ModBlocks.VIRTUAL_GOLD_ORE.get()), "gold", List.of(Blocks.GOLD_ORE, Blocks.DEEPSLATE_GOLD_ORE, Blocks.NETHER_GOLD_ORE)),
 			target("redstone", Component.translatable("survey.virtual_craft.target.redstone"), new ItemStack(Blocks.REDSTONE_ORE), "redstone", List.of(Blocks.REDSTONE_ORE, Blocks.DEEPSLATE_REDSTONE_ORE)),

@@ -1,0 +1,13 @@
+{
+  "entries": [
+    {
+      "enum": "net/minecraft/client/model/HumanoidModel$ArmPose",
+      "name": "VIRTUAL_CRAFT_SWORD_BLOCK",
+      "constructor": "(ZLnet/neoforged/neoforge/client/IArmPoseTransformer;)V",
+      "parameters": {
+        "class": "dev/tatami/virtualcraft/client/VirtualCraftClientEnumParams",
+        "field": "VIRTUAL_SWORD_BLOCK"
+      }
+    }
+  ]
+}

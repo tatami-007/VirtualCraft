@@ -1,0 +1,4 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": { "layer0": "virtual_craft:item/equipment/virtual_silver/virtual_silver_boots" }
+}

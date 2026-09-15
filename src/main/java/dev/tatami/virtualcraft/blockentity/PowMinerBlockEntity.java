@@ -6,6 +6,7 @@ import dev.tatami.virtualcraft.block.PowMinerBlock;
 import dev.tatami.virtualcraft.machine.IConfigurableSidedMachine;
 import dev.tatami.virtualcraft.machine.MachineSideConfig;
 import dev.tatami.virtualcraft.machine.PowMinerOutputRules;
+import dev.tatami.virtualcraft.machine.advanced.AdvancedOverclock;
 import dev.tatami.virtualcraft.machine.SideMode;
 import dev.tatami.virtualcraft.energy.WirelessPowerReceiver;
 import dev.tatami.virtualcraft.menu.PowMinerMenu;
@@ -124,13 +125,15 @@ public class PowMinerBlockEntity extends BlockEntity implements MenuProvider, IC
 			return;
 		}
 
-		int energyCost = ENERGY_PER_TICK * cellMultiplier;
+		boolean overclocked = AdvancedOverclock.active(level, pos);
+		int baseEnergyCost = ENERGY_PER_TICK * cellMultiplier;
+		int energyCost = AdvancedOverclock.energyCost(baseEnergyCost, overclocked);
 		if (blockEntity.energyStorage.getEnergyStored() < energyCost) {
 			return;
 		}
 
 		blockEntity.energyStorage.consumeEnergy(energyCost);
-		blockEntity.progress += cellMultiplier;
+		blockEntity.progress += AdvancedOverclock.progress(cellMultiplier, overclocked, level.getGameTime());
 		blockEntity.setChanged();
 		if (blockEntity.progress >= MAX_PROGRESS) {
 			blockEntity.progress = 0;

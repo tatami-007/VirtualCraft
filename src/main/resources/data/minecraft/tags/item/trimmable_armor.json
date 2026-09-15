@@ -1,0 +1,25 @@
+{
+  "replace": false,
+  "values": [
+    "virtual_craft:virtual_iron_helmet",
+    "virtual_craft:virtual_iron_chestplate",
+    "virtual_craft:virtual_iron_leggings",
+    "virtual_craft:virtual_iron_boots",
+    "virtual_craft:virtual_silver_helmet",
+    "virtual_craft:virtual_silver_chestplate",
+    "virtual_craft:virtual_silver_leggings",
+    "virtual_craft:virtual_silver_boots",
+    "virtual_craft:virtual_titanium_helmet",
+    "virtual_craft:virtual_titanium_chestplate",
+    "virtual_craft:virtual_titanium_leggings",
+    "virtual_craft:virtual_titanium_boots",
+    "virtual_craft:virtual_chromium_helmet",
+    "virtual_craft:virtual_chromium_chestplate",
+    "virtual_craft:virtual_chromium_leggings",
+    "virtual_craft:virtual_chromium_boots",
+    "virtual_craft:virtual_snake_king_helmet",
+    "virtual_craft:virtual_snake_king_chestplate",
+    "virtual_craft:virtual_snake_king_leggings",
+    "virtual_craft:virtual_snake_king_boots"
+  ]
+}

@@ -1,8 +1,8 @@
 {
   "textures": [
-    "virtual_craft:snake/snake_poison_red_0",
-    "virtual_craft:snake/snake_poison_red_1",
-    "virtual_craft:snake/snake_poison_red_2",
-    "virtual_craft:snake/snake_poison_red_3"
+    "virtual_craft:snake_king/snake_poison_red_0",
+    "virtual_craft:snake_king/snake_poison_red_1",
+    "virtual_craft:snake_king/snake_poison_red_2",
+    "virtual_craft:snake_king/snake_poison_red_3"
   ]
 }

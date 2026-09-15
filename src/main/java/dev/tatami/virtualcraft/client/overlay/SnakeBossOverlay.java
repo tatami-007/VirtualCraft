@@ -2,7 +2,13 @@ package dev.tatami.virtualcraft.client.overlay;
 
 import dev.tatami.virtualcraft.VirtualCraft;
 import dev.tatami.virtualcraft.boss.BossAttackDirection;
+import dev.tatami.virtualcraft.boss.BossPostureRules;
+import dev.tatami.virtualcraft.boss.SnakeDashRules;
+import dev.tatami.virtualcraft.boss.SnakeHuntPattern;
+import dev.tatami.virtualcraft.boss.SnakeKingAttackRules;
+import dev.tatami.virtualcraft.client.SnakeBossCombatFeedback;
 import dev.tatami.virtualcraft.entity.VirtualSnakeKing;
+import dev.tatami.virtualcraft.network.SnakeCombatFeedbackPayload;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -85,12 +91,21 @@ public final class SnakeBossOverlay {
 	private static void drawPosture(GuiGraphics graphics, int x, int y, VirtualSnakeKing snake) {
 		int posture = snake.getPosture();
 		int pulse = Minecraft.getInstance().player == null ? 0 : Minecraft.getInstance().player.tickCount;
+		boolean parryFlash = SnakeBossCombatFeedback.feedbackKind() == SnakeCombatFeedbackPayload.PARRY
+				&& SnakeBossCombatFeedback.flashIntensity() > 0.0F;
 		graphics.fill(x - 2, y + 2, x + BAR_WIDTH + 2, y + 5, 0xD906070A);
-		for (int segment = 0; segment < 5; segment++) {
-			int sx = x + segment * 43;
-			int width = 40;
-			float fill = Math.max(0.0F, Math.min(1.0F, (posture - segment * 20) / 20.0F));
-			drawPostureSegment(graphics, sx, y, width, fill, snake.isStaggered(), pulse);
+		int gap = 3;
+		int usableWidth = BAR_WIDTH - gap * (BossPostureRules.SNAKE_SEGMENT_COUNT - 1);
+		int baseWidth = usableWidth / BossPostureRules.SNAKE_SEGMENT_COUNT;
+		int remainder = usableWidth % BossPostureRules.SNAKE_SEGMENT_COUNT;
+		int sx = x;
+		for (int segment = 0; segment < BossPostureRules.SNAKE_SEGMENT_COUNT; segment++) {
+			int width = baseWidth + (segment < remainder ? 1 : 0);
+			float fill = Math.max(0.0F, Math.min(1.0F,
+					(posture - segment * BossPostureRules.SEGMENT_SIZE)
+							/ (float)BossPostureRules.SEGMENT_SIZE));
+			drawPostureSegment(graphics, sx, y, width, fill, snake.isStaggered(), parryFlash, pulse);
+			sx += width + gap;
 		}
 		int breakAge = 80 - snake.getStaggerTicks();
 		if (breakAge >= 0 && breakAge < 12) {
@@ -99,9 +114,11 @@ public final class SnakeBossOverlay {
 	}
 
 	private static void drawPostureSegment(GuiGraphics graphics, int x, int y, int width,
-			float fill, boolean staggered, int pulse) {
-		int rim = staggered && (pulse & 2) == 0 ? 0xFF9B7A38 : 0xFF665126;
-		int empty = staggered && (pulse & 2) == 0 ? 0xFF44334F : 0xFF1B1721;
+			float fill, boolean staggered, boolean parryFlash, int pulse) {
+		int rim = parryFlash ? 0xFFFFFFFF
+				: staggered && (pulse & 2) == 0 ? 0xFF9B7A38 : 0xFF665126;
+		int empty = parryFlash ? 0xFF756F5B
+				: staggered && (pulse & 2) == 0 ? 0xFF44334F : 0xFF1B1721;
 
 		graphics.fill(x + 3, y, x + width - 3, y + 1, 0xFF07080B);
 		graphics.fill(x + 1, y + 1, x + width - 1, y + 2, 0xFF07080B);
@@ -154,26 +171,34 @@ public final class SnakeBossOverlay {
 		return switch (direction) {
 			case HIGH -> pulse == 0 ? 0xFFBDEEFF : 0xFF3FA9FF;
 			case MID -> pulse == 0 ? 0xFFFFFFFF : 0xFFDDE8F1;
-			case LOW -> pulse == 0 ? 0xFFFFB09C : 0xFFFF4938;
+			case LOW -> pulse == 0 ? 0xFFFFE4A0 : 0xFFFFB12B;
 		};
 	}
 
 	private static float attackCharge(VirtualSnakeKing snake, int attack, int tick) {
+		if (attack == VirtualSnakeKing.ATTACK_DOUBLE_HUNT) {
+			if (SnakeHuntPattern.isComboOpening(tick)) {
+				return Math.min(1.0F, tick / (float)SnakeHuntPattern.COMBO_OPENING_TICKS);
+			}
+			int local = Math.max(0, snake.getComboLocalTick());
+			int hitTick = snake.isComboTailStage()
+					? SnakeHuntPattern.TAIL_HIT_TICK : SnakeHuntPattern.COMBO_BITE_HIT_TICK;
+			return Math.min(1.0F, local / (float)hitTick);
+		}
 		int windup = switch (attack) {
-			case VirtualSnakeKing.ATTACK_DOUBLE_HUNT -> 20;
-			case VirtualSnakeKing.ATTACK_DATA_FANGS -> 20;
-			case VirtualSnakeKing.ATTACK_RUNE_SIGIL -> 20;
-			case VirtualSnakeKing.ATTACK_VOID_DASH -> tick < 30 ? 16 : 41;
+			case VirtualSnakeKing.ATTACK_DATA_FANGS -> SnakeKingAttackRules.HIGH_POISON_HIT_TICK;
+			case VirtualSnakeKing.ATTACK_RUNE_SIGIL -> SnakeKingAttackRules.GROUND_POISON_HIT_TICK;
+			case VirtualSnakeKing.ATTACK_CROWN_CHAIN -> SnakeKingAttackRules.CROWN_CHAIN_HIT_TICK;
+			case VirtualSnakeKing.ATTACK_VOID_DASH -> tick < (SnakeDashRules.FIRST_START
+					+ SnakeDashRules.SECOND_START) / 2
+					? SnakeDashRules.FIRST_START : SnakeDashRules.SECOND_START;
 			case VirtualSnakeKing.ATTACK_CROWN_JUDGMENT -> 62;
-			case VirtualSnakeKing.ATTACK_OVERHEAD_FANG -> 22;
+			case VirtualSnakeKing.ATTACK_OVERHEAD_FANG -> SnakeKingAttackRules.OVERHEAD_HIT_TICK;
 			default -> 1;
 		};
-		int start = attack == VirtualSnakeKing.ATTACK_DOUBLE_HUNT
-				? tick - Math.floorMod(tick, 20)
-				: attack == VirtualSnakeKing.ATTACK_VOID_DASH && tick >= 30 ? 25 : 0;
-		if (attack == VirtualSnakeKing.ATTACK_DOUBLE_HUNT) {
-			windup = start + (snake.isComboTailStage() ? 19 : 11);
-		}
+		int start = attack == VirtualSnakeKing.ATTACK_VOID_DASH
+						&& tick >= (SnakeDashRules.FIRST_START + SnakeDashRules.SECOND_START) / 2
+						? SnakeDashRules.FIRST_START + SnakeDashRules.ACTIVE_TICKS : 0;
 		return Math.min(1.0F, Math.max(0.0F, (tick - start) / (float)Math.max(1, windup - start)));
 	}
 
@@ -186,10 +211,17 @@ public final class SnakeBossOverlay {
 				graphics.fill(cx - 3, cy - 3, cx + 4, cy - 1, color);
 			}
 			case MID -> {
-				graphics.fill(cx - 5, cy - 3, cx - 2, cy + 1, color);
-				graphics.fill(cx + 2, cy - 3, cx + 5, cy + 1, color);
-				graphics.fill(cx - 3, cy, cx, cy + 4, color);
-				graphics.fill(cx + 1, cy, cx + 4, cy + 4, color);
+				int inset = 0xE0080B11;
+				graphics.fill(cx - 5, cy - 4, cx + 6, cy - 2, color);
+				graphics.fill(cx - 5, cy - 2, cx - 3, cy + 1, color);
+				graphics.fill(cx + 4, cy - 2, cx + 6, cy + 1, color);
+				graphics.fill(cx - 4, cy + 1, cx - 2, cy + 3, color);
+				graphics.fill(cx + 3, cy + 1, cx + 5, cy + 3, color);
+				graphics.fill(cx - 2, cy + 3, cx + 3, cy + 5, color);
+				graphics.fill(cx - 3, cy - 2, cx + 4, cy + 2, inset);
+				graphics.fill(cx - 2, cy + 2, cx + 3, cy + 3, inset);
+				graphics.fill(cx - 1, cy - 2, cx + 2, cy + 3, color);
+				graphics.fill(cx - 3, cy, cx + 4, cy + 1, color);
 			}
 			case LOW -> {
 				graphics.fill(cx - 6, cy + 2, cx + 7, cy + 4, color);

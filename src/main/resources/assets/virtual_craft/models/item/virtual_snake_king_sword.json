@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/handheld",
+  "textures": {
+    "layer0": "virtual_craft:item/equipment/virtual_snake_king/virtual_snake_king_sword"
+  }
+}
