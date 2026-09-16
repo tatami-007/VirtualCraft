@@ -8,7 +8,12 @@ run/
 
 # --- Local reference / generated helper folders ---
 net/
-tools/
+tools/*
+!tools/python/
+tools/python/*
+!tools/python/boss_structure_compiler.py
+!tools/python/ruin_materials.py
+!tools/python/RUINS.md
 
 # --- IDE / Editor ---
 .classpath

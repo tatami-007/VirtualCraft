@@ -46,6 +46,11 @@ public final class BossRuinStructure extends Structure {
 		int centerZ = chunk.getMiddleBlockZ();
 		int surfaceY = context.chunkGenerator().getBaseHeight(centerX, centerZ,
 				Heightmap.Types.WORLD_SURFACE_WG, context.heightAccessor(), context.randomState());
+		// The monumental roofs must fit entirely inside this dimension's height.
+		if (surfaceY - 3 < context.heightAccessor().getMinBuildHeight()
+				|| surfaceY - 3 + kind.height() > context.heightAccessor().getMaxBuildHeight()) {
+			return Optional.empty();
+		}
 		BlockPos anchor = new BlockPos(centerX, surfaceY, centerZ);
 		return Optional.of(new GenerationStub(anchor, builder -> {
 			int x = centerX - kind.width() / 2;
@@ -62,8 +67,8 @@ public final class BossRuinStructure extends Structure {
 	}
 
 	public enum Kind {
-		SNAKE(80, 96, 30),
-		MUSHROOM(88, 88, 32);
+		SNAKE(160, 160, 72),
+		MUSHROOM(176, 176, 96);
 
 		private final int width;
 		private final int depth;
