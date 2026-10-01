@@ -44,8 +44,21 @@ public final class BossRuinStructure extends Structure {
 		ChunkPos chunk = context.chunkPos();
 		int centerX = chunk.getMiddleBlockX();
 		int centerZ = chunk.getMiddleBlockZ();
-		int surfaceY = context.chunkGenerator().getBaseHeight(centerX, centerZ,
-				Heightmap.Types.WORLD_SURFACE_WG, context.heightAccessor(), context.randomState());
+		// Sample the footprint, not just the centre: a large ruin should not
+		// straddle a cliff, lake or valley with a floating circular foundation.
+		int[] heights = new int[25];
+		int index = 0;
+		for (int gx = -2; gx <= 2; gx++) {
+			for (int gz = -2; gz <= 2; gz++) {
+				heights[index++] = context.chunkGenerator().getBaseHeight(
+						centerX + gx * (kind.width() / 4 - 2),
+						centerZ + gz * (kind.depth() / 4 - 2),
+						Heightmap.Types.WORLD_SURFACE_WG, context.heightAccessor(), context.randomState());
+			}
+		}
+		var selectedHeight = BossRuinTerrainRules.floorHeight(heights, context.chunkGenerator().getSeaLevel());
+		if (selectedHeight.isEmpty()) return Optional.empty();
+		int surfaceY = selectedHeight.getAsInt();
 		// The monumental roofs must fit entirely inside this dimension's height.
 		if (surfaceY - 3 < context.heightAccessor().getMinBuildHeight()
 				|| surfaceY - 3 + kind.height() > context.heightAccessor().getMaxBuildHeight()) {

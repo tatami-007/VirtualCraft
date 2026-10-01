@@ -8,7 +8,6 @@ import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
-import dev.tatami.virtualcraft.VirtualCraft;
 import dev.tatami.virtualcraft.boss.BossAttackDirection;
 import dev.tatami.virtualcraft.boss.MushroomAttackVolume;
 import dev.tatami.virtualcraft.boss.MushroomComboPattern;
@@ -16,27 +15,31 @@ import dev.tatami.virtualcraft.boss.MushroomKingAttackRules;
 import dev.tatami.virtualcraft.entity.VirtualMushroomKing;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 
 /** Particle-independent, depth-tested attack ranges for all Mushroom King attacks. */
 public final class MushroomAttackTelegraphRenderer {
-	private static final ResourceLocation TELEGRAPH_TEXTURE = ResourceLocation.fromNamespaceAndPath(
-			VirtualCraft.MODID, "textures/effect/mushroom_telegraph.png");
-	private static final int DARK = 0x081018;
-	private static final int MID = 0x6F9995;
-	private static final int HIGH = 0x38BFFF;
-	private static final int LOW = 0xFFC247;
-	private static final int MID_CORE = 0xD5EEEA;
-	private static final int HIGH_CORE = 0xDDF8FF;
-	private static final int LOW_CORE = 0xFFF0A8;
-	private static final int MID_ACCENT = 0xB9788A;
-	private static final int CANOPY_ACCENT = 0xC678B6;
-	private static final int SPORE_ACCENT = 0xF09A75;
-	private static final int ROOT_ACCENT = 0x65C7A7;
-	private static final int CONVERGENCE_ACCENT = 0xA66B86;
+	// Direction language is unchanged (mid = pale spore pink, high = sky, low = amber);
+	// the tones are brighter so the additive glow pass has saturated colour to work with.
+	private static final int DARK = 0x24141C;
+	private static final int MID = 0xF3A6C8;
+	private static final int HIGH = MushroomFx.SKY;
+	private static final int LOW = MushroomFx.AMBER;
+	private static final int MID_CORE = 0xFFF1F6;
+	private static final int HIGH_CORE = MushroomFx.SKY_PALE;
+	private static final int LOW_CORE = MushroomFx.AMBER_PALE;
+	private static final int MID_ACCENT = 0xFF6FB5;
+	private static final int CANOPY_ACCENT = 0x8FD8FF;
+	private static final int SPORE_ACCENT = 0xFF7A9C;
+	private static final int ROOT_ACCENT = 0xE3B96A;
+	private static final int CONVERGENCE_ACCENT = MushroomFx.MYCELIUM;
+
+	private static final MushroomFx FX = new MushroomFx();
+	/** Charge (0..1) and animation time of the move currently being drawn. */
+	private static float frameCharge;
+	private static float frameTime;
 
 	private MushroomAttackTelegraphRenderer() {
 	}
@@ -47,6 +50,7 @@ public final class MushroomAttackTelegraphRenderer {
 			return;
 		}
 		Vec3 camera = minecraft.gameRenderer.getMainCamera().getPosition();
+		FX.clear();
 		poseStack.pushPose();
 		poseStack.translate(-camera.x, -camera.y, -camera.z);
 		RenderSystem.enableBlend();
@@ -54,15 +58,14 @@ public final class MushroomAttackTelegraphRenderer {
 		RenderSystem.enableDepthTest();
 		RenderSystem.depthMask(false);
 		RenderSystem.disableCull();
-		RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
-		RenderSystem.setShaderTexture(0, TELEGRAPH_TEXTURE);
+		RenderSystem.setShader(GameRenderer::getPositionColorShader);
 		BufferBuilder buffer = Tesselator.getInstance().begin(VertexFormat.Mode.TRIANGLES,
-				DefaultVertexFormat.POSITION_TEX_COLOR);
+				DefaultVertexFormat.POSITION_COLOR);
 		Matrix4f pose = poseStack.last().pose();
 		boolean wrote = false;
 		for (var entity : minecraft.level.entitiesForRendering()) {
 			if (entity instanceof VirtualMushroomKing boss && boss.isAlive()
-					&& boss.getAttackState() != 0) {
+					&& boss.getAttackState() != 0 && boss.distanceToSqr(camera) < 96*96) {
 				wrote |= renderAttack(buffer, pose, boss);
 			}
 		}
@@ -74,6 +77,7 @@ public final class MushroomAttackTelegraphRenderer {
 				mesh.close();
 			}
 		}
+		FX.flush(pose);
 		RenderSystem.enableCull();
 		RenderSystem.depthMask(true);
 		RenderSystem.disableBlend();
@@ -83,6 +87,7 @@ public final class MushroomAttackTelegraphRenderer {
 	private static boolean renderAttack(BufferBuilder buffer, Matrix4f pose, VirtualMushroomKing boss) {
 		int attack = boss.getAttackState();
 		int tick = boss.getAttackTick();
+		frameTime = boss.tickCount + Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(false);
 		MushroomComboPattern combo = boss.getComboPattern();
 		if (combo != null) {
 			return renderCombo(buffer, pose, boss, combo, tick);
@@ -90,9 +95,10 @@ public final class MushroomAttackTelegraphRenderer {
 		if (tick > MushroomKingAttackRules.activeEndTick(attack) + 2) {
 			return false;
 		}
-		Vec3 origin = boss.position();
+		Vec3 origin = boss.getPosition(Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(false));
 		Vec3 forward = forward(boss.getLockedYaw());
 		float charge = charge(tick, MushroomKingAttackRules.warningTicks(attack));
+		frameCharge = charge;
 		return switch (attack) {
 			case MushroomKingAttackRules.ROOT_CADENCE -> {
 				fan(buffer, pose, origin.add(0.0, 0.05, 0.0), forward,
@@ -169,17 +175,10 @@ public final class MushroomAttackTelegraphRenderer {
 					ring == 1 ? LOW_CORE : MID_CORE,
 					ROOT_ACCENT, alpha * reveal);
 		}
-		for (int spoke = 0; spoke < 8; spoke++) {
-			double angle = rotation + Mth.TWO_PI * spoke / 8.0;
-			Vec3 direction = new Vec3(Math.cos(angle), 0.0, Math.sin(angle));
-			Vec3 inner = center.add(direction.scale(2.5));
-			Vec3 outer = center.add(direction.scale(
-					MushroomAttackVolume.CONVERGENCE_ARENA_RADIUS - 1.2));
-			segmentedGroundLine(buffer, pose, inner, outer, 5, 0.075,
-					DARK, (spoke & 1) == 0 ? ROOT_ACCENT : MID_CORE, alpha * 0.76F);
-		}
-		sporeRosetteGround(buffer, pose, center, 2.35, DARK,
-				charge > 0.72F ? LOW_CORE : MID_CORE, alpha * 0.88F);
+		// Keep the arena readable: no spoke wheel, rotating stamp or full-floor bloom.
+		fungalFringe(buffer, pose, center, 5.2, CONVERGENCE_ACCENT, alpha * 0.55F);
+		fungalFringe(buffer, pose, center, MushroomAttackVolume.CONVERGENCE_ARENA_RADIUS,
+				CONVERGENCE_ACCENT, alpha * 0.65F);
 	}
 
 	private static boolean renderCombo(BufferBuilder buffer, Matrix4f pose,
@@ -192,7 +191,8 @@ public final class MushroomAttackTelegraphRenderer {
 		int cue = combo.cueTick(stepIndex);
 		float charge = Mth.clamp((tick - cue)
 				/ (float)Math.max(1, step.impactTick() - cue), 0.0F, 1.0F);
-		Vec3 origin = boss.position();
+		frameCharge = charge;
+		Vec3 origin = boss.getPosition(Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(false));
 		Vec3 forward = forward(boss.getLockedYaw());
 		if (step.direction() == BossAttackDirection.MID) {
 			renderMidMoveTelegraph(buffer, pose, origin.add(0.0, 0.09, 0.0),
@@ -526,6 +526,8 @@ public final class MushroomAttackTelegraphRenderer {
 				0.042, DARK, ROOT_ACCENT, alpha * 0.9F);
 		groundFungalSeal(buffer, pose, crown, forward,
 				Math.min(0.82, halfWidth * 0.5), alpha * 0.8F);
+		FX.groundLane(origin.add(0.0, 0.008, 0.0), forward, length, halfWidth, charge,
+				LOW, alpha * 0.10F * imminence());
 	}
 
 	private static void segmentedGroundLine(BufferBuilder buffer, Matrix4f pose, Vec3 start,
@@ -546,10 +548,13 @@ public final class MushroomAttackTelegraphRenderer {
 		Vec3 rightStart = origin.add(side.scale(-halfWidth));
 		Vec3 leftEnd = end.add(side.scale(halfWidth * 0.72)).add(0.0, 0.28, 0.0);
 		Vec3 rightEnd = end.add(side.scale(-halfWidth * 0.72)).add(0.0, 0.28, 0.0);
-		quad(buffer, pose, leftStart, rightStart, rightEnd, leftEnd,
-				0xFFFFFF, alpha * 0.26F);
-		planeLine(buffer, pose, leftStart, leftEnd, side, 0.13, DARK, HIGH_CORE, alpha);
-		planeLine(buffer, pose, rightStart, rightEnd, side, 0.13, DARK, SPORE_ACCENT, alpha);
+		for (int strand = 0; strand < 5; strand++) {
+			double start = strand / 5.0, finish = start + 0.12;
+			planeLine(buffer, pose, leftStart.lerp(leftEnd, start), leftStart.lerp(leftEnd, finish),
+					side, 0.045, DARK, HIGH, alpha * 0.65F);
+			planeLine(buffer, pose, rightStart.lerp(rightEnd, start), rightStart.lerp(rightEnd, finish),
+					side, 0.035, DARK, SPORE_ACCENT, alpha * 0.55F);
+		}
 		for (int node = 1; node <= 4; node++) {
 			double progress = node / 4.5;
 			Vec3 center = origin.lerp(end, progress).add(0.0,
@@ -563,31 +568,41 @@ public final class MushroomAttackTelegraphRenderer {
 
 	private static void sporeRosetteGround(BufferBuilder buffer, Matrix4f pose, Vec3 center,
 			double radius, int dark, int core, float alpha) {
-		Vec3 previousOuter = center.add(radius, 0.0, 0.0);
-		for (int point = 1; point <= 12; point++) {
-			double angle = Mth.TWO_PI * point / 12.0;
-			Vec3 outer = center.add(Math.cos(angle) * radius, 0.0,
-					Math.sin(angle) * radius);
-			groundLine(buffer, pose, previousOuter, outer, 0.065, dark, core, alpha);
-			if (point % 3 == 0) {
-				Vec3 inner = center.add(Math.cos(angle) * radius * 0.48, 0.0,
-						Math.sin(angle) * radius * 0.48);
-				groundLine(buffer, pose, inner, outer, 0.045, dark, ROOT_ACCENT,
-						alpha * 0.76F);
-			}
-			previousOuter = outer;
+		arcLine(buffer, pose, center, radius, 0.0, Math.PI, 0.075, dark, core, alpha);
+		fungalFringe(buffer, pose, center, radius, core, alpha * 0.55F);
+	}
+
+	/** Static, uneven inward forks suggest mycelium without obscuring the range boundary. */
+	private static void fungalFringe(BufferBuilder buffer, Matrix4f pose, Vec3 center,
+			double radius, int color, float alpha) {
+		int count = Mth.clamp((int)(radius * 2.0), 5, 22);
+		for (int i = 0; i < count; i++) {
+			double angle = i * 2.399963 + Math.sin(i * 1.7) * 0.12;
+			Vec3 radial = new Vec3(Math.cos(angle), 0, Math.sin(angle));
+			Vec3 tangent = new Vec3(-radial.z, 0, radial.x);
+			double reach = Math.min(radius * 0.22, 0.28 + (i % 4) * 0.11);
+			Vec3 edge = center.add(radial.scale(radius - 0.035));
+			Vec3 fork = edge.subtract(radial.scale(reach * 0.55))
+					.add(tangent.scale(Math.sin(i * 2.3) * reach * 0.2));
+			Vec3 tip = edge.subtract(radial.scale(reach)).add(tangent.scale(reach * 0.28));
+			groundLine(buffer, pose, edge, fork, 0.045, DARK, color, alpha);
+			groundLine(buffer, pose, fork, tip, 0.022, DARK, color, alpha * 0.55F);
+			groundLine(buffer, pose, fork, fork.subtract(radial.scale(reach * 0.3))
+					.subtract(tangent.scale(reach * 0.32)), 0.016, DARK, color, alpha * 0.35F);
 		}
 	}
 
 	private static void groundFungalSeal(BufferBuilder buffer, Matrix4f pose, Vec3 center,
 			Vec3 forward, double halfSize, float alpha) {
-		Vec3 side = new Vec3(-forward.z, 0.0, forward.x).normalize();
-		Vec3 depth = forward.normalize();
-		Vec3 a = center.add(side.scale(-halfSize)).add(depth.scale(-halfSize));
-		Vec3 b = center.add(side.scale(halfSize)).add(depth.scale(-halfSize));
-		Vec3 c = center.add(side.scale(halfSize)).add(depth.scale(halfSize));
-		Vec3 d = center.add(side.scale(-halfSize)).add(depth.scale(halfSize));
-		quad(buffer, pose, a, b, c, d, 0xFFFFFF, alpha);
+		// A sparse organic fork, not a repeated square stamp of the entire effect atlas.
+		Vec3 side=new Vec3(-forward.z,0,forward.x);
+		Vec3 root=center.subtract(forward.scale(halfSize*.65));
+		Vec3 fork=center.add(forward.scale(halfSize*.16));
+		groundLine(buffer,pose,root,fork,.032,DARK,ROOT_ACCENT,alpha*.55F);
+		for(int sign:new int[]{-1,1}) {
+			Vec3 tip=center.add(forward.scale(halfSize*.7)).add(side.scale(sign*halfSize*.5));
+			groundLine(buffer,pose,fork,tip,.022,DARK,MID_CORE,alpha*.6F);
+		}
 	}
 
 	private static void verticalLane(BufferBuilder buffer, Matrix4f pose, Vec3 origin, Vec3 forward,
@@ -599,37 +614,29 @@ public final class MushroomAttackTelegraphRenderer {
 		Vec3 b = origin.add(side.scale(-halfWidth)).add(0.0, bottom, 0.0);
 		Vec3 c = end.add(side.scale(-halfWidth)).add(0.0, top, 0.0);
 		Vec3 d = end.add(side.scale(halfWidth)).add(0.0, top, 0.0);
-		groundLine(buffer, pose, a, d, 0.14, dark, core, alpha);
-		groundLine(buffer, pose, b, c, 0.14, dark, accent, alpha);
-		groundLine(buffer, pose, a.lerp(b, 0.5), d.lerp(c, 0.5),
-				0.055, dark, main, alpha * 0.72F);
-		for (int rung = 1; rung <= 4; rung++) {
-			double progress = rung / 5.0;
-			groundLine(buffer, pose, a.lerp(d, progress), b.lerp(c, progress),
-					0.045, dark, (rung & 1) == 0 ? core : accent, alpha * 0.66F);
+		// Broken needle tracks, not the sides/rungs of a holographic rectangle.
+		for (int strand = 0; strand < 6; strand++) {
+			double t = strand / 6.0;
+			planeLine(buffer, pose, a.lerp(d, t), a.lerp(d, t + 0.08), side,
+					0.035, dark, main, alpha * 0.65F);
+			planeLine(buffer, pose, b.lerp(c, t + 0.025), b.lerp(c, t + 0.1), side,
+					0.03, dark, accent, alpha * 0.55F);
 		}
 	}
 
 	private static void airbornePodMarker(BufferBuilder buffer, Matrix4f pose, Vec3 center,
 			Vec3 forward, double radius, int dark, int main, int core, int accent, float alpha) {
-		Vec3 side = new Vec3(-forward.z, 0.0, forward.x).normalize();
-		Vec3 up = new Vec3(0.0, 1.0, 0.0);
-		double outer = radius;
-		double inner = radius * 0.62;
-		outlineDiamond(buffer, pose, center, side, up, forward, outer,
-				dark, accent, alpha);
-		outlineDiamond(buffer, pose, center, side, up, forward, inner,
-				dark, core, alpha * 0.9F);
-		planeLine(buffer, pose, center.add(side.scale(-inner)), center.add(side.scale(inner)),
-				forward, 0.055, dark, main, alpha * 0.78F);
-		planeLine(buffer, pose, center.add(up.scale(-inner)), center.add(up.scale(inner)),
-				forward, 0.055, dark, SPORE_ACCENT, alpha * 0.78F);
+		Vec3 side=new Vec3(-forward.z,0,forward.x);
+		// One open chevron indicates travel; remove nested diamonds/crosshairs.
+		Vec3 nose=center.add(forward.scale(radius*.55));
+		planeLine(buffer,pose,center.add(side.scale(radius*.45)),nose,new Vec3(0,1,0),.025,dark,core,alpha*.6F);
+		planeLine(buffer,pose,center.subtract(side.scale(radius*.45)),nose,new Vec3(0,1,0),.025,dark,core,alpha*.6F);
 	}
 
 	private static void ringWithGap(BufferBuilder buffer, Matrix4f pose, Vec3 center,
 			double radius, double halfWidth, double gapAngle, double gapHalf,
 			int dark, int main, int core, int accent, float alpha) {
-		int segments = 40;
+		int segments = 128;
 		for (int i = 0; i < segments; i++) {
 			double a0 = Mth.TWO_PI * i / segments;
 			double a1 = Mth.TWO_PI * (i + 1) / segments;
@@ -646,13 +653,20 @@ public final class MushroomAttackTelegraphRenderer {
 					Math.sin(a1) * (radius + halfWidth));
 			Vec3 o0 = center.add(Math.cos(a0) * (radius + halfWidth), 0.0,
 					Math.sin(a0) * (radius + halfWidth));
-			quad(buffer, pose, i0, i1, o1, o0, 0xFFFFFF, alpha * 0.26F);
-			groundLine(buffer, pose, o0, o1, 0.10, dark,
-					i % 5 == 0 ? accent : core, alpha);
-			if (i % 5 == 0) {
-				groundLine(buffer, pose, i0, o0, 0.055, dark, main, alpha * 0.78F);
-			}
+			quad(buffer, pose, i0, i1, o1, o0, main, alpha * 0.08F);
+			Vec3 edge0 = center.add(Math.cos(a0) * radius, 0, Math.sin(a0) * radius);
+			Vec3 edge1 = center.add(Math.cos(a1) * radius, 0, Math.sin(a1) * radius);
+			groundLine(buffer, pose, edge0, edge1, 0.075, dark, main, alpha);
 		}
+	}
+
+	/** A steady charge ramp, never a flashing/strobing warning. */
+	private static float imminence() {
+		return 0.6F + 0.4F * MushroomEffectMotion.smooth(frameCharge);
+	}
+
+	private static Vec3 camera() {
+		return Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
 	}
 
 	private static float charge(int tick, int warningTick) {
@@ -685,12 +699,10 @@ public final class MushroomAttackTelegraphRenderer {
 			if (i == 0 || i == segments - 1) {
 				groundLine(buffer, pose, origin, i == 0 ? p0 : p1, 0.14, dark, core, alpha);
 			}
-			if (i % 5 == 0) {
-				groundLine(buffer, pose, origin.lerp(p0, 0.38), p0,
-						0.045, dark, (i & 1) == 0 ? accent : main, alpha * 0.72F);
-			}
 		}
 		ringArc(buffer, pose, origin, radius - 0.28, radius, center, half, dark, main, core, alpha);
+		FX.groundSector(origin.add(0.0, 0.01, 0.0), 0.6, radius, center, half, frameCharge,
+				main, alpha * 0.12F * imminence());
 	}
 
 	private static double degreesToRadians(double degrees) {
@@ -736,24 +748,22 @@ public final class MushroomAttackTelegraphRenderer {
 			int dark, int main, int core, int accent, float alpha) {
 		double center = Math.atan2(forward.z, forward.x);
 		double half = Math.toRadians(degrees * 0.5);
-		int segments = 32;
-		for (int i = 0; i < segments; i++) {
-			double a0 = center - half + half * 2.0 * i / segments;
-			double a1 = center - half + half * 2.0 * (i + 1) / segments;
-			Vec3 p0 = origin.add(Math.cos(a0) * radius, bottom, Math.sin(a0) * radius);
-			Vec3 p1 = origin.add(Math.cos(a1) * radius, bottom, Math.sin(a1) * radius);
-			Vec3 p2 = origin.add(Math.cos(a1) * radius, top, Math.sin(a1) * radius);
-			Vec3 p3 = origin.add(Math.cos(a0) * radius, top, Math.sin(a0) * radius);
-			quad(buffer, pose, p0, p1, p2, p3, 0xFFFFFF, alpha * 0.20F);
-			if (i % 4 == 0) {
-				planeLine(buffer, pose, p0, p3, forward, 0.055, dark,
-						(i & 4) == 0 ? accent : main, alpha * 0.78F);
-			}
+		// Hanging, uneven mycelial gills. No wall fill, top rail or upright posts.
+		for (int strand = 0; strand < 9; strand++) {
+			double angle = center - half + half * 2.0 * (strand + 0.35) / 9.0;
+			Vec3 radial = new Vec3(Math.cos(angle), 0, Math.sin(angle));
+			Vec3 tangent = new Vec3(-radial.z, 0, radial.x);
+			double drop = (top - bottom) * (0.16 + (strand % 3) * 0.07 + frameCharge * 0.15);
+			Vec3 head = origin.add(radial.scale(radius)).add(0, top, 0);
+			Vec3 bend = head.add(tangent.scale(Math.sin(strand * 2.1) * 0.13)).add(0, -drop * 0.45, 0);
+			Vec3 tip = head.add(tangent.scale(Math.sin(strand * 2.1) * 0.2)).add(0, -drop, 0);
+			planeLine(buffer, pose, head, bend, radial, 0.035, dark, main, alpha * 0.75F);
+			planeLine(buffer, pose, bend, tip, radial, 0.018, dark, accent, alpha * 0.45F);
+			planeLine(buffer, pose, bend, bend.add(tangent.scale(0.10)).add(0, -drop * 0.24, 0),
+					radial, 0.012, dark, main, alpha * 0.3F);
+			arcLine(buffer, pose, origin.add(0, bottom, 0), radius, angle, half / 32.0,
+					0.035, dark, main, alpha * 0.45F);
 		}
-		arcLine(buffer, pose, origin.add(0.0, bottom, 0.0), radius, center, half,
-				0.15, dark, core, alpha);
-		arcLine(buffer, pose, origin.add(0.0, top, 0.0), radius, center, half,
-				0.11, dark, accent, alpha * 0.92F);
 	}
 
 	private static void ringArc(BufferBuilder buffer, Matrix4f pose, Vec3 center,
@@ -775,7 +785,7 @@ public final class MushroomAttackTelegraphRenderer {
 
 	private static void arcLine(BufferBuilder buffer, Matrix4f pose, Vec3 center, double radius,
 			double angle, double half, double width, int dark, int core, float alpha) {
-		int segments = 48;
+		int segments = Math.max(48, (int)Math.ceil(radius * half * 2.0 / 0.2));
 		Vec3 previous = center.add(Math.cos(angle - half) * radius, 0.0,
 				Math.sin(angle - half) * radius);
 		for (int i = 1; i <= segments; i++) {
@@ -795,8 +805,8 @@ public final class MushroomAttackTelegraphRenderer {
 		int segments = Mth.clamp((int)Math.ceil(axis.length() / 0.9), 1, 18);
 		for (int index = 0; index < segments; index++) {
 			Vec3 start = a.lerp(b, index / (double)segments);
-			Vec3 end = a.lerp(b, Math.min(1.0, (index + 0.95) / segments));
-			groundLineSegment(buffer, pose, start, end, Math.max(0.06, width * 1.22),
+			Vec3 end = a.lerp(b, Math.min(1.0, (index + 1.0) / segments));
+			groundLineSegment(buffer, pose, start, end, Math.max(0.006, width * .35),
 					dark, core, alpha);
 		}
 	}
@@ -808,10 +818,20 @@ public final class MushroomAttackTelegraphRenderer {
 			return;
 		}
 		Vec3 side = new Vec3(-axis.z, 0.0, axis.x).normalize();
-		quadStrip(buffer, pose, a.add(side.scale(width * 2.15)), a.add(side.scale(-width * 2.15)),
-				b.add(side.scale(-width * 2.05)), b.add(side.scale(width * 2.05)), dark, alpha * 0.9F);
-		quadStrip(buffer, pose, a.add(side.scale(width)), a.add(side.scale(-width)),
-				b.add(side.scale(-width)), b.add(side.scale(width)), core, alpha);
+		int color = core == MID_CORE ? MID : core == LOW_CORE ? ROOT_ACCENT
+				: core == HIGH_CORE ? CANOPY_ACCENT : core;
+		float opacity = alpha * (0.65F + 0.2F * imminence());
+		// A coloured filament with feathered edges, not white paint with a black border.
+		for (int sign : new int[] {-1, 1}) {
+			Vec3 edgeA = a.add(side.scale(sign * width * 2.2));
+			Vec3 edgeB = b.add(side.scale(sign * width * 2.2));
+			vertex(buffer, pose, a, color, opacity, 0, 0);
+			vertex(buffer, pose, b, color, opacity, 0, 0);
+			vertex(buffer, pose, edgeB, color, 0, 0, 0);
+			vertex(buffer, pose, a, color, opacity, 0, 0);
+			vertex(buffer, pose, edgeB, color, 0, 0, 0);
+			vertex(buffer, pose, edgeA, color, 0, 0, 0);
+		}
 	}
 
 	private static void outlineDiamond(BufferBuilder buffer, Matrix4f pose, Vec3 center,
@@ -836,8 +856,8 @@ public final class MushroomAttackTelegraphRenderer {
 		int segments = Mth.clamp((int)Math.ceil(axis.length() / 0.78), 1, 18);
 		for (int index = 0; index < segments; index++) {
 			Vec3 start = a.lerp(b, index / (double)segments);
-			Vec3 end = a.lerp(b, (index + 0.82) / segments);
-			planeLineSegment(buffer, pose, start, end, normal, width, dark, core, alpha);
+			Vec3 end = a.lerp(b, (index + 1.0) / segments);
+			planeLineSegment(buffer, pose, start, end, normal, width * .6, dark, core, alpha);
 		}
 	}
 
@@ -848,10 +868,18 @@ public final class MushroomAttackTelegraphRenderer {
 			return;
 		}
 		Vec3 side = perpendicular.normalize();
-		quadStrip(buffer, pose, a.add(side.scale(width * 1.9)), a.add(side.scale(-width * 1.9)),
-				b.add(side.scale(-width * 1.8)), b.add(side.scale(width * 1.8)), dark, alpha * 0.78F);
-		quadStrip(buffer, pose, a.add(side.scale(width)), a.add(side.scale(-width)),
-				b.add(side.scale(-width)), b.add(side.scale(width)), core, alpha);
+		int color = core == HIGH_CORE ? HIGH : core == MID_CORE ? MID
+				: core == LOW_CORE ? ROOT_ACCENT : core;
+		for (int sign = -1; sign <= 1; sign += 2) {
+			Vec3 edgeA = a.add(side.scale(sign * width));
+			Vec3 edgeB = b.add(side.scale(sign * width));
+			vertex(buffer, pose, a, color, alpha * 0.72F, 0, 0);
+			vertex(buffer, pose, b, color, alpha * 0.72F, 0, 0);
+			vertex(buffer, pose, edgeB, color, 0, 0, 0);
+			vertex(buffer, pose, a, color, alpha * 0.72F, 0, 0);
+			vertex(buffer, pose, edgeB, color, 0, 0, 0);
+			vertex(buffer, pose, edgeA, color, 0, 0, 0);
+		}
 	}
 
 	private static void quad(BufferBuilder buffer, Matrix4f pose, Vec3 a, Vec3 b, Vec3 c, Vec3 d,
@@ -880,6 +908,6 @@ public final class MushroomAttackTelegraphRenderer {
 		buffer.addVertex(pose, (float)point.x, (float)point.y, (float)point.z)
 				.setColor((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF,
 						Math.round(visibleAlpha * 255.0F))
-				.setUv(u, v);
+				;
 	}
 }

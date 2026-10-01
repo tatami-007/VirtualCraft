@@ -191,11 +191,14 @@ public final class VirtualCraftClient {
 		event.registerSpriteSet(ModParticleTypes.SNAKE_PARRY_FLASH.get(), sprites ->
 				SnakeParticle.provider(sprites, SnakeParticle.Style.PARRY_FLASH));
 		event.registerSpriteSet(ModParticleTypes.MUSHROOM_SPORE_GLOW.get(), sprites ->
-				SnakeParticle.provider(sprites, SnakeParticle.Style.MUSHROOM_SPORE));
+				dev.tatami.virtualcraft.client.particle.MushroomCombatParticle.provider(
+						dev.tatami.virtualcraft.client.particle.MushroomCombatParticle.Kind.POLLEN, sprites));
 		event.registerSpriteSet(ModParticleTypes.MUSHROOM_ROOT_SHARD.get(), sprites ->
-				SnakeParticle.provider(sprites, SnakeParticle.Style.MUSHROOM_ROOT));
+				dev.tatami.virtualcraft.client.particle.MushroomCombatParticle.provider(
+						dev.tatami.virtualcraft.client.particle.MushroomCombatParticle.Kind.SPLINTER, sprites));
 		event.registerSpriteSet(ModParticleTypes.MUSHROOM_CAP_FLASH.get(), sprites ->
-				SnakeParticle.provider(sprites, SnakeParticle.Style.MUSHROOM_FLASH));
+				dev.tatami.virtualcraft.client.particle.MushroomCombatParticle.provider(
+						dev.tatami.virtualcraft.client.particle.MushroomCombatParticle.Kind.CONTACT, sprites));
 	}
 
 	public static void renderSnakeBossBar(CustomizeGuiOverlayEvent.BossEventProgress event) {

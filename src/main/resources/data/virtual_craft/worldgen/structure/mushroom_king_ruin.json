@@ -4,5 +4,5 @@
   "kind": "mushroom",
   "spawn_overrides": {},
   "step": "surface_structures",
-  "terrain_adaptation": "beard_box"
+  "terrain_adaptation": "beard_thin"
 }

@@ -9,11 +9,14 @@ run/
 # --- Local reference / generated helper folders ---
 net/
 tools/*
+!tools/README_python.md
 !tools/python/
 tools/python/*
 !tools/python/boss_structure_compiler.py
 !tools/python/ruin_materials.py
 !tools/python/RUINS.md
+!tools/python/mushroom_boss_bar_generator.py
+!tools/python/mushroom_audio_generator.py
 
 # --- IDE / Editor ---
 .classpath

@@ -52,6 +52,7 @@ class Structure:
         self.blocks: dict[tuple[int, int, int], str] = {}
         self.markers: list[Marker] = []
         self.interior_cells: set[tuple[int, int, int]] = set()
+        self.walk_targets: list[tuple[int, int, int]] = []
 
     def set(self, x: int, y: int, z: int, block: str) -> None:
         if 0 <= x < self.width and 0 <= y < self.height and 0 <= z < self.depth:
@@ -785,9 +786,25 @@ def disk(s: Structure, cx: int, cz: int, radius: int, y: int, block: str,
 
 def monumental_base(s: Structure, cx: int, cz: int, radius: int, floor: str,
                     foundation: str, trim: str) -> None:
-    for y in range(4):
-        disk(s, cx, cz, radius - y, y, foundation if y < 3 else floor)
-    disk(s, cx, cz, radius - 3, 3, trim, radius - 5)
+    # A chipped, asymmetric footprint with a soil/paving transition, not a
+    # pristine circular display plinth. Foundation support is extended in Java.
+    fungal = foundation == FUNGAL_FOUNDATION
+    soil = 'virtual_craft:mushroom_dirt' if fungal else 'virtual_craft:toxic_dirt'
+    grass = 'virtual_craft:mushroom_grass_block' if fungal else 'virtual_craft:toxic_grass_block'
+    for x in range(cx-radius-3,cx+radius+4):
+        for z in range(cz-radius-3,cz+radius+4):
+            a = math.atan2(z-cz,x-cx)
+            distance = math.hypot(x-cx,z-cz)
+            edge = radius + 2*math.sin(5*a) + math.sin(9*a+0.7)
+            if distance>edge:
+                continue
+            margin=edge-distance
+            top=3 if margin>=3 else max(0,int(margin))
+            for y in range(top+1):
+                block=foundation if y==0 else soil
+                if y==3:
+                    block=floor if margin>9 else (floor if (x*13+z*7)%11<3 else grass)
+                s.set(x,y,z,block)
     # Explicit air is essential: absent template cells do not remove terrain.
     for x in range(cx - radius + 3, cx + radius - 2):
         for z in range(cz - radius + 3, cz + radius - 2):
@@ -882,6 +899,7 @@ def detail_snake(s: Structure) -> None:
     for (x,y,z),state in list(s.blocks.items()):
         if state==SNAKE_BRICK and y>6 and (x*31+y*17+z*43)%97==0:
             s.set(x,y,z,SNAKE_FOUNDATION)
+    snake_galleries(s)
 
 
 def detail_mushroom(s: Structure) -> None:
@@ -922,6 +940,103 @@ def detail_mushroom(s: Structure) -> None:
         for z in range(131,150,4):
             s.fill((x,4,z),(x,6+z%3,z),FUNGAL_FOUNDATION)
         s.fill((x,6,131),(x,6,149),FUNGAL_GILL)
+    fungal_galleries(s)
+
+
+def snake_galleries(s: Structure) -> None:
+    # Two accessible raised galleries flank the arena, with an open arcade
+    # underneath. All staircases are outside the boss's clear combat cylinder.
+    for cx in (29,131):
+        s.fill((cx-7,0,40),(cx+7,3,72),SNAKE_FOUNDATION)
+        s.clear((cx-6,4,41),(cx+6,26,71))
+        for z in (42,53,64):
+            for x in (cx-6,cx+6):
+                s.pillar(x,z,4,15,SNAKE_BRICK,SNAKE_FOUNDATION,1)
+            arch_rib(s,cx,z,9,6,5,SNAKE_FOUNDATION)
+        s.floor(cx-7,40,cx+7,65,16,SNAKE_FLOOR)
+        for x in (cx-7,cx+7):
+            s.fill((x,17,40),(x,18,65),SNAKE_FOUNDATION)
+            for z in (41,49,57,65):
+                s.fill((x,19,z),(x,20,z),SNAKE_CHISELED)
+        # Broad stair rises from z=71 to z=59; hollow tread voids are filled.
+        for step in range(13):
+            z=71-step
+            y=4+step
+            s.fill((cx-2,4,z),(cx+2,y,z),SNAKE_BRICK)
+            s.clear((cx-2,y+1,z),(cx+2,y+4,z))
+        s.walk_targets.append((cx,17,51))
+        # A side passage joins the gallery stair to the nave outside the stepped
+        # arena rim. Do not require a five-block drop over the outer seating.
+        door_x=42 if cx<80 else 118
+        s.floor(min(cx,door_x),71,max(cx,door_x),74,3,SNAKE_FLOOR)
+        s.clear((min(cx,door_x),4,71),(max(cx,door_x),7,74))
+        # Rebuild the first tread after opening the connecting passage.
+        s.floor(cx-2,71,cx+2,71,4,SNAKE_BRICK)
+        s.floor(door_x-1,72,door_x+1,101,3,SNAKE_FLOOR)
+        s.clear((door_x-1,4,72),(door_x+1,7,101))
+        # Recessed shrine on the far end of each gallery.
+        s.fill((cx-5,17,40),(cx+5,25,41),SNAKE_BRICK)
+        s.fill((cx-2,18,41),(cx+2,23,41),SNAKE_LATTICE)
+        arch_rib(s,cx,42,23,4,4,SNAKE_CHISELED)
+        s.hanging_light(cx,43,24,3,SNAKE_LATTICE,SNAKE_LIGHT)
+    # Broken enclosure walls turn the exposed perimeter into a ruin precinct.
+    for cx,cz,length,height in ((16,119,17,9),(124,121,21,12),(10,61,12,8),(137,53,12,11)):
+        s.fill((cx,0,cz),(cx+length,3,cz+2),SNAKE_FOUNDATION)
+        for x in range(cx,cx+length+1):
+            top=height-((x-cx)//3)%4
+            s.fill((x,4,cz),(x,top,cz+1),SNAKE_BRICK)
+            if (x-cx)%6==0:
+                s.fill((x,4,cz-1),(x,top+2,cz+2),SNAKE_FOUNDATION)
+        s.clear((cx+length//2-1,4,cz-1),(cx+length//2+2,7,cz+2))
+    # Carved rear facade: a tall pointed niche and radiating stone ribs.
+    for y in range(12,41):
+        half=max(1,8-(max(0,y-26)//2))
+        z=37-min(6,(y-4)//6)*3//2
+        s.fill((80-half,y,z-1),(80+half,y,z),SNAKE_FOUNDATION)
+        s.set(80-half,y,z+1,SNAKE_CHISELED)
+        s.set(80+half,y,z+1,SNAKE_CHISELED)
+    for sign in (-1,1):
+        points=[(80+sign*round(7*math.sin(t/10)),12+t,36-t//4) for t in range(27)]
+        stone_tube(s,points,1,SNAKE_CHISELED)
+
+
+def fungal_galleries(s: Structure) -> None:
+    # Two stepped root galleries overlook the court; their decks are reachable
+    # on foot, unlike decorative canopy bridges with no entrance.
+    for cx in (48,128):
+        s.fill((cx-5,0,102),(cx+5,3,130),FUNGAL_FOUNDATION)
+        s.clear((cx-4,4,102),(cx+4,24,130))
+        s.floor(cx-5,102,cx+5,117,15,FUNGAL_BRICK)
+        for z in (104,115):
+            for x in (cx-4,cx+4):
+                stone_tube(s,[(x,4+t,z) for t in range(12)],1,FUNGAL_GILL)
+        for step in range(12):
+            z=129-step
+            y=4+step
+            s.fill((cx-2,4,z),(cx+2,y,z),FUNGAL_FOUNDATION)
+            s.clear((cx-2,y+1,z),(cx+2,y+4,z))
+        for x in (cx-5,cx+5):
+            s.fill((x,16,102),(x,16,117),FUNGAL_GILL)
+            for z in (102,107,112,117):
+                s.set(x,17,z,FUNGAL_CHISELED)
+        s.walk_targets.append((cx,16,109))
+        s.cap_roof(cx,107,8,7,23,5,FUNGAL_CAP,FUNGAL_GILL)
+        for x in (cx-4,cx+4):
+            s.fill((x,16,104),(x,23,104),FUNGAL_GILL)
+    # Offset cap shelves break the smooth dome silhouette while following its
+    # surface. They are rooted in the existing canopy, not floating mushrooms.
+    for index in range(11):
+        a=math.tau*index/11
+        r=53
+        x,z=round(88+r*math.cos(a)),round(72+r*math.sin(a))
+        s.cap_roof(x,z,8+index%3,6+index%2,64+index%4,4,FUNGAL_CAP,FUNGAL_GILL)
+    # Long tapered gill teeth are mostly overhead, well clear of the arena.
+    for index in range(36):
+        a=math.tau*index/36
+        x,z=round(88+58*math.cos(a)),round(72+56*math.sin(a))
+        length=5+index%6
+        for t in range(length):
+            stone_tube(s,[(x,55-t,z)],2 if t<length//2 else 1,FUNGAL_GILL)
 
 
 def build_snake_temple() -> Structure:
@@ -1171,6 +1286,10 @@ def write_structure_nbt(structure: Structure, output: Path) -> None:
 
 
 COLORS = {
+    'virtual_craft:toxic_dirt': (35,58,53),
+    'virtual_craft:toxic_grass_block': (36,90,75),
+    'virtual_craft:mushroom_dirt': (80,47,66),
+    'virtual_craft:mushroom_grass_block': (110,54,81),
     SNAKE_FOUNDATION: (44, 35, 51),
     SNAKE_BRICK: (76, 42, 70),
     SNAKE_CHISELED: (54, 118, 111),
@@ -1400,6 +1519,32 @@ def validate_monument(s: Structure) -> None:
         assert any(p in seen for p in ((x+1,z),(x-1,z),(x,z+1),(x,z-1))), (x,y,z)
         assert s.blocks.get((x,y+1,z)) == AIR
     assert len({m.pos for m in s.markers}) == len(s.markers)
+    # Walk up/down one-block treads with two blocks of headroom. Validate the
+    # authored overlooks, not just a flat flood-fill underneath their decks.
+    def standable(x: int, y: int, z: int) -> bool:
+        return (0 <= x < s.width and 0 <= z < s.depth and 1 <= y < s.height-1
+                and s.blocks.get((x,y-1,z),AIR) != AIR
+                and s.blocks.get((x,y,z)) == AIR
+                and s.blocks.get((x,y+1,z)) == AIR)
+    reached={(cx,4,s.depth-5)}
+    queue=deque(reached)
+    while queue:
+        x,y,z=queue.popleft()
+        for dx,dz in ((1,0),(-1,0),(0,1),(0,-1)):
+            for dy in (0,1,-1):
+                p=(x+dx,y+dy,z+dz)
+                if p in reached or not standable(*p):
+                    continue
+                if dy==1 and s.blocks.get((x,y+2,z),AIR)!=AIR:
+                    continue
+                if dy==-1 and s.blocks.get((x+dx,y+1,z+dz),AIR)!=AIR:
+                    continue
+                reached.add(p)
+                queue.append(p)
+    for target in s.walk_targets:
+        assert target in reached, (f'Unreachable gallery: {target}; '
+            f'nearby reachable: {sorted(p for p in reached if p[0]==target[0] and 50<p[2]<75)}')
+    print(f"  verified {len(s.walk_targets)} elevated gallery destinations")
     print(f"  verified battle clearance and {len(seen)} connected walkable cells")
 
 
@@ -1407,7 +1552,10 @@ def compile_all() -> None:
     # Palette previews reflect the actual material PNGs, not obsolete hardcoded
     # purple/gold stand-ins. Pixel detail is separately shown on the tiling sheet.
     for state in COLORS:
-        path = ROOT / 'src/main/resources/assets/virtual_craft/textures/block' / (state.split(':')[-1]+'.png')
+        texture_name=state.split(':')[-1]
+        if texture_name.endswith('grass_block'):
+            texture_name += '_top'
+        path = ROOT / 'src/main/resources/assets/virtual_craft/textures/block' / (texture_name+'.png')
         if path.exists():
             with Image.open(path) as texture:
                 COLORS[state] = tuple(round(v) for v in ImageStat.Stat(texture.convert('RGB')).mean)
@@ -1417,6 +1565,9 @@ def compile_all() -> None:
         render_isometric(structure, PREVIEW_DIR / f"{structure.name}_isometric.png")
         render_floor_plan(structure, PREVIEW_DIR / f"{structure.name}_floor.png")
         render_elevations(structure, PREVIEW_DIR / f"{structure.name}_elevations.png")
+        cutaway = Structure(structure.name, (structure.width,24,structure.depth))
+        cutaway.blocks = {pos: state for pos,state in structure.blocks.items() if pos[1]<24}
+        render_isometric(cutaway, PREVIEW_DIR / f"{structure.name}_cutaway.png")
         print(
             f"{structure.name}: {len(structure.blocks)} blocks, "
             f"{len(structure.markers)} markers, {structure.width}x{structure.height}x{structure.depth}"

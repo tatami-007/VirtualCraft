@@ -33,7 +33,18 @@ public final class MushroomRootWaveEntity extends Entity {
 
 	public float visualScale(float partialTick) {
 		float progress = Math.min(1.0F, (tickCount + partialTick) / Math.max(1.0F, getLifetime()));
-		return getScale() * (float)Math.sin(Math.PI * Math.min(1.0F, progress * 1.2F));
+		return getScale() * smooth(progress / 0.18F)
+				* (1.0F - smooth((progress - 0.65F) / 0.35F));
+	}
+
+	/** The planted footprint stays fixed; only height grows and retracts. */
+	public float visualFootprintScale() {
+		return getScale();
+	}
+
+	private static float smooth(float value) {
+		float t = Math.max(0.0F, Math.min(1.0F, value));
+		return t * t * (3.0F - 2.0F * t);
 	}
 
 	public float visualAlpha(float partialTick) {

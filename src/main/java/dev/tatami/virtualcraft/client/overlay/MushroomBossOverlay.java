@@ -15,21 +15,19 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.client.event.CustomizeGuiOverlayEvent;
 
-/** Compact fungal crown bar with six posture plates and four embedded armour nodes. */
+/** Fungal sovereign frame, integrated chitin armour and a continuous mycelium gauge. */
 public final class MushroomBossOverlay {
 	private static final ResourceLocation ATLAS = ResourceLocation.fromNamespaceAndPath(
 			VirtualCraft.MODID, "textures/gui/boss/mushroom_king_bar.png");
 	private static final int WIDTH = 244;
-	private static final int HEALTH_X = 17;
-	private static final int HEALTH_Y = 9;
-	private static final int HEALTH_WIDTH = 210;
-	private static final int HEALTH_HEIGHT = 6;
-	private static final int ATLAS_HEIGHT = 80;
-	private static final int POSTURE_SEGMENTS = 6;
-	private static final int POSTURE_WIDTH = 32;
-	private static final int POSTURE_GAP = 3;
+	private static final int HEALTH_X = 26;
+	private static final int HEALTH_Y = 22;
+	private static final int HEALTH_WIDTH = 192;
+	private static final int HEALTH_HEIGHT = 8;
+	private static final int ATLAS_HEIGHT = 256;
+	private static final int POSTURE_WIDTH = 174;
 	private static final Map<UUID, Integer> BOSS_ENTITY_IDS = new HashMap<>();
-	private static final Map<UUID, Float> DAMAGE_MEMORY = new HashMap<>();
+	private static final Map<UUID, BossHealthTrail> DAMAGE_MEMORY = new HashMap<>();
 
 	private MushroomBossOverlay() {
 	}
@@ -46,20 +44,20 @@ public final class MushroomBossOverlay {
 			return;
 		}
 		event.setCanceled(true);
-		event.setIncrement(38);
+		event.setIncrement(58);
 		GuiGraphics graphics = event.getGuiGraphics();
 		int x = (graphics.guiWidth() - WIDTH) / 2;
 		int y = event.getY() + 3;
 		float health = event.getBossEvent().getProgress();
-		float memory = DAMAGE_MEMORY.getOrDefault(boss.getUUID(), health);
-		memory = health >= memory ? health : Math.max(health, memory - 0.0035F);
-		DAMAGE_MEMORY.put(boss.getUUID(), memory);
+		long tick = boss.level().getGameTime();
+		float memory = DAMAGE_MEMORY.computeIfAbsent(boss.getUUID(),
+				id -> new BossHealthTrail(health, tick)).update(health, tick);
 
 		drawHealth(graphics, x, y, health, memory);
-		graphics.blit(ATLAS, x, y, 0, 0, WIDTH, 22, 256, ATLAS_HEIGHT);
+		drawPosture(graphics, x, y + 35, boss);
+		graphics.blit(ATLAS, x, y, 0, 0, WIDTH, 42, 256, ATLAS_HEIGHT);
 		drawArmourNodes(graphics, x, y, boss);
-		drawDirection(graphics, x + WIDTH / 2, y + 5, boss);
-		drawPosture(graphics, x, y + 23, boss);
+		drawDirection(graphics, x + WIDTH / 2, y + 2, boss);
 
 		Component name = event.getBossEvent().getName();
 		int nameX = graphics.guiWidth() / 2 - Minecraft.getInstance().font.width(name) / 2;
@@ -70,14 +68,14 @@ public final class MushroomBossOverlay {
 	private static void drawHealth(GuiGraphics graphics, int x, int y, float health, float memory) {
 		int hx = x + HEALTH_X;
 		int hy = y + HEALTH_Y;
-		graphics.blit(ATLAS, hx, hy, 0, 52, HEALTH_WIDTH, HEALTH_HEIGHT, 256, ATLAS_HEIGHT);
+		graphics.blit(ATLAS, hx, hy, 0, 48, HEALTH_WIDTH, HEALTH_HEIGHT, 256, ATLAS_HEIGHT);
 		int memoryWidth = Math.round(HEALTH_WIDTH * memory);
 		if (memoryWidth > 0) {
-			graphics.blit(ATLAS, hx, hy, 0, 60, memoryWidth, HEALTH_HEIGHT, 256, ATLAS_HEIGHT);
+			graphics.blit(ATLAS, hx, hy, 0, 56, memoryWidth, HEALTH_HEIGHT, 256, ATLAS_HEIGHT);
 		}
 		int healthWidth = Math.round(HEALTH_WIDTH * health);
 		if (healthWidth > 0) {
-			graphics.blit(ATLAS, hx, hy, 0, 68, healthWidth, HEALTH_HEIGHT, 256, ATLAS_HEIGHT);
+			graphics.blit(ATLAS, hx, hy, 0, 64, healthWidth, HEALTH_HEIGHT, 256, ATLAS_HEIGHT);
 		}
 	}
 
@@ -87,54 +85,44 @@ public final class MushroomBossOverlay {
 		boolean parryFlash = SnakeBossCombatFeedback.feedbackBossEntityId() == boss.getId()
 				&& SnakeBossCombatFeedback.feedbackKind() == SnakeCombatFeedbackPayload.PARRY
 				&& SnakeBossCombatFeedback.flashIntensity() > 0.0F;
-		int total = POSTURE_SEGMENTS * POSTURE_WIDTH + (POSTURE_SEGMENTS - 1) * POSTURE_GAP;
-		int start = x + (WIDTH - total) / 2;
-		for (int segment = 0; segment < POSTURE_SEGMENTS; segment++) {
-			int sx = start + segment * (POSTURE_WIDTH + POSTURE_GAP);
-			graphics.blit(ATLAS, sx, y, 0, 24, POSTURE_WIDTH, 8, 256, ATLAS_HEIGHT);
-			float local = Math.max(0.0F, Math.min(1.0F,
-					posture * POSTURE_SEGMENTS - segment));
-			if (local <= 0.0F) {
-				continue;
-			}
-			int fillWidth = Math.max(1, Math.round(POSTURE_WIDTH * local));
-			int sourceX = boss.getStaggerTicks() > 0 || parryFlash ? 68 : 34;
-			graphics.blit(ATLAS, sx, y, sourceX, 24, fillWidth, 8, 256, ATLAS_HEIGHT);
-		}
+		int start = x + (WIDTH - POSTURE_WIDTH) / 2;
+		graphics.blit(ATLAS, start, y, 0, 80, POSTURE_WIDTH, 4, 256, ATLAS_HEIGHT);
+		boolean stagger = boss.getStaggerTicks() > 0;
+		int fillWidth = stagger ? POSTURE_WIDTH : Math.round(POSTURE_WIDTH * Math.clamp(posture, 0, 1));
+		boolean flash = parryFlash || (stagger && boss.getStaggerTicks() % 12 < 4);
+		int row = flash ? 104 : stagger || posture >= 0.75F ? 96 : 88;
+		if (fillWidth > 0) graphics.blit(ATLAS, start, y, 0, row, fillWidth, 4, 256, ATLAS_HEIGHT);
 	}
 
 	private static void drawArmourNodes(GuiGraphics graphics, int x, int y,
 			VirtualMushroomKing boss) {
-		drawArmourNode(graphics, x + 2, y + 1, boss.getLeftShoulderArmor(),
-				VirtualMushroomKing.LEFT_SHOULDER_MAX, boss.getBreakingPlate() == 0);
-		drawArmourNode(graphics, x + 15, y + 7, boss.getChestArmor(),
-				VirtualMushroomKing.CHEST_MAX, boss.getBreakingPlate() == 2);
-		drawArmourNode(graphics, x + WIDTH - 27, y + 7, boss.getBackArmor(),
-				VirtualMushroomKing.BACK_MAX, boss.getBreakingPlate() == 3);
-		drawArmourNode(graphics, x + WIDTH - 14, y + 1, boss.getRightShoulderArmor(),
-				VirtualMushroomKing.RIGHT_SHOULDER_MAX, boss.getBreakingPlate() == 1);
+		drawArmourNode(graphics, x + 3, y + 12, boss.getLeftShoulderArmor(),
+				VirtualMushroomKing.LEFT_SHOULDER_MAX, boss.getBreakingPlate() == 0, false);
+		drawArmourNode(graphics, x + 5, y + 26, boss.getChestArmor(),
+				VirtualMushroomKing.CHEST_MAX, boss.getBreakingPlate() == 2, false);
+		drawArmourNode(graphics, x + 219, y + 26, boss.getBackArmor(),
+				VirtualMushroomKing.BACK_MAX, boss.getBreakingPlate() == 3, true);
+		drawArmourNode(graphics, x + 221, y + 12, boss.getRightShoulderArmor(),
+				VirtualMushroomKing.RIGHT_SHOULDER_MAX, boss.getBreakingPlate() == 1, true);
 	}
 
 	private static void drawArmourNode(GuiGraphics graphics, int x, int y, int value, int max,
-			boolean breaking) {
+			boolean breaking, boolean right) {
 		float ratio = value / (float)Math.max(1, max);
 		int state = value <= 0 ? 2 : ratio < 0.35F || breaking ? 1 : 0;
-		graphics.blit(ATLAS, x, y, state * 14, 36, 12, 11, 256, ATLAS_HEIGHT);
+		graphics.blit(ATLAS, x, y, state * 24, right ? 140 : 120, 20, 14, 256, ATLAS_HEIGHT);
 	}
 
 	private static void drawDirection(GuiGraphics graphics, int centerX, int y,
 			VirtualMushroomKing boss) {
-		if (boss.getAttackState() == 0
-				|| MushroomKingAttackRules.isUnavoidableAttack(boss.getAttackState())) {
-			return;
-		}
 		BossAttackDirection direction = boss.getAttackDirection();
-		int sourceX = switch (direction) {
+		int sourceX = boss.getAttackState() == 0
+				|| MushroomKingAttackRules.isUnavoidableAttack(boss.getAttackState()) ? 0 : switch (direction) {
 			case HIGH -> 48;
-			case MID -> 64;
-			case LOW -> 80;
+			case MID -> 96;
+			case LOW -> 144;
 		};
-		graphics.blit(ATLAS, centerX - 7, y - 7, sourceX, 36, 14, 14, 256, ATLAS_HEIGHT);
+		graphics.blit(ATLAS, centerX - 20, y, sourceX, 176, 40, 18, 256, ATLAS_HEIGHT);
 	}
 
 	private static VirtualMushroomKing findMushroomKing(UUID bossEventId, Component name,

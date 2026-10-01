@@ -11,6 +11,12 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.RandomizableContainer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.ServerLevelAccessor;
+import net.minecraft.world.level.WorldGenLevel;
+import net.minecraft.world.level.StructureManager;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.minecraft.world.level.block.state.BlockState;
+import dev.tatami.virtualcraft.registry.ModBlocks;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
@@ -59,6 +65,33 @@ public final class BossRuinPiece extends TemplateStructurePiece {
 		super.addAdditionalSaveData(context, tag);
 		tag.putString("Kind", kind.serializedName());
 		tag.putString("Rot", placeSettings.getRotation().name());
+	}
+
+	@Override
+	public void postProcess(WorldGenLevel level, StructureManager structures,
+			ChunkGenerator generator, RandomSource random, BoundingBox clip,
+			ChunkPos chunk, BlockPos reference) {
+		super.postProcess(level, structures, generator, random, clip, chunk, reference);
+		BlockState foundation = (kind == BossRuinStructure.Kind.SNAKE
+				? ModBlocks.SERPENT_STONE : ModBlocks.FUNGAL_STONE).get().defaultBlockState();
+		int baseY = templatePosition.getY();
+		BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+		// Clip reads and writes to this chunk. No neighbour chunk loads, and
+		// never extend a pier through solid terrain into an underground cave.
+		for (int x = Math.max(clip.minX(), boundingBox.minX()); x <= Math.min(clip.maxX(), boundingBox.maxX()); x++) {
+			for (int z = Math.max(clip.minZ(), boundingBox.minZ()); z <= Math.min(clip.maxZ(), boundingBox.maxZ()); z++) {
+				cursor.set(x, baseY, z);
+				if (!level.getBlockState(cursor).is(foundation.getBlock())) continue;
+				int minimum = Math.max(level.getMinBuildHeight(), baseY - BossRuinTerrainRules.MAX_FOUNDATION_DEPTH);
+				for (int y = baseY - 1; y >= minimum; y--) {
+					cursor.set(x, y, z);
+					if (!clip.isInside(cursor)) break;
+					BlockState old = level.getBlockState(cursor);
+					if (!old.isAir() && old.getFluidState().isEmpty() && !old.canBeReplaced()) break;
+					level.setBlock(cursor, foundation, 2);
+				}
+			}
+		}
 	}
 
 	@Override

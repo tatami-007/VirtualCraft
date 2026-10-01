@@ -76,7 +76,7 @@ public final class SnakeBossCombatFeedback {
 			case SnakeCombatFeedbackPayload.SHIELD_BREAK -> 6;
 			case SnakeCombatFeedbackPayload.POSTURE_BREAK -> 9;
 			case SnakeCombatFeedbackPayload.HIGH_DODGE, SnakeCombatFeedbackPayload.LOW_DODGE -> 4;
-			default -> mushroomBoss ? 8 : 5;
+			default -> mushroomBoss ? 6 : 5;
 		};
 		if (!teachingCue) {
 			shakeTicks = Math.max(shakeTicks, duration);
@@ -161,12 +161,19 @@ public final class SnakeBossCombatFeedback {
 		}
 		float elapsed = shakeDuration - shakeTicks + (float)event.getPartialTick();
 		float fade = shakeTicks / (float)shakeDuration;
-		float impulse = Mth.sin(elapsed * 1.55F) * (float)Math.exp(-elapsed * 0.19F);
+		boolean mushroomImpact = isMushroomBoss(feedbackBossEntityId)
+				&& (feedbackKind == SnakeCombatFeedbackPayload.HIT
+						|| feedbackKind == SnakeCombatFeedbackPayload.SHIELD_BREAK);
+		// Mushroom impacts kick once, then recover quickly instead of a loose vibrating camera.
+		float impulse = mushroomImpact
+				? Mth.cos(elapsed * 1.1F) * (float)Math.exp(-elapsed * 0.55F)
+				: Mth.sin(elapsed * 1.55F) * (float)Math.exp(-elapsed * 0.19F);
 		float rumble = Mth.sin(elapsed * 0.68F + 0.8F) * fade * fade;
-		float strength = shakeStrength * (impulse * 0.82F + rumble * 0.18F);
+		float strength = shakeStrength * (mushroomImpact
+				? impulse * 0.94F + rumble * 0.06F : impulse * 0.82F + rumble * 0.18F);
 		event.setYaw(event.getYaw() + strength * (0.18F + lateralDirection * 0.34F));
 		event.setPitch(event.getPitch() - strength * (0.48F + forwardDirection * 0.3F));
-		event.setRoll(event.getRoll() + strength * lateralDirection * 0.42F);
+		event.setRoll(event.getRoll() + strength * lateralDirection * (mushroomImpact ? 0.18F : 0.42F));
 	}
 
 	public static float flashIntensity() {
