@@ -108,11 +108,10 @@ public final class BossAltarBlock extends Block {
 		}
 		mushroom.moveTo(altarPos.getX() + 0.5D, altarPos.getY() + 1.0D, altarPos.getZ() + 0.5D,
 				player.getYRot() + 180.0F, 0.0F);
-		if (!level.addFreshEntity(mushroom)) {
+		if (!level.noCollision(mushroom, mushroom.getBoundingBox()) || !level.addFreshEntity(mushroom)) {
 			mushroom.discard();
 			return false;
 		}
-		mushroom.beginSummoning(altarPos, player.getUUID());
 		return true;
 	}
 

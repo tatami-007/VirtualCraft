@@ -93,7 +93,6 @@ public class MushroomKingSealItem extends Item {
 		if (!level.addFreshEntity(boss)) {
 			return InteractionResult.FAIL;
 		}
-		boss.beginSummoning(center, player.getUUID());
 		player.getCooldowns().addCooldown(this, 100);
 		if (!player.getAbilities().instabuild) {
 			context.getItemInHand().shrink(1);
@@ -147,9 +146,9 @@ public class MushroomKingSealItem extends Item {
 	}
 
 	private static boolean hasSummonSpace(ServerLevel level, BlockPos center) {
-		for (int y = 1; y <= 6; y++) {
-			for (int x = -2; x <= 2; x++) {
-				for (int z = -2; z <= 2; z++) {
+		for (int y = 1; y <= 7; y++) {
+			for (int x = -3; x <= 3; x++) {
+				for (int z = -3; z <= 3; z++) {
 					var state = level.getBlockState(center.offset(x, y, z));
 					if (!state.isAir() && !state.canBeReplaced()) {
 						return false;

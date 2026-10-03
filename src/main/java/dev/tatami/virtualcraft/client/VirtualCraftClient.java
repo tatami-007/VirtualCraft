@@ -17,8 +17,6 @@ import net.neoforged.neoforge.client.event.RenderGuiLayerEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterParticleProvidersEvent;
 import net.neoforged.neoforge.client.event.CustomizeGuiOverlayEvent;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
-import net.neoforged.neoforge.common.NeoForge;
 
 import dev.tatami.virtualcraft.client.screen.ElectricBallGeneratorScreen;
 import dev.tatami.virtualcraft.client.screen.ElectricCondenserScreen;
@@ -39,10 +37,6 @@ import dev.tatami.virtualcraft.registry.ModItems;
 import dev.tatami.virtualcraft.registry.ModEntityTypes;
 import dev.tatami.virtualcraft.client.render.VirtualSnakeKingRenderer;
 import dev.tatami.virtualcraft.client.render.VirtualMushroomKingRenderer;
-import dev.tatami.virtualcraft.client.render.MushroomAttackTelegraphRenderer;
-import dev.tatami.virtualcraft.client.render.MushroomAttackEffectRenderer;
-import dev.tatami.virtualcraft.client.render.MushroomRootWaveRenderer;
-import dev.tatami.virtualcraft.client.render.MushroomSporeMassRenderer;
 import dev.tatami.virtualcraft.client.render.SnakeFangRenderer;
 import dev.tatami.virtualcraft.client.render.SnakeSpellNodeRenderer;
 import dev.tatami.virtualcraft.client.particle.SnakeParticle;
@@ -50,7 +44,6 @@ import dev.tatami.virtualcraft.registry.ModParticleTypes;
 
 public final class VirtualCraftClient {
 	private static final int VIRTUAL_GRASS_COLOR = 0x82BFFF;
-	private static boolean stoneWorldRenderersRegistered;
 
 	private VirtualCraftClient() {
 	}
@@ -139,7 +132,6 @@ public final class VirtualCraftClient {
 		dev.tatami.virtualcraft.client.screen.holographic.HolographicMarketData.invalidate();
 		HolographicIconCache.invalidate();
 		dev.tatami.virtualcraft.client.highlight.QuantumScanClientState.clear();
-		dev.tatami.virtualcraft.client.overlay.MushroomBossOverlay.clear();
 	}
 
 	public static void onClientTick(ClientTickEvent.Post event) {
@@ -147,7 +139,6 @@ public final class VirtualCraftClient {
 		SnakeKingSummonPreview.tick();
 		SnakeBossCombatFeedback.tick();
 		SnakeBossMusic.tick();
-		MushroomBossMusic.tick();
 	}
 
 	public static void registerEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
@@ -155,18 +146,6 @@ public final class VirtualCraftClient {
 		event.registerEntityRenderer(ModEntityTypes.VIRTUAL_MUSHROOM_KING.get(), VirtualMushroomKingRenderer::new);
 		event.registerEntityRenderer(ModEntityTypes.SNAKE_FANG.get(), SnakeFangRenderer::new);
 		event.registerEntityRenderer(ModEntityTypes.SNAKE_SPELL_NODE.get(), SnakeSpellNodeRenderer::new);
-		event.registerEntityRenderer(ModEntityTypes.MUSHROOM_SPORE_MASS.get(), MushroomSporeMassRenderer::new);
-		event.registerEntityRenderer(ModEntityTypes.MUSHROOM_ROOT_WAVE.get(), MushroomRootWaveRenderer::new);
-		if (!stoneWorldRenderersRegistered) {
-			stoneWorldRenderersRegistered = true;
-			NeoForge.EVENT_BUS.addListener((RenderLevelStageEvent renderEvent) -> {
-				if (renderEvent.getStage() == RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
-					MushroomKingSummonPreview.render(renderEvent.getPoseStack());
-					MushroomAttackTelegraphRenderer.render(renderEvent.getPoseStack());
-					MushroomAttackEffectRenderer.render(renderEvent.getPoseStack());
-				}
-			});
-		}
 	}
 
 	public static void registerParticles(RegisterParticleProvidersEvent event) {
@@ -190,22 +169,11 @@ public final class VirtualCraftClient {
 				SnakeParticle.provider(sprites, SnakeParticle.Style.POISON_BLUE));
 		event.registerSpriteSet(ModParticleTypes.SNAKE_PARRY_FLASH.get(), sprites ->
 				SnakeParticle.provider(sprites, SnakeParticle.Style.PARRY_FLASH));
-		event.registerSpriteSet(ModParticleTypes.MUSHROOM_SPORE_GLOW.get(), sprites ->
-				dev.tatami.virtualcraft.client.particle.MushroomCombatParticle.provider(
-						dev.tatami.virtualcraft.client.particle.MushroomCombatParticle.Kind.POLLEN, sprites));
-		event.registerSpriteSet(ModParticleTypes.MUSHROOM_ROOT_SHARD.get(), sprites ->
-				dev.tatami.virtualcraft.client.particle.MushroomCombatParticle.provider(
-						dev.tatami.virtualcraft.client.particle.MushroomCombatParticle.Kind.SPLINTER, sprites));
-		event.registerSpriteSet(ModParticleTypes.MUSHROOM_CAP_FLASH.get(), sprites ->
-				dev.tatami.virtualcraft.client.particle.MushroomCombatParticle.provider(
-						dev.tatami.virtualcraft.client.particle.MushroomCombatParticle.Kind.CONTACT, sprites));
 	}
 
 	public static void renderSnakeBossBar(CustomizeGuiOverlayEvent.BossEventProgress event) {
 		dev.tatami.virtualcraft.client.overlay.SnakeBossOverlay.render(event);
-		if (!event.isCanceled()) {
-			dev.tatami.virtualcraft.client.overlay.MushroomBossOverlay.render(event);
-		}
+
 	}
 
 	public static void registerBlockColors(RegisterColorHandlersEvent.Block event) {

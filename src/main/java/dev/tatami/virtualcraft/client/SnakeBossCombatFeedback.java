@@ -2,7 +2,6 @@ package dev.tatami.virtualcraft.client;
 
 import dev.tatami.virtualcraft.network.SnakeCombatFeedbackPayload;
 import dev.tatami.virtualcraft.registry.ModSounds;
-import dev.tatami.virtualcraft.entity.VirtualMushroomKing;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.sounds.SoundEvents;
@@ -59,9 +58,8 @@ public final class SnakeBossCombatFeedback {
 
 	public static void accept(int bossEntityId, int kind, float strength) {
 		feedbackBossEntityId = bossEntityId;
-		boolean mushroomBoss = isMushroomBoss(bossEntityId);
 		if (isComboTutorial(kind)) {
-			int tutorialDuration = mushroomBoss ? 120 : 72;
+			int tutorialDuration = 72;
 			comboTutorialTicks = tutorialDuration;
 			comboTutorialDuration = tutorialDuration;
 			comboTutorialKind = kind;
@@ -76,14 +74,12 @@ public final class SnakeBossCombatFeedback {
 			case SnakeCombatFeedbackPayload.SHIELD_BREAK -> 6;
 			case SnakeCombatFeedbackPayload.POSTURE_BREAK -> 9;
 			case SnakeCombatFeedbackPayload.HIGH_DODGE, SnakeCombatFeedbackPayload.LOW_DODGE -> 4;
-			default -> mushroomBoss ? 6 : 5;
+			default -> 5;
 		};
 		if (!teachingCue) {
 			shakeTicks = Math.max(shakeTicks, duration);
 			shakeDuration = Math.max(shakeDuration, duration);
-			float weightedStrength = mushroomBoss && kind == SnakeCombatFeedbackPayload.HIT
-					? strength * 1.28F : strength;
-			shakeStrength = Math.max(shakeStrength, Mth.clamp(weightedStrength, 0.15F, 2.0F));
+			shakeStrength = Math.max(shakeStrength, Mth.clamp(strength, 0.15F, 2.0F));
 		}
 		int flash = switch (kind) {
 			case SnakeCombatFeedbackPayload.PARRY, SnakeCombatFeedbackPayload.WEAPON_PARRY -> 10;
@@ -92,7 +88,7 @@ public final class SnakeBossCombatFeedback {
 			case SnakeCombatFeedbackPayload.SHIELD_BREAK -> 12;
 			case SnakeCombatFeedbackPayload.HIGH_CUE, SnakeCombatFeedbackPayload.MID_CUE,
 					SnakeCombatFeedbackPayload.LOW_CUE -> 26;
-			default -> mushroomBoss ? 5 : 3;
+			default -> 3;
 		};
 		flashTicks = Math.max(flashTicks, flash);
 		flashDuration = Math.max(flashDuration, flash);
@@ -123,32 +119,10 @@ public final class SnakeBossCombatFeedback {
 					ModSounds.SNAKE_KING_LOW_DODGE.get(), 1.0F, 1.2F));
 			return;
 		}
-		if (minecraft.level != null
-				&& minecraft.level.getEntity(bossEntityId) instanceof VirtualMushroomKing) {
-			playStoneFeedbackSound(minecraft, kind);
-			return;
-		}
 		switch (kind) {
 			case SnakeCombatFeedbackPayload.SHIELD_BREAK -> {
 				minecraft.getSoundManager().play(SimpleSoundInstance.forUI(
 						ModSounds.SNAKE_KING_SHIELD_BREAK.get(), 1.0F, 0.86F));
-			}
-			default -> {
-			}
-		}
-	}
-
-	private static void playStoneFeedbackSound(Minecraft minecraft, int kind) {
-		switch (kind) {
-			case SnakeCombatFeedbackPayload.SHIELD_BREAK -> minecraft.getSoundManager().play(
-					SimpleSoundInstance.forUI(ModSounds.MUSHROOM_KING_SHIELD_BREAK.get(), 1.0F, 1.0F));
-			case SnakeCombatFeedbackPayload.POSTURE_BREAK -> minecraft.getSoundManager().play(
-					SimpleSoundInstance.forUI(ModSounds.MUSHROOM_KING_STAGGER.get(), 0.9F, 1.0F));
-			case SnakeCombatFeedbackPayload.HIT -> {
-				minecraft.getSoundManager().play(SimpleSoundInstance.forUI(
-						ModSounds.MUSHROOM_KING_STRIKE.get(), 0.78F, 1.0F));
-				minecraft.getSoundManager().play(SimpleSoundInstance.forUI(
-						ModSounds.MUSHROOM_KING_ROOT_CADENCE.get(), 0.58F, 0.52F));
 			}
 			default -> {
 			}
@@ -161,19 +135,12 @@ public final class SnakeBossCombatFeedback {
 		}
 		float elapsed = shakeDuration - shakeTicks + (float)event.getPartialTick();
 		float fade = shakeTicks / (float)shakeDuration;
-		boolean mushroomImpact = isMushroomBoss(feedbackBossEntityId)
-				&& (feedbackKind == SnakeCombatFeedbackPayload.HIT
-						|| feedbackKind == SnakeCombatFeedbackPayload.SHIELD_BREAK);
-		// Mushroom impacts kick once, then recover quickly instead of a loose vibrating camera.
-		float impulse = mushroomImpact
-				? Mth.cos(elapsed * 1.1F) * (float)Math.exp(-elapsed * 0.55F)
-				: Mth.sin(elapsed * 1.55F) * (float)Math.exp(-elapsed * 0.19F);
+		float impulse = Mth.sin(elapsed * 1.55F) * (float)Math.exp(-elapsed * 0.19F);
 		float rumble = Mth.sin(elapsed * 0.68F + 0.8F) * fade * fade;
-		float strength = shakeStrength * (mushroomImpact
-				? impulse * 0.94F + rumble * 0.06F : impulse * 0.82F + rumble * 0.18F);
+		float strength = shakeStrength * (impulse * 0.82F + rumble * 0.18F);
 		event.setYaw(event.getYaw() + strength * (0.18F + lateralDirection * 0.34F));
 		event.setPitch(event.getPitch() - strength * (0.48F + forwardDirection * 0.3F));
-		event.setRoll(event.getRoll() + strength * lateralDirection * (mushroomImpact ? 0.18F : 0.42F));
+		event.setRoll(event.getRoll() + strength * lateralDirection * 0.42F);
 	}
 
 	public static float flashIntensity() {
@@ -209,17 +176,7 @@ public final class SnakeBossCombatFeedback {
 	private static boolean isComboTutorial(int kind) {
 		return kind == SnakeCombatFeedbackPayload.COMBO_BITE_BITE_BITE_CUE
 				|| kind == SnakeCombatFeedbackPayload.COMBO_BITE_BITE_TAIL_CUE
-				|| kind == SnakeCombatFeedbackPayload.COMBO_BITE_TAIL_BITE_CUE
-				|| kind == SnakeCombatFeedbackPayload.MUSHROOM_ROOT_COMBO_CUE
-				|| kind == SnakeCombatFeedbackPayload.MUSHROOM_HAMMER_CUE
-				|| kind == SnakeCombatFeedbackPayload.MUSHROOM_NEEDLE_COMBO_CUE
-				|| kind == SnakeCombatFeedbackPayload.MUSHROOM_CLAP_CUE;
-	}
-
-	private static boolean isMushroomBoss(int bossEntityId) {
-		Minecraft minecraft = Minecraft.getInstance();
-		return minecraft.level != null
-				&& minecraft.level.getEntity(bossEntityId) instanceof VirtualMushroomKing;
+				|| kind == SnakeCombatFeedbackPayload.COMBO_BITE_TAIL_BITE_CUE;
 	}
 
 	private static void updateImpactDirection(int bossEntityId) {

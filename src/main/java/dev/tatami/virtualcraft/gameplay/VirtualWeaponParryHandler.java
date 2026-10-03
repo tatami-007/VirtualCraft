@@ -5,7 +5,6 @@ import dev.tatami.virtualcraft.boss.BossPostureRules;
 import dev.tatami.virtualcraft.boss.PostureBoss;
 import dev.tatami.virtualcraft.boss.SnakeKingAttackRules;
 import dev.tatami.virtualcraft.entity.VirtualSnakeKing;
-import dev.tatami.virtualcraft.entity.VirtualMushroomKing;
 import dev.tatami.virtualcraft.item.VirtualSwordItem;
 import dev.tatami.virtualcraft.network.SnakeCombatFeedbackPayload;
 import dev.tatami.virtualcraft.registry.ModParticleTypes;
@@ -39,7 +38,6 @@ public final class VirtualWeaponParryHandler {
 				|| event.getSource().getEntity() == null
 				|| event.getSource().getEntity() == player
 				|| event.getSource().getEntity() instanceof VirtualSnakeKing
-				|| event.getSource().getEntity() instanceof VirtualMushroomKing
 				|| !isBlocking(player, event.getSource())) {
 			return;
 		}

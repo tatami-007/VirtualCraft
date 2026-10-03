@@ -38,16 +38,9 @@ Files in `previews/` are *outputs* (regeneratable from `python/preview_tools.py`
 python -m pip install pillow numpy
 ```
 
-Mushroom combat sound authoring additionally needs `soundfile`:
-`python -m pip install soundfile`. Run
-`python tools/python/mushroom_audio_generator.py` for audition WAVs, or add
-`--write` to export mono 44.1kHz Vorbis. Old sound effects are retained under
-`.tmp/mushroom_audio_before_rework_20260920`; music is not changed. The generator
-checks decoded duration, channel count and clipping after export.
-
-Mushroom boss-bar authoring: `python tools/python/mushroom_boss_bar_generator.py
---diff` compares the 256x256 atlas without overwriting it. Run without `--diff`
-to export; four-state previews at native size and 3x zoom appear in `tools/previews/`.
+Mushroom King model authoring now lives in `blockbench/mushroom_king_rework/`.
+See its README for the static runtime geometry, albedo and two-face emissive eye layer.
+Legacy Mushroom King combat, animation, audio and boss-bar generators were removed.
 
 Python 3.10+ recommended. No JDK / gradle / classpath setup required.
 

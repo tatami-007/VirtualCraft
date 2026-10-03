@@ -24,10 +24,6 @@ public record SnakeCombatFeedbackPayload(int bossEntityId, int kind, float stren
 	public static final int COMBO_BITE_BITE_TAIL_CUE = 10;
 	public static final int COMBO_BITE_TAIL_BITE_CUE = 11;
 	public static final int WEAPON_PARRY = 12;
-	public static final int MUSHROOM_ROOT_COMBO_CUE = 13;
-	public static final int MUSHROOM_HAMMER_CUE = 14;
-	public static final int MUSHROOM_NEEDLE_COMBO_CUE = 15;
-	public static final int MUSHROOM_CLAP_CUE = 16;
 
 	public static final Type<SnakeCombatFeedbackPayload> TYPE = new Type<>(
 			ResourceLocation.fromNamespaceAndPath(VirtualCraft.MODID, "snake_combat_feedback"));

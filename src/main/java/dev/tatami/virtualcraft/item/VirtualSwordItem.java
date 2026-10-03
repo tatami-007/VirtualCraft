@@ -2,7 +2,7 @@ package dev.tatami.virtualcraft.item;
 
 import java.util.List;
 
-import dev.tatami.virtualcraft.registry.ModParticleTypes;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
@@ -78,7 +78,7 @@ public final class VirtualSwordItem extends SwordItem {
 			target.addEffect(new MobEffectInstance(MobEffects.POISON, 100, 0), attacker);
 			target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 80, 0), attacker);
 			if (target.level() instanceof ServerLevel serverLevel) {
-				serverLevel.sendParticles(ModParticleTypes.MUSHROOM_SPORE_GLOW.get(),
+				serverLevel.sendParticles(ParticleTypes.SPORE_BLOSSOM_AIR,
 						target.getX(), target.getY() + target.getBbHeight() * 0.62, target.getZ(),
 						8, 0.32, 0.38, 0.32, 0.018);
 			}
