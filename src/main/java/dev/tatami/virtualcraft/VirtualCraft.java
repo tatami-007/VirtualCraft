@@ -33,6 +33,7 @@ import dev.tatami.virtualcraft.exchange.ExchangeRateService;
 import dev.tatami.virtualcraft.gameplay.HolographicTerminalSession;
 import dev.tatami.virtualcraft.gameplay.SnakeKingBlessingHandler;
 import dev.tatami.virtualcraft.gameplay.VirtualWeaponParryHandler;
+import dev.tatami.virtualcraft.gameplay.MushroomDefenseHandler;
 import dev.tatami.virtualcraft.network.CloseHolographicTerminalPayload;
 import dev.tatami.virtualcraft.network.NetworkMessageRegistry;
 import dev.tatami.virtualcraft.energy.WirelessEnergyNetwork;
@@ -124,6 +125,10 @@ public class VirtualCraft {
 		NeoForge.EVENT_BUS.addListener(SnakeKingBlessingHandler::amplifyDamage);
 		NeoForge.EVENT_BUS.addListener(SnakeKingBlessingHandler::onPlayerTick);
 		NeoForge.EVENT_BUS.addListener(VirtualWeaponParryHandler::onIncomingDamage);
+		NeoForge.EVENT_BUS.addListener(MushroomDefenseHandler::onJump);
+		NeoForge.EVENT_BUS.addListener(MushroomDefenseHandler::onKnockback);
+		NeoForge.EVENT_BUS.addListener(MushroomDefenseHandler::onUseStart);
+		NeoForge.EVENT_BUS.addListener(MushroomDefenseHandler::onUseTick);
 
 		ModFluids.TYPES.register(modEventBus);
 		ModFluids.REGISTRY.register(modEventBus);

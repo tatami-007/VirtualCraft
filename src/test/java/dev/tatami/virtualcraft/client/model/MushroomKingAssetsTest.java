@@ -36,8 +36,8 @@ class MushroomKingAssetsTest {
                 maxY = Math.max(maxY, y + cube.getAsJsonArray("size").get(1).getAsDouble());
             }
         }
-        assertEquals(188, cubes);
-        assertEquals(1011, faces);
+        assertEquals(290, cubes);
+        assertEquals(1303, faces);
         assertEquals(0.0, minY, 0.0001);
         assertEquals(103.0, maxY, 0.0001);
         assertEquals(6.4375, maxY / 16.0, 0.0001);
@@ -119,6 +119,119 @@ class MushroomKingAssetsTest {
                 }
             }
         }
+    }
+
+    @Test
+    void everyRenderedFaceUsesSquareTexelsAtTheSameDensity() throws Exception {
+        for (String name : new String[]{"virtual_mushroom_king", "virtual_mushroom_king_eyes"}) {
+            for (var bone : geometry(name).getAsJsonArray("bones")) {
+                for (var element : bone.getAsJsonObject().getAsJsonArray("cubes")) {
+                    JsonObject cube = element.getAsJsonObject();
+                    JsonArray size = cube.getAsJsonArray("size");
+                    for (var entry : cube.getAsJsonObject("uv").entrySet()) {
+                        String side = entry.getKey();
+                        boolean horizontal = side.equals("up") || side.equals("down");
+                        boolean lateral = side.equals("east") || side.equals("west");
+                        double width = size.get(lateral ? 2 : 0).getAsDouble();
+                        double height = size.get(horizontal ? 2 : 1).getAsDouble();
+                        JsonArray uvSize = entry.getValue().getAsJsonObject().getAsJsonArray("uv_size");
+                        assertEquals(width, Math.abs(uvSize.get(0).getAsDouble()), 0.00001,
+                                name + " / " + side + " horizontal texture stretch");
+                        assertEquals(height, Math.abs(uvSize.get(1).getAsDouble()), 0.00001,
+                                name + " / " + side + " vertical texture stretch");
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    void geckoConversionKeepsOuterWallsAndRemovesOnlyInnerSplitWalls() throws Exception {
+        int checked = 0;
+        for (var element : geometry("virtual_mushroom_king").getAsJsonArray("bones")) {
+            JsonObject bone = element.getAsJsonObject();
+            if (!bone.get("name").getAsString().equals("hips")) continue;
+            for (var cubeElement : bone.getAsJsonArray("cubes")) {
+                JsonObject cube = cubeElement.getAsJsonObject();
+                JsonArray size = cube.getAsJsonArray("size");
+                JsonArray origin = cube.getAsJsonArray("origin");
+                // The split pelvis spans native X=-17..7 and 7..17.
+                if (size.get(1).getAsDouble() != 18 || size.get(2).getAsDouble() != 22) continue;
+                double nativeMinX = -origin.get(0).getAsDouble()-size.get(0).getAsDouble();
+                JsonObject faces = cube.getAsJsonObject("uv");
+                if (Math.abs(nativeMinX+17) < 0.00001) {
+                    assertTrue(faces.has("west"), "Missing outer left wall after Gecko conversion");
+                    assertFalse(faces.has("east"), "Internal cut must not replace the exterior wall");
+                    checked++;
+                } else if (Math.abs(nativeMinX-7) < 0.00001) {
+                    assertTrue(faces.has("east"), "Missing outer right wall after Gecko conversion");
+                    assertFalse(faces.has("west"));
+                    checked++;
+                }
+            }
+        }
+        assertEquals(2, checked);
+    }
+
+    @Test
+    void geckoUvEndpointsMatchItsNonMirroredVertexOrder() throws Exception {
+        // GeoQuad.build swaps the U endpoints, while VertexSet keeps face keys.
+        // Our north/east/up/down source projections increase U; south/west
+        // decrease U. The emitted signs must compensate exactly once.
+        for (var bone : geometry("virtual_mushroom_king").getAsJsonArray("bones")) {
+            for (var cube : bone.getAsJsonObject().getAsJsonArray("cubes")) {
+                for (var entry : cube.getAsJsonObject().getAsJsonObject("uv").entrySet()) {
+                    String side = entry.getKey();
+                    JsonArray span = entry.getValue().getAsJsonObject().getAsJsonArray("uv_size");
+                    boolean reverseU = side.equals("south") || side.equals("west");
+                    assertEquals(reverseU, span.get(0).getAsDouble() > 0, side + " U orientation");
+                    assertEquals(!side.equals("up"), span.get(1).getAsDouble() > 0, side + " V orientation");
+                }
+            }
+        }
+    }
+
+    @Test
+    void allFourHangingGillsAreAttachedWithoutChangingTheirDimensions() throws Exception {
+        JsonArray crown = null;
+        for (var element : geometry("virtual_mushroom_king").getAsJsonArray("bones")) {
+            JsonObject bone = element.getAsJsonObject();
+            if (bone.get("name").getAsString().equals("crown_cap")) crown = bone.getAsJsonArray("cubes");
+        }
+        assertNotNull(crown);
+        int count = 0;
+        for (var element : crown) {
+            JsonObject cube = element.getAsJsonObject();
+            JsonArray size = cube.getAsJsonArray("size");
+            JsonArray origin = cube.getAsJsonArray("origin");
+            double h = size.get(1).getAsDouble();
+            if (size.get(0).getAsDouble() != 3 || size.get(2).getAsDouble() != 3
+                    || (h != 6 && h != 8) || origin.get(2).getAsDouble() != -24) continue;
+            count++;
+            double top = origin.get(1).getAsDouble()+h;
+            assertEquals(82.25, top, 0.00001, "Gill tip must penetrate the Y=82 underside");
+            for (int ix : new int[]{0,1}) {
+                for (int iz : new int[]{0,1}) {
+                    double x = origin.get(0).getAsDouble()+3*ix;
+                    double z = origin.get(2).getAsDouble()+3*iz;
+                    boolean supported = false;
+                    for (var supportElement : crown) {
+                        JsonObject support = supportElement.getAsJsonObject();
+                        if (support == cube) continue;
+                        JsonArray p = support.getAsJsonArray("origin");
+                        JsonArray s = support.getAsJsonArray("size");
+                        if (x >= p.get(0).getAsDouble() && x <= p.get(0).getAsDouble()+s.get(0).getAsDouble()
+                                && z >= p.get(2).getAsDouble() && z <= p.get(2).getAsDouble()+s.get(2).getAsDouble()
+                                && top > p.get(1).getAsDouble() && top < p.get(1).getAsDouble()+s.get(1).getAsDouble()) {
+                            supported = true;
+                            break;
+                        }
+                    }
+                    assertTrue(supported, "Each attachment corner must be inside solid cap");
+                }
+            }
+        }
+        assertEquals(4, count);
     }
 
     @Test

@@ -1,4 +1,8 @@
 {
+  "death.attack.virtual_craft.mushroom_strike": "%1$s 被 %2$s 击倒了",
+  "death.attack.virtual_craft.mushroom_strike.player": "%1$s 被 %2$s 击倒了",
+  "death.attack.virtual_craft.mushroom_ultimate": "%1$s 未能承受 %2$s 的菌群共振",
+  "death.attack.virtual_craft.mushroom_ultimate.player": "%1$s 未能承受 %2$s 的菌群共振",
   "block.virtual_craft.electric_ore": "电矿石",
   "block.virtual_craft.deepslate_electric_ore": "深层电矿石",
   "block.virtual_craft.electric_condenser": "电凝聚器",

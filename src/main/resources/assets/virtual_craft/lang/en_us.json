@@ -1,4 +1,8 @@
 {
+  "death.attack.virtual_craft.mushroom_strike": "%1$s was struck down by %2$s",
+  "death.attack.virtual_craft.mushroom_strike.player": "%1$s was struck down by %2$s",
+  "death.attack.virtual_craft.mushroom_ultimate": "%1$s succumbed to %2$s's mycelial resonance",
+  "death.attack.virtual_craft.mushroom_ultimate.player": "%1$s succumbed to %2$s's mycelial resonance",
   "block.virtual_craft.electric_ore": "Electric Ore",
   "block.virtual_craft.deepslate_electric_ore": "Deepslate Electric Ore",
   "block.virtual_craft.electric_condenser": "Electric Condenser",
