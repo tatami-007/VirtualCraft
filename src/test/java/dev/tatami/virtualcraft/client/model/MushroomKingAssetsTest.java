@@ -21,7 +21,7 @@ class MushroomKingAssetsTest {
     @Test
     void staticModelKeepsItsAuthoredScaleAndFaceBudget() throws Exception {
         JsonArray bones = geometry("virtual_mushroom_king").getAsJsonArray("bones");
-        assertEquals(19, bones.size());
+        assertEquals(23, bones.size()); // Two eye pivots and two eyelid pivots.
         int cubes = 0;
         int faces = 0;
         double maxY = Double.NEGATIVE_INFINITY;
@@ -36,8 +36,8 @@ class MushroomKingAssetsTest {
                 maxY = Math.max(maxY, y + cube.getAsJsonArray("size").get(1).getAsDouble());
             }
         }
-        assertEquals(290, cubes);
-        assertEquals(1303, faces);
+        assertEquals(292, cubes); // Existing eyes regrouped; only two thin lids added.
+        assertEquals(1315, faces);
         assertEquals(0.0, minY, 0.0001);
         assertEquals(103.0, maxY, 0.0001);
         assertEquals(6.4375, maxY / 16.0, 0.0001);
@@ -236,10 +236,10 @@ class MushroomKingAssetsTest {
 
     @Test
     void noLegacyCombatAnimationsOrSoundsRemain() throws Exception {
-        assertTrue(json(ROOT + "animations/virtual_mushroom_king.animation.json")
-                .getAsJsonObject("animations").isEmpty());
+        assertEquals(18,json(ROOT + "animations/virtual_mushroom_king.animation.json")
+                .getAsJsonObject("animations").size());
         assertTrue(json(ROOT + "sounds.json").keySet().stream()
-                .noneMatch(key -> key.startsWith("mushroom_king.")));
+                .noneMatch(key -> key.startsWith("mushroom_king.") && !key.equals("mushroom_king.dodge_success")));
         for (String path : new String[]{"textures/gui/boss/mushroom_king_bar.png",
                 "particles/mushroom_spore_glow.json", "textures/effect/mushroom_telegraph.png"}) {
             try (InputStream stream = getClass().getResourceAsStream(ROOT + path)) {

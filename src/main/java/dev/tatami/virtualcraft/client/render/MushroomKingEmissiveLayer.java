@@ -34,10 +34,21 @@ final class MushroomKingEmissiveLayer extends GeoRenderLayer<VirtualMushroomKing
             return;
         }
         RenderType emissive = RenderType.entityTranslucentEmissive(TEXTURE);
-        // Static entity: both resources share the root/hips/torso/head rest pose.
-        // Future animations must synchronize these parent transforms.
+        for (String name : new String[]{"root", "hips", "torso", "head", "left_eye", "right_eye"}) {
+            var source = body.getBone(name);
+            var destination = eyes.getBone(name);
+            if (source.isPresent() && destination.isPresent()) {
+                var from = source.get();
+                var to = destination.get();
+                to.updateRotation(from.getRotX(), from.getRotY(), from.getRotZ());
+                to.updatePosition(from.getPosX(), from.getPosY(), from.getPosZ());
+                to.setScaleX(from.getScaleX());
+                to.setScaleY(from.getScaleY());
+                to.setScaleZ(from.getScaleZ());
+            }
+        }
         getRenderer().reRender(eyes, poseStack, buffers, entity, emissive,
-                buffers.getBuffer(emissive), partialTick, LightTexture.FULL_BRIGHT,
+                EffectBloom.buffer(buffers, emissive), partialTick, LightTexture.FULL_BRIGHT,
                 OverlayTexture.NO_OVERLAY, 0xFFFFFFFF);
     }
 }

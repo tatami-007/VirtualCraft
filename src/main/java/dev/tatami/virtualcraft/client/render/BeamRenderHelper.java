@@ -127,7 +127,7 @@ public final class BeamRenderHelper {
 		Matrix4f pose = last.pose();
 		// 改用 BEAM_NO_DEPTH：原 vanilla beaconBeam 有 LEQUAL 深度测试，被中间机器挡住光束就被剪断，
 		// 玩家看不到光束"打到"目标高亮立方体上。无深度测试版本让光束始终绘制在场景之上。
-		VertexConsumer consumer = buffers.getBuffer(BEAM_NO_DEPTH);
+		VertexConsumer consumer = EffectBloom.buffer(buffers, BEAM_NO_DEPTH);
 		float v0 = getTextureScroll();
 		float v1 = v0 + (float) length * 1.6f;
 

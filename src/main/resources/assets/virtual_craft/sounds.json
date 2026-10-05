@@ -1,4 +1,7 @@
 {
+  "mushroom_king.dodge_success": {
+    "sounds": [{ "name": "virtual_craft:mushroom_king/dodge_success", "attenuation_distance": 20 }]
+  },
   "snake_king.summon": {
     "subtitle": "subtitle.virtual_craft.snake_king.summon",
     "sounds": [

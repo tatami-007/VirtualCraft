@@ -1,0 +1,9 @@
+{
+  "vertex": "virtual_craft:effect_bloom_screen",
+  "fragment": "virtual_craft:effect_bloom_blur",
+  "samplers": [{"name": "DiffuseSampler"}],
+  "uniforms": [
+    {"name": "Direction", "type": "float", "count": 2, "values": [0.0, 0.0]},
+    {"name": "Extract", "type": "float", "count": 1, "values": [0.0]}
+  ]
+}

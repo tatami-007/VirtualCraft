@@ -14,6 +14,7 @@ public final class ModSounds {
 	public static final DeferredRegister<SoundEvent> REGISTRY =
 			DeferredRegister.create(Registries.SOUND_EVENT, VirtualCraft.MODID);
 
+	public static final DeferredHolder<SoundEvent, SoundEvent> MUSHROOM_DODGE_SUCCESS = register("mushroom_king.dodge_success");
 	public static final DeferredHolder<SoundEvent, SoundEvent> SNAKE_KING_SUMMON = register("snake_king.summon");
 	public static final DeferredHolder<SoundEvent, SoundEvent> SNAKE_KING_ROAR = register("snake_king.roar");
 	public static final DeferredHolder<SoundEvent, SoundEvent> SNAKE_KING_BITE = register("snake_king.bite");

@@ -51,6 +51,10 @@ public final class NetworkMessageRegistry {
 	@SuppressWarnings({"rawtypes", "unchecked"})
 	public static void registerPayloadHandlers(RegisterPayloadHandlersEvent event) {
 		PayloadRegistrar registrar = event.registrar(VirtualCraft.MODID);
+		registrar.playToClient(CombatDefenseSuccessPayload.TYPE, CombatDefenseSuccessPayload.STREAM_CODEC, CombatDefenseSuccessPayload::handle);
+		registrar.playToClient(MushroomBossReactionPayload.TYPE, MushroomBossReactionPayload.STREAM_CODEC, MushroomBossReactionPayload::handle);
+		registrar.playToClient(MushroomPlayerControlPayload.TYPE, MushroomPlayerControlPayload.STREAM_CODEC, MushroomPlayerControlPayload::handle);
+		registrar.playToServer(CombatJumpIntentPayload.TYPE, CombatJumpIntentPayload.STREAM_CODEC, CombatJumpIntentPayload::handle);
 		MESSAGES.forEach((id, networkMessage) -> registrar.playBidirectional(id, ((NetworkMessage) networkMessage).reader(), ((NetworkMessage) networkMessage).handler()));
 		networkingRegistered = true;
 	}

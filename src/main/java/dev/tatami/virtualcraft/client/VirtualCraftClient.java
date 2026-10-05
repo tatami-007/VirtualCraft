@@ -90,6 +90,8 @@ public final class VirtualCraftClient {
 	public static void registerShaders(RegisterShadersEvent event) {
 		try {
 			dev.tatami.virtualcraft.client.overlay.ShockOverlayShaders.register(event);
+			dev.tatami.virtualcraft.client.render.CombatDefenseEffects.registerShaders(event);
+			dev.tatami.virtualcraft.client.render.EffectBloom.registerShaders(event);
 		} catch (Exception exception) {
 			throw new RuntimeException("Failed to register electric overlay shader", exception);
 		}
@@ -102,6 +104,14 @@ public final class VirtualCraftClient {
 	}
 
 	public static void registerClientExtensions(RegisterClientExtensionsEvent event) {
+		// Control effects are real, milk-curable effects; this iteration has no status UI.
+		event.registerMobEffect(new net.neoforged.neoforge.client.extensions.common.IClientMobEffectExtensions() {
+			@Override public boolean isVisibleInInventory(net.minecraft.world.effect.MobEffectInstance effect) { return false; }
+			@Override public boolean isVisibleInGui(net.minecraft.world.effect.MobEffectInstance effect) { return false; }
+		}, dev.tatami.virtualcraft.registry.ModMobEffects.SPORE_DRAG,
+				dev.tatami.virtualcraft.registry.ModMobEffects.MYCELIAL_SNARE,
+				dev.tatami.virtualcraft.registry.ModMobEffects.SPORE_MISDIRECTION,
+				dev.tatami.virtualcraft.registry.ModMobEffects.SPORE_REVERSAL);
 		event.registerItem(VirtualSwordClientExtensions.INSTANCE,
 				ModItems.VIRTUAL_IRON_SWORD.get(),
 				ModItems.VIRTUAL_SILVER_SWORD.get(),
@@ -128,6 +138,10 @@ public final class VirtualCraftClient {
 	 * resource packs may have changed between sessions.
 	 */
 	public static void onClientLogout(ClientPlayerNetworkEvent.LoggingOut event) {
+		MushroomBossFeedback.clear();
+		dev.tatami.virtualcraft.client.render.CombatDefenseEffects.clear();
+		dev.tatami.virtualcraft.client.render.EffectBloom.release();
+		MushroomPlayerControls.clear();
 		HolographicShopClientCache.invalidate();
 		dev.tatami.virtualcraft.client.screen.holographic.HolographicMarketData.invalidate();
 		HolographicIconCache.invalidate();
@@ -135,15 +149,32 @@ public final class VirtualCraftClient {
 	}
 
 	public static void onClientTick(ClientTickEvent.Post event) {
+		dev.tatami.virtualcraft.client.render.CombatDefenseEffects.tick();
 		LightningForestClientEffects.tick();
 		SnakeKingSummonPreview.tick();
 		SnakeBossCombatFeedback.tick();
 		SnakeBossMusic.tick();
 	}
 
+	public static void initializeCombat() {
+		net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(dev.tatami.virtualcraft.client.render.EffectBloom::onStage);
+		dev.tatami.virtualcraft.network.CombatDefenseSuccessPayload.setClientReceiver(dev.tatami.virtualcraft.client.render.CombatDefenseEffects::accept);
+		net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(dev.tatami.virtualcraft.client.render.CombatDefenseEffects::render);
+		net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(CombatInputTracker::onJump);
+		initializeMushroomControls();
+	}
+
+	private static void initializeMushroomControls() {
+		dev.tatami.virtualcraft.network.MushroomBossReactionPayload.setClientReceiver(MushroomBossFeedback::accept);
+		dev.tatami.virtualcraft.network.MushroomPlayerControlPayload.setClientReceiver(MushroomPlayerControls::accept);
+		net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(MushroomPlayerControls::onInput);
+		net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(MushroomPlayerControls::onJump);
+	}
+
 	public static void registerEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
 		event.registerEntityRenderer(ModEntityTypes.VIRTUAL_SNAKE_KING.get(), VirtualSnakeKingRenderer::new);
 		event.registerEntityRenderer(ModEntityTypes.VIRTUAL_MUSHROOM_KING.get(), VirtualMushroomKingRenderer::new);
+		event.registerEntityRenderer(ModEntityTypes.MUSHROOM_ATTACK.get(), dev.tatami.virtualcraft.client.render.MushroomAttackRenderer::new);
 		event.registerEntityRenderer(ModEntityTypes.SNAKE_FANG.get(), SnakeFangRenderer::new);
 		event.registerEntityRenderer(ModEntityTypes.SNAKE_SPELL_NODE.get(), SnakeSpellNodeRenderer::new);
 	}

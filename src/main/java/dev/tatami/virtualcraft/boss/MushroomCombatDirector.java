@@ -2,9 +2,8 @@ package dev.tatami.virtualcraft.boss;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
+import dev.tatami.virtualcraft.combat.HitLedger;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
 /** Pure tick state machine: the entity supplies targets, geometry and actual damage. */
@@ -28,7 +27,7 @@ public final class MushroomCombatDirector {
     private int resolved;
     private boolean needsCombo;
     private final long[] readyAt = new long[MushroomCombatRules.COMBOS.size()];
-    private final Set<HitKey> handled = new HashSet<>();
+    private final HitLedger<HitKey> handled = new HitLedger<>();
 
     public Mode mode() { return mode; }
     public int elapsed() { return elapsed; }
@@ -48,25 +47,29 @@ public final class MushroomCombatDirector {
     }
 
     public int select(float health, long now, double distance, double height, boolean visible, double random) {
+        return select(health, now, new MushroomCombatRules.SelectionContext(distance, height, visible, 0, false), random);
+    }
+
+    public int select(float health, long now, MushroomCombatRules.SelectionContext context, double random) {
         if (mode != Mode.IDLE) return -1;
         int phase = MushroomCombatRules.phase(health);
         int total = 0;
         for (var candidate : MushroomCombatRules.COMBOS) {
-            if (eligible(candidate, now, distance, height, visible)) total += MushroomCombatRules.weight(phase, candidate.id());
+            if (eligible(candidate, now, context)) total += MushroomCombatRules.selectionWeight(phase, candidate, context);
         }
         if (total == 0) return -1;
         double roll = Math.max(0, Math.min(Math.nextDown(1.0), random)) * total;
         for (var candidate : MushroomCombatRules.COMBOS) {
-            if (!eligible(candidate, now, distance, height, visible)) continue;
-            roll -= MushroomCombatRules.weight(phase, candidate.id());
+            if (!eligible(candidate, now, context)) continue;
+            roll -= MushroomCombatRules.selectionWeight(phase, candidate, context);
             if (roll < 0) return candidate.id();
         }
         return -1;
     }
 
-    private boolean eligible(MushroomCombatRules.Combo candidate, long now, double distance, double height, boolean visible) {
+    private boolean eligible(MushroomCombatRules.Combo candidate, long now, MushroomCombatRules.SelectionContext context) {
         return candidate.id() != lastCombo && now >= readyAt[candidate.id()]
-                && MushroomCombatRules.canStart(candidate, distance, height, visible);
+                && MushroomCombatRules.canStart(candidate, context);
     }
 
     public void beginCombo(int id) {
@@ -97,7 +100,8 @@ public final class MushroomCombatDirector {
             var sequence = definition.hits();
             for (int i = 0; i < sequence.size(); i++) {
                 var hit = sequence.get(i);
-                if (elapsed >= hit.tick() && elapsed < hit.tick() + MushroomCombatRules.HIT_WINDOW) {
+                int window = hit.form().ranged() ? 1 : MushroomCombatRules.HIT_WINDOW;
+                if (elapsed >= hit.tick() && elapsed < hit.tick() + window) {
                     hits.add(new IndexedHit(i, hit));
                 }
             }
@@ -121,7 +125,7 @@ public final class MushroomCombatDirector {
         return new TickResult(List.copyOf(hits), release);
     }
 
-    public boolean handleOnce(int strike, UUID player) { return handled.add(new HitKey(strike, player)); }
+    public boolean handleOnce(int strike, UUID player) { return handled.consume(new HitKey(strike, player)); }
 
     public Snapshot snapshot() {
         return new Snapshot(triggered, resolved, needsCombo, ultimate, lastCombo, readyAt);

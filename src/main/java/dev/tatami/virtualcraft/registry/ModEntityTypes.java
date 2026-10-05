@@ -3,6 +3,7 @@ package dev.tatami.virtualcraft.registry;
 import dev.tatami.virtualcraft.VirtualCraft;
 import dev.tatami.virtualcraft.entity.VirtualSnakeKing;
 import dev.tatami.virtualcraft.entity.VirtualMushroomKing;
+import dev.tatami.virtualcraft.entity.MushroomAttackEntity;
 import dev.tatami.virtualcraft.entity.SnakeFangProjectile;
 import dev.tatami.virtualcraft.entity.SnakeSpellNode;
 import net.minecraft.core.registries.Registries;
@@ -49,6 +50,10 @@ public final class ModEntityTypes {
 					.clientTrackingRange(16)
 					.updateInterval(2)
 					.build(VirtualCraft.MODID + ":snake_spell_node"));
+	public static final DeferredHolder<EntityType<?>, EntityType<MushroomAttackEntity>> MUSHROOM_ATTACK = REGISTRY.register(
+			"mushroom_attack", () -> EntityType.Builder.of(MushroomAttackEntity::new, MobCategory.MISC)
+					.sized(2.5F, 2.2F).clientTrackingRange(16).updateInterval(1).noSave()
+					.build(VirtualCraft.MODID + ":mushroom_attack"));
 	public static void registerAttributes(EntityAttributeCreationEvent event) {
 		event.put(VIRTUAL_SNAKE_KING.get(), VirtualSnakeKing.createAttributes().build());
 		event.put(VIRTUAL_MUSHROOM_KING.get(), VirtualMushroomKing.createAttributes().build());

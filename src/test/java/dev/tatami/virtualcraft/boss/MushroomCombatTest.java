@@ -1,4 +1,5 @@
 package dev.tatami.virtualcraft.boss;
+import dev.tatami.virtualcraft.combat.AttackType;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -13,7 +14,7 @@ class MushroomCombatTest {
     void allSevenRhythmsRetainTheirGroupsDamageAndTickTimes() {
         String[] rhythms = {"下下 下", "下下下", "下下下上", "下下 下 下", "下下 下上", "中中 中", "中中中"};
         int[][] ticks = {{24,42,78},{24,42,60},{24,42,60,78},{24,42,78,114},{24,42,78,96},{24,42,78},{24,42,60}};
-        float[][] damage = {{18,18,24},{18,18,24},{18,18,22,26},{18,18,22,26},{18,18,22,26},{20,20,26},{20,20,26}};
+        float[][] damage = {{18,18,24},{14,14,18},{16,16,18,22},{12,12,16,20},{16,16,14,20},{20,20,28},{18,18,24}};
         int[] durations = {106,88,110,146,128,106,88};
         assertEquals(7, MushroomCombatRules.COMBOS.size());
         for (int i = 0; i < 7; i++) {
@@ -31,20 +32,21 @@ class MushroomCombatTest {
                 assertEquals(36, combo.groups().get(j).getFirst().tick() - combo.groups().get(j-1).getLast().tick());
             }
         }
-        assertEquals(MushroomAttackType.HIGH, MushroomCombatRules.COMBOS.get(2).hits().getLast().type());
-        assertEquals(MushroomAttackType.HIGH, MushroomCombatRules.COMBOS.get(4).hits().getLast().type());
-        assertTrue(MushroomCombatRules.COMBOS.get(5).hits().stream().allMatch(hit -> hit.type() == MushroomAttackType.MID));
+        assertEquals(AttackType.HIGH, MushroomCombatRules.COMBOS.get(2).hits().getLast().type());
+        assertEquals(AttackType.HIGH, MushroomCombatRules.COMBOS.get(4).hits().getLast().type());
+        assertTrue(MushroomCombatRules.COMBOS.get(5).hits().stream().allMatch(hit -> hit.type() == AttackType.MID));
     }
 
     @Test
-    void everyHitHasExactlyTwoActiveTicksAndRecoveryDoesNotShortenIt() {
+    void meleeHasTwoActiveTicksAndRangedLaunchesExactlyOnce() {
         for (var combo : MushroomCombatRules.COMBOS) {
             var director = new MushroomCombatDirector();
             director.beginCombo(combo.id());
             for (int tick = 1; tick <= combo.duration(); tick++) {
                 var result = director.advance(tick);
                 final int now = tick;
-                var expected = combo.hits().stream().filter(hit -> now >= hit.tick() && now < hit.tick()+2).toList();
+                var expected = combo.hits().stream().filter(hit -> now >= hit.tick()
+                        && now < hit.tick() + (hit.form().ranged() ? 1 : 2)).toList();
                 assertEquals(expected, result.hits().stream().map(MushroomCombatDirector.IndexedHit::hit).toList());
                 assertEquals(-1, result.ultimateToResolve());
                 assertEquals(tick == combo.duration() ? MushroomCombatDirector.Mode.IDLE : MushroomCombatDirector.Mode.COMBO, director.mode());
@@ -69,17 +71,19 @@ class MushroomCombatTest {
     @Test
     void selectionHonoursRangeSightHeightAndAllCombosAreAvailableInEveryPhase() {
         var director = new MushroomCombatDirector();
-        assertEquals(-1, director.select(300, 0, 6.01, 0, true, 0));
+        assertEquals(-1, director.select(300, 0, 18.01, 0, true, 0));
         assertEquals(-1, director.select(300, 0, 3, 3.01, true, 0));
         assertEquals(-1, director.select(300, 0, 3, 0, false, 0));
         for (float health : new float[]{300,210,105}) {
-            Set<Integer> close = new HashSet<>(), far = new HashSet<>();
+            Set<Integer> close = new HashSet<>(), far = new HashSet<>(), ranged = new HashSet<>();
             for (int i = 0; i < 1000; i++) {
                 close.add(director.select(health, 0, 4, 3, true, (i+0.5)/1000));
                 far.add(director.select(health, 0, 6, 0, true, (i+0.5)/1000));
+                ranged.add(director.select(health, 0, 18, 0, true, (i+0.5)/1000));
             }
-            assertEquals(Set.of(0,1,2,3,4,5,6), close);
-            assertEquals(Set.of(0,1,2,3,4), far);
+            assertEquals(Set.of(0,2,4,5,6), close);
+            assertEquals(Set.of(0,2,4), far);
+            assertEquals(Set.of(1,3), ranged);
         }
     }
 
@@ -91,10 +95,13 @@ class MushroomCombatTest {
         assertEquals(1, MushroomCombatRules.phase(105.01F));
         assertEquals(2, MushroomCombatRules.phase(105));
         for (int phase = 0; phase < 3; phase++) {
-            int[] observed = new int[7];
+            for (int id = 0; id < 7; id++) assertEquals(expected[phase][id], MushroomCombatRules.weight(phase,id));
             var director = new MushroomCombatDirector();
-            for (int i = 0; i < 100; i++) observed[director.select(new float[]{300,210,105}[phase],0,3,0,true,(i+0.5)/100)]++;
-            assertArrayEquals(expected[phase], observed);
+            int first = 0;
+            for (int i = 0; i < 1000; i++) {
+                if (director.select(new float[]{300,210,105}[phase],0,12,0,true,(i+0.5)/1000) == 1) first++;
+            }
+            assertEquals(1000.0 * expected[phase][1] / (expected[phase][1]+expected[phase][3]), first, 1);
         }
     }
 
@@ -103,7 +110,7 @@ class MushroomCombatTest {
         var director = new MushroomCombatDirector();
         director.beginCombo(0);
         for (int tick = 1; tick <= 106; tick++) director.advance(tick);
-        assertEquals(-1, director.select(300, 106, 8, 0, true, 0));
+        assertEquals(-1, director.select(300, 106, 19, 0, true, 0));
         for (int i = 0; i < 100; i++) assertNotEquals(0, director.select(300,1000,3,0,true,i/100.0));
         director.beginCombo(1);
         for (int tick = 107; tick <= 194; tick++) director.advance(tick);
@@ -129,15 +136,15 @@ class MushroomCombatTest {
     void aimLocksAfterTwelveTicksAndSectorsHaveRealEdges() {
         assertTrue(MushroomCombatRules.canAim(11));
         assertFalse(MushroomCombatRules.canAim(12));
-        assertTrue(volume(MushroomAttackType.LOW,6,60,0,true));
-        assertFalse(volume(MushroomAttackType.LOW,6,60.1,0,true));
-        assertFalse(volume(MushroomAttackType.LOW,6.01,0,0,true));
-        assertTrue(volume(MushroomAttackType.MID,4,40,3,true));
-        assertFalse(volume(MushroomAttackType.MID,4,40.1,0,true));
-        assertFalse(volume(MushroomAttackType.MID,4.01,0,0,true));
-        assertFalse(volume(MushroomAttackType.HIGH,3,0,3.01,true));
-        assertFalse(volume(MushroomAttackType.LOW,3,0,0,false));
-        assertFalse(volume(MushroomAttackType.MID,3,180,0,true));
+        assertTrue(volume(AttackType.LOW,6,60,0,true));
+        assertFalse(volume(AttackType.LOW,6,60.1,0,true));
+        assertFalse(volume(AttackType.LOW,6.01,0,0,true));
+        assertTrue(volume(AttackType.MID,4,40,3,true));
+        assertFalse(volume(AttackType.MID,4,40.1,0,true));
+        assertFalse(volume(AttackType.MID,4.01,0,0,true));
+        assertFalse(volume(AttackType.HIGH,3,0,3.01,true));
+        assertFalse(volume(AttackType.LOW,3,0,0,false));
+        assertFalse(volume(AttackType.MID,3,180,0,true));
     }
 
     @Test
@@ -155,7 +162,7 @@ class MushroomCombatTest {
         }
         assertEquals(-1, director.pendingUltimate());
         assertTrue(director.needsCombo());
-        assertEquals(-1, director.select(100,226,10,0,true,0));
+        assertEquals(-1, director.select(100,226,19,0,true,0));
         assertThrows(IllegalStateException.class, director::beginUltimate);
         director.beginCombo(1);
         for (int tick = 1; tick < 88; tick++) {
@@ -234,7 +241,7 @@ class MushroomCombatTest {
         assertFalse(MushroomCombatRules.validParticipant(true,false,false,false));
     }
 
-    private boolean volume(MushroomAttackType type, double radius, double angle, double height, boolean visible) {
+    private boolean volume(AttackType type, double radius, double angle, double height, boolean visible) {
         return MushroomCombatRules.inHitVolume(type, radius*Math.sin(Math.toRadians(angle)),
                 radius*Math.cos(Math.toRadians(angle)),height,0,1,visible);
     }

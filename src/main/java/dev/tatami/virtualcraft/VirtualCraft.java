@@ -33,7 +33,7 @@ import dev.tatami.virtualcraft.exchange.ExchangeRateService;
 import dev.tatami.virtualcraft.gameplay.HolographicTerminalSession;
 import dev.tatami.virtualcraft.gameplay.SnakeKingBlessingHandler;
 import dev.tatami.virtualcraft.gameplay.VirtualWeaponParryHandler;
-import dev.tatami.virtualcraft.gameplay.MushroomDefenseHandler;
+import dev.tatami.virtualcraft.combat.CombatDefenseService;
 import dev.tatami.virtualcraft.network.CloseHolographicTerminalPayload;
 import dev.tatami.virtualcraft.network.NetworkMessageRegistry;
 import dev.tatami.virtualcraft.energy.WirelessEnergyNetwork;
@@ -95,6 +95,7 @@ public class VirtualCraft {
 			modEventBus.addListener(VirtualCraftClient::registerItemColors);
 			modEventBus.addListener(VirtualCraftClient::registerShaders);
 			modEventBus.addListener(VirtualCraftClient::registerEntityRenderers);
+			modEventBus.addListener(dev.tatami.virtualcraft.client.render.CombatDefenseEffects::addLayers);
 			modEventBus.addListener(VirtualCraftClient::registerParticles);
 			modEventBus.addListener(VirtualCraftClient::registerClientExtensions);
 			modEventBus.addListener(dev.tatami.virtualcraft.client.ThunderPoolClient::registerFluidExtensions);
@@ -115,6 +116,7 @@ public class VirtualCraft {
 			// ModernUI View.postDelayed is unreliable on the render thread, so
 			// we drive transitions from the 20 Hz client tick instead.
 			NeoForge.EVENT_BUS.addListener(VirtualCraftClient::onClientTick);
+			VirtualCraftClient.initializeCombat();
 		}
 
 		// 1:1 ME-Beam-Former 全局无线塔管理器 — 集中调度所有塔的能量转发，应听 ServerTickEvent.Post + ServerStoppedEvent
@@ -125,10 +127,19 @@ public class VirtualCraft {
 		NeoForge.EVENT_BUS.addListener(SnakeKingBlessingHandler::amplifyDamage);
 		NeoForge.EVENT_BUS.addListener(SnakeKingBlessingHandler::onPlayerTick);
 		NeoForge.EVENT_BUS.addListener(VirtualWeaponParryHandler::onIncomingDamage);
-		NeoForge.EVENT_BUS.addListener(MushroomDefenseHandler::onJump);
-		NeoForge.EVENT_BUS.addListener(MushroomDefenseHandler::onKnockback);
-		NeoForge.EVENT_BUS.addListener(MushroomDefenseHandler::onUseStart);
-		NeoForge.EVENT_BUS.addListener(MushroomDefenseHandler::onUseTick);
+		NeoForge.EVENT_BUS.addListener(CombatDefenseService::onJump);
+		NeoForge.EVENT_BUS.addListener(EventPriority.HIGHEST, dev.tatami.virtualcraft.combat.CombatImpactService::suppressVanilla);
+		NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST, CombatDefenseService::onKnockback);
+		NeoForge.EVENT_BUS.addListener(CombatDefenseService::onUseStart);
+		NeoForge.EVENT_BUS.addListener(CombatDefenseService::onUseTick);
+		NeoForge.EVENT_BUS.addListener(dev.tatami.virtualcraft.gameplay.MushroomAfflictionHandler::onTick);
+		NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST, dev.tatami.virtualcraft.gameplay.MushroomAfflictionHandler::onRemoved);
+		NeoForge.EVENT_BUS.addListener(dev.tatami.virtualcraft.gameplay.MushroomAfflictionHandler::onLogin);
+		NeoForge.EVENT_BUS.addListener(dev.tatami.virtualcraft.gameplay.MushroomAfflictionHandler::onLogout);
+		NeoForge.EVENT_BUS.addListener(dev.tatami.virtualcraft.gameplay.MushroomAfflictionHandler::onDimension);
+		NeoForge.EVENT_BUS.addListener(dev.tatami.virtualcraft.gameplay.MushroomAfflictionHandler::onRespawn);
+		NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST, dev.tatami.virtualcraft.gameplay.MushroomAfflictionHandler::onDeath);
+		NeoForge.EVENT_BUS.addListener(dev.tatami.virtualcraft.gameplay.MushroomAfflictionHandler::onServerStop);
 
 		ModFluids.TYPES.register(modEventBus);
 		ModFluids.REGISTRY.register(modEventBus);

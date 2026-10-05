@@ -38,9 +38,10 @@ public final class ModArmorMaterials {
 			new ArmorSetProfile(45, 20, 5, 8, 10, 5, 10, 5.0F, 0.15F);
 	public static final ArmorSetProfile VIRTUAL_CHROMIUM_PROFILE =
 			new ArmorSetProfile(60, 24, 7, 10, 12, 7, 12, 7.0F, 0.25F);
-	public static final ArmorSetProfile VIRTUAL_SNAKE_KING_PROFILE = VIRTUAL_CHROMIUM_PROFILE;
+	public static final ArmorSetProfile VIRTUAL_SNAKE_KING_PROFILE =
+			new ArmorSetProfile(60, 24, 7, 10, 12, 7, 12, 7.0F, 0.10F);
 	public static final ArmorSetProfile VIRTUAL_MUSHROOM_KING_PROFILE =
-			new ArmorSetProfile(72, 28, 8, 11, 13, 8, 13, 8.0F, 0.30F);
+			new ArmorSetProfile(72, 28, 8, 11, 13, 8, 13, 8.0F, 0.15F);
 
 	public static final DeferredHolder<ArmorMaterial, ArmorMaterial> VIRTUAL_IRON = register(
 			"virtual_iron", VIRTUAL_IRON_PROFILE, SoundEvents.ARMOR_EQUIP_IRON,

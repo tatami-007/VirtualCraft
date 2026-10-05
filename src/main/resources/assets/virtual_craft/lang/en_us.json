@@ -435,6 +435,10 @@
   "item.virtual_craft.virtual_mushroom_king_boots": "Virtual Mushroom King Boots",
   "item.virtual_craft.virtual_mushroom_king_sword": "Virtual Mushroom King Sword",
   "effect.virtual_craft.snake_king_blessing": "Snake King's Blessing",
+  "effect.virtual_craft.spore_drag": "Spore Drag",
+  "effect.virtual_craft.mycelial_snare": "Mycelial Snare",
+  "effect.virtual_craft.spore_misdirection": "Spore Misdirection",
+  "effect.virtual_craft.spore_reversal": "Spore Reversal",
   "tooltip.virtual_craft.weapon.snake_king_affliction": "Hit: 30% chance to inflict poison, wither, or fire",
   "tooltip.virtual_craft.weapon.mushroom_king_spores": "Hit: 35% chance to inflict spore rot",
   "tooltip.virtual_craft.snake_king_key.use": "Use at a Snake King Altar",
@@ -537,5 +541,15 @@
   "screen.virtual_craft.quantum_simulation.output": "Output: %s",
   "screen.virtual_craft.quantum_simulation.output_slot": "Output",
   "screen.virtual_craft.quantum_simulation.hash_quality": "Quality scales with compute and power stability",
-  "screen.virtual_craft.quantum_simulation.output_full": "OUTPUT FULL"
+  "screen.virtual_craft.quantum_simulation.output_full": "OUTPUT FULL",
+  "entity.virtual_craft.mushroom_attack": "Mushroom King's Attack",
+  "skill.virtual_craft.mushroom_king.0": "Earthcleaver Sweep",
+  "skill.virtual_craft.mushroom_king.1": "Hunting Cores",
+  "skill.virtual_craft.mushroom_king.2": "Root and Reap",
+  "skill.virtual_craft.mushroom_king.3": "Deep Root Summons",
+  "skill.virtual_craft.mushroom_king.4": "Trip and Sever",
+  "skill.virtual_craft.mushroom_king.5": "Timberbreaker",
+  "skill.virtual_craft.mushroom_king.6": "Brutal Palm Chain",
+  "skill.virtual_craft.mushroom_king.ultimate_0": "Crown's Wrath",
+  "skill.virtual_craft.mushroom_king.ultimate_1": "Mycelial Resonance"
 }

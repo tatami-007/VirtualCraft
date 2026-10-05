@@ -435,6 +435,10 @@
   "item.virtual_craft.virtual_mushroom_king_boots": "虚拟蘑菇王战靴",
   "item.virtual_craft.virtual_mushroom_king_sword": "虚拟蘑菇王剑",
   "effect.virtual_craft.snake_king_blessing": "蛇王的加护",
+  "effect.virtual_craft.spore_drag": "孢毒滞步",
+  "effect.virtual_craft.mycelial_snare": "菌丝缠足",
+  "effect.virtual_craft.spore_misdirection": "偏向孢幻",
+  "effect.virtual_craft.spore_reversal": "逆行孢幻",
   "tooltip.virtual_craft.weapon.snake_king_affliction": "命中：30% 施加剧毒、凋零或燃烧",
   "tooltip.virtual_craft.weapon.mushroom_king_spores": "命中：35% 施加孢蚀",
   "tooltip.virtual_craft.snake_king_key.use": "在蛇王祭坛使用",
@@ -537,5 +541,15 @@
   "screen.virtual_craft.quantum_simulation.output": "产物：%s",
   "screen.virtual_craft.quantum_simulation.output_slot": "输出槽",
   "screen.virtual_craft.quantum_simulation.hash_quality": "品质随算力与供电稳定性提升",
-  "screen.virtual_craft.quantum_simulation.output_full": "输出槽已满"
+  "screen.virtual_craft.quantum_simulation.output_full": "输出槽已满",
+  "entity.virtual_craft.mushroom_attack": "菌王攻击",
+  "skill.virtual_craft.mushroom_king.0": "裂土重扫",
+  "skill.virtual_craft.mushroom_king.1": "菌核逐猎",
+  "skill.virtual_craft.mushroom_king.2": "盘根掠首",
+  "skill.virtual_craft.mushroom_king.3": "地脉三催",
+  "skill.virtual_craft.mushroom_king.4": "断步封喉",
+  "skill.virtual_craft.mushroom_king.5": "菌木破阵",
+  "skill.virtual_craft.mushroom_king.6": "蛮掌连摧",
+  "skill.virtual_craft.mushroom_king.ultimate_0": "菌冠震怒",
+  "skill.virtual_craft.mushroom_king.ultimate_1": "万菌共鸣"
 }

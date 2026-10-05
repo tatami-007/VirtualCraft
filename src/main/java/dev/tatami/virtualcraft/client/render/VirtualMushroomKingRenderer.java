@@ -12,4 +12,6 @@ public final class VirtualMushroomKingRenderer extends GeoEntityRenderer<Virtual
         shadowRadius = 2.5F;
         addRenderLayer(new MushroomKingEmissiveLayer(this));
     }
+
+    @Override protected float getDeathMaxRotation(VirtualMushroomKing entity) { return 0; }
 }

@@ -1,0 +1,6 @@
+{
+  "vertex": "virtual_craft:effect_bloom_screen",
+  "fragment": "virtual_craft:effect_bloom_composite",
+  "samplers": [{"name": "NearSampler"}, {"name": "MiddleSampler"}, {"name": "FarSampler"}],
+  "uniforms": [{"name": "Strength", "type": "float", "count": 1, "values": [1.15]}]
+}
